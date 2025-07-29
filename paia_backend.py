@@ -15,7 +15,7 @@ import uvicorn
 import os
 
 # Configuración
-os.getenv("GOOGLE_API_KEY")
+os.environ["GOOGLE_API_KEY"] = "AIzaSyDD4sluD_ep4p5iovOrspRUoS227PnP30c"
 
 app = FastAPI(title="PAIA Platform Backend", version="1.0.0")
 
@@ -38,6 +38,8 @@ class PAIAAgent:
     status: str
     created: str
     mcp_endpoint: str
+    user_id: Optional[str] = None  # ID del usuario que creó el agente
+    is_public: bool = True  # Si otros usuarios pueden conectarse
     llm_instance: Optional[object] = None
     tools: List = None
     conversation_history: List = None
@@ -99,6 +101,8 @@ Mantén el contexto de toda la conversación y responde de manera natural."""
             status='online',
             created=datetime.now().isoformat(),
             mcp_endpoint=f"http://localhost:{3000 + len(agents_store)}/mcp",
+            user_id=agent_data.get('user_id', 'anonymous'),  # ID del usuario que lo creó
+            is_public=agent_data.get('is_public', True),  # Por defecto es público
             llm_instance=agent_llm,
             tools=agent_tools,
             conversation_history=[]
@@ -358,13 +362,30 @@ async def create_agent(agent_data: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/agents")
-async def get_agents():
+async def get_agents(user_id: str = None):
     agents_list = []
     for agent in agents_store.values():
         agent_dict = asdict(agent)
         agent_dict.pop('llm_instance', None)
         agent_dict.pop('tools', None)
+        
+        # Si se especifica user_id, filtrar solo agentes de ese usuario
+        if user_id and agent.user_id != user_id:
+            continue
+            
         agents_list.append(agent_dict)
+    return agents_list
+
+@app.get("/api/agents/public")
+async def get_public_agents(exclude_user_id: str = None):
+    """Obtener todos los agentes públicos, opcionalmente excluyendo los de un usuario específico"""
+    agents_list = []
+    for agent in agents_store.values():
+        if agent.is_public and (not exclude_user_id or agent.user_id != exclude_user_id):
+            agent_dict = asdict(agent)
+            agent_dict.pop('llm_instance', None)
+            agent_dict.pop('tools', None)
+            agents_list.append(agent_dict)
     return agents_list
 
 @app.post("/api/connections")
@@ -641,12 +662,12 @@ async def health_check():
     }
 
 if __name__ == "__main__":
-    print("🚀 Iniciando PAIA Platform Backend Async...")
-    print("📡 Funcionalidades:")
-    print("   - ✅ Comunicación async entre agentes")
-    print("   - ✅ Contexto de conversación persistente")
-    print("   - ✅ Reconocimiento automático de conexiones")
-    print("   - ✅ Respuestas inmediatas sin errores de loop")
+    print("Iniciando PAIA Platform Backend Async...")
+    print("Funcionalidades:")
+    print("   - Comunicacion async entre agentes")
+    print("   - Contexto de conversacion persistente")
+    print("   - Reconocimiento automatico de conexiones")
+    print("   - Respuestas inmediatas sin errores de loop")
     print("")
     
     uvicorn.run(

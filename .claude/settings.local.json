@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@latest:*)",
+      "Bash(mkdir:*)",
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "Bash(touch:*)",
+      "Bash(npm run dev:*)",
+      "Bash(ls:*)",
+      "Bash(pkill:*)",
+      "Bash(taskkill:*)",
+      "Bash(cmd //c:*)",
+      "Bash(python:*)",
+      "Bash(sed:*)",
+      "Bash(cp:*)",
+      "Bash(rm:*)"
+    ],
+    "deny": []
+  }
+}
