@@ -1,6 +1,6 @@
-# PAIA Simulator
+# PAIA 
 
-Un simulador de agentes PAIA (Personal AI Assistant) desarrollado con Next.js y React, con backend en Python.
+Un sistema de agentes PAIA (Personal AI Assistant) desarrollado con Next.js y React, con backend en Python.
 
 ## Estructura del Proyecto
 
