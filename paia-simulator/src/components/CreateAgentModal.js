@@ -6,7 +6,8 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
     description: '',
     personality: 'friendly',
     expertise: 'general',
-    is_public: true
+    is_public: true,
+    customColor: ''
   });
 
   const handleChange = (field, value) => {

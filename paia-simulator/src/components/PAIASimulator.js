@@ -28,6 +28,37 @@ const nodeTypes = {
 const initialNodes = [];
 const initialEdges = [];
 
+// Colores para agentes basados en personalidad
+const personalityColors = {
+  'Analítico': '#4a6bdf',     // Azul
+  'Creativo': '#8b5cf6',      // Morado
+  'Empático': '#10b981',      // Verde
+  'Pragmático': '#f59e0b',    // Naranja
+  'Entusiasta': '#ec4899',    // Rosa
+  'Metódico': '#06b6d4',      // Cyan
+  'Innovador': '#84cc16',     // Lima
+  'Colaborativo': '#f97316',  // Orange
+  'Estratégico': '#ff6b6b',   // Rojo coral
+  'Aventurero': '#4ecdc4',    // Turquesa
+  'Reflexivo': '#a8e6cf',     // Verde menta
+  'Dinámico': '#ff8b94',      // Rosa salmón
+  'default': '#6366f1'        // Indigo por defecto
+};
+
+const fallbackColors = [
+  '#4a6bdf', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', 
+  '#06b6d4', '#f97316', '#84cc16', '#ec4899', '#6366f1',
+  '#ff6b6b', '#4ecdc4', '#a8e6cf', '#ff8b94', '#feca57',
+  '#48dbfb', '#0abde3', '#006ba6', '#ff9ff3', '#54a0ff'
+];
+
+const getAgentColor = (personality, agentIndex) => {
+  if (personality && personalityColors[personality]) {
+    return personalityColors[personality];
+  }
+  return fallbackColors[agentIndex % fallbackColors.length];
+};
+
 export default function PAIASimulator() {
   const [nodes, setNodes] = useState(initialNodes);
   const [edges, setEdges] = useState(initialEdges);
@@ -169,6 +200,8 @@ export default function PAIASimulator() {
     const id = `actor-${actorIdRef.current}`;
     const actorName = name || `${type === 'human' ? 'Humano' : 'IA'} ${actorIdRef.current}`;
     
+    const agentColor = type === 'ai' ? getAgentColor(null, actorIdRef.current) : undefined;
+    
     const newNode = {
       id,
       type: 'actor',
@@ -180,10 +213,15 @@ export default function PAIASimulator() {
         label: actorName,
         actorType: type,
         emoji: type === 'human' ? '👤' : '🤖',
+        agentColor: agentColor,
         // Mensaje personalizado para nodos humanos
         customMessage: type === 'human' ? 'Hola, necesito tu ayuda con una tarea.' : undefined
       },
       className: `react-flow__node-${type}`,
+      style: type === 'ai' ? {
+        background: agentColor,
+        borderColor: agentColor
+      } : undefined
     };
 
     setNodes((nds) => [...nds, newNode]);
@@ -213,6 +251,8 @@ export default function PAIASimulator() {
       }
     }
     
+    const agentColor = getAgentColor(agentConfig.personality, actorIdRef.current);
+    
     const newNode = {
       id: backendAgent?.id || id,
       type: 'actor',
@@ -228,9 +268,14 @@ export default function PAIASimulator() {
         expertise: agentConfig.expertise,
         description: agentConfig.description,
         backendId: backendAgent?.id,
-        isConfigured: true
+        isConfigured: true,
+        agentColor: agentColor
       },
       className: 'react-flow__node-ai',
+      style: {
+        background: agentColor,
+        borderColor: agentColor
+      }
     };
 
     setNodes((nds) => [...nds, newNode]);
@@ -259,6 +304,8 @@ export default function PAIASimulator() {
       return;
     }
 
+    const agentColor = getAgentColor(publicAgent.personality, actorIdRef.current);
+    
     const newNode = {
       id: `external-${publicAgent.id}`,
       type: 'actor',
@@ -276,11 +323,14 @@ export default function PAIASimulator() {
         backendId: publicAgent.id,
         isConfigured: true,
         isExternal: true, // Marcar como agente externo
-        originalUserId: publicAgent.user_id
+        originalUserId: publicAgent.user_id,
+        agentColor: agentColor
       },
       className: 'react-flow__node-ai',
       style: {
-        border: '2px dashed #6c5ce7', // Estilo diferente para agentes externos
+        background: agentColor,
+        borderColor: agentColor,
+        border: '2px dashed', // Estilo diferente para agentes externos
         opacity: 0.8
       }
     };
