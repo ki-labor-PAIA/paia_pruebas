@@ -28,7 +28,6 @@ paia/
 - **API Key de Google Gemini**
 - **Git**
 
-## Instalación y Ejecución
 
 ### 1. Clonar el repositorio
 
