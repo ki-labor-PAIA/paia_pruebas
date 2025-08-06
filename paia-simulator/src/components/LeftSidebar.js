@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export default function LeftSidebar({
   scenarioName,
@@ -18,6 +19,11 @@ export default function LeftSidebar({
   onCheckBackend
 }) {
   const fileInputRef = useRef(null);
+  const { t, i18n } = useTranslation();
+
+  const changeLanguage = (lng) => {
+    i18n.changeLanguage(lng);
+  };
 
   const handlePresetChange = (e) => {
     const value = e.target.value;
@@ -53,23 +59,23 @@ export default function LeftSidebar({
       </div>
 
       <select onChange={handlePresetChange} className="discreet-button" style={{ marginBottom: 0 }}>
-        <option value="">Elegir escenario...</option>
-        <option value="trash">🗑️ Basura</option>
-        <option value="calendar">📅 Calendario</option>
-        <option value="party">🎉 Cancelar fiesta</option>
+        <option value="">{t('scenarios.choose')}</option>
+        <option value="trash">🗑️ {t('scenarios.trash.name')}</option>
+        <option value="calendar">📅 {t('scenarios.calendar.name')}</option>
+        <option value="party">🎉 {t('scenarios.party.name')}</option>
       </select>
 
       <input 
         type="text" 
         value={scenarioName}
         onChange={(e) => setScenarioName(e.target.value)}
-        placeholder="Nombre del escenario"
+        placeholder={t('form.placeholder.scenarioName')}
       />
       
       <textarea 
         value={scenarioDesc}
         onChange={(e) => setScenarioDesc(e.target.value)}
-        placeholder="Descripción del escenario..." 
+        placeholder={t('form.placeholder.scenarioDescription')} 
         rows="3"
       />
 
@@ -138,7 +144,70 @@ export default function LeftSidebar({
       </div>
 
       <div className="button-group">
-        <div className="button-group-title">▶️ Simulación</div>
+        <div className="button-group-title">🌐 {t('language.english')}</div>
+        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+          <button 
+            onClick={() => changeLanguage('en')}
+            className={`language-button ${i18n.language === 'en' ? 'active' : ''}`}
+            style={{
+              padding: '6px 10px',
+              border: 'none',
+              borderRadius: '4px',
+              backgroundColor: i18n.language === 'en' ? '#007bff' : '#f8f9fa',
+              color: i18n.language === 'en' ? 'white' : '#333',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: i18n.language === 'en' ? 'bold' : 'normal',
+              transition: 'all 0.2s ease',
+              flex: '1',
+              minWidth: '60px'
+            }}
+          >
+            🇺🇸 EN
+          </button>
+          <button 
+            onClick={() => changeLanguage('es')}
+            className={`language-button ${i18n.language === 'es' ? 'active' : ''}`}
+            style={{
+              padding: '6px 10px',
+              border: 'none',
+              borderRadius: '4px',
+              backgroundColor: i18n.language === 'es' ? '#007bff' : '#f8f9fa',
+              color: i18n.language === 'es' ? 'white' : '#333',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: i18n.language === 'es' ? 'bold' : 'normal',
+              transition: 'all 0.2s ease',
+              flex: '1',
+              minWidth: '60px'
+            }}
+          >
+            🇪🇸 ES
+          </button>
+          <button 
+            onClick={() => changeLanguage('fr')}
+            className={`language-button ${i18n.language === 'fr' ? 'active' : ''}`}
+            style={{
+              padding: '6px 10px',
+              border: 'none',
+              borderRadius: '4px',
+              backgroundColor: i18n.language === 'fr' ? '#007bff' : '#f8f9fa',
+              color: i18n.language === 'fr' ? 'white' : '#333',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: i18n.language === 'fr' ? 'bold' : 'normal',
+              transition: 'all 0.2s ease',
+              flex: '1',
+              minWidth: '60px'
+            }}
+          >
+            🇫🇷 FR
+          </button>
+        </div>
+      </div>
+
+      <div className="button-group">
+        <div className="button-group-title">▶️ {t('nav.simulate')}</div>
         <button 
           onClick={onSimulate} 
           className="discreet-button simulation-button"
@@ -146,10 +215,10 @@ export default function LeftSidebar({
           style={{ fontSize: '0.9em', fontWeight: '600' }}
         >
           <i className={`fas ${isSimulating ? 'fa-spinner fa-spin' : 'fa-play'}`}></i> 
-          {isSimulating ? 'Simulando...' : 'Simular'}
+          {isSimulating ? t('status.simulating') : t('nav.simulate')}
         </button>
         <button onClick={onReset} className="discreet-button reset-button">
-          <i className="fas fa-redo"></i> Reiniciar
+          <i className="fas fa-redo"></i> {t('nav.reset')}
         </button>
       </div>
     </div>

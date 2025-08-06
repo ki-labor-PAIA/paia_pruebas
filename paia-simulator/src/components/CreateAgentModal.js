@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -16,7 +18,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
 
   const handleSubmit = () => {
     if (!formData.name.trim()) {
-      alert('El nombre del agente es requerido');
+      alert(t('createAgent.nameRequired'));
       return;
     }
 
@@ -48,7 +50,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
     <div className="modal-overlay">
       <div className="modal-content" style={{ maxWidth: '500px' }}>
         <div className="modal-header">
-          <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>Crear Nuevo Agente PAIA</h3>
+          <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>{t('createAgent.title')}</h3>
         </div>
         
         <div className="modal-body" style={{ padding: '4px 0' }}>
@@ -60,13 +62,13 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
               fontWeight: '500',
               color: 'var(--text-primary)' 
             }}>
-              Nombre del Agente *
+              {t('createAgent.agentName')}
             </label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => handleChange('name', e.target.value)}
-              placeholder="Ej: María Asistente Personal"
+              placeholder={t('createAgent.agentNamePlaceholder')}
               style={{
                 width: '100%',
                 padding: '10px 12px',
@@ -87,12 +89,12 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
               fontWeight: '500',
               color: 'var(--text-primary)' 
             }}>
-              Descripción
+              {t('createAgent.description')}
             </label>
             <textarea
               value={formData.description}
               onChange={(e) => handleChange('description', e.target.value)}
-              placeholder="Describe las capacidades de tu agente..."
+              placeholder={t('createAgent.descriptionPlaceholder')}
               rows="3"
               style={{
                 width: '100%',
@@ -116,7 +118,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
               fontWeight: '500',
               color: 'var(--text-primary)' 
             }}>
-              Personalidad
+              {t('createAgent.personality')}
             </label>
             <select
               value={formData.personality}
@@ -131,10 +133,10 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
                 fontSize: '0.9em'
               }}
             >
-              <option value="friendly">Amigable</option>
-              <option value="professional">Profesional</option>
-              <option value="creative">Creativo</option>
-              <option value="analytical">Analítico</option>
+              <option value="friendly">{t('createAgent.personalities.friendly')}</option>
+              <option value="professional">{t('createAgent.personalities.professional')}</option>
+              <option value="creative">{t('createAgent.personalities.creative')}</option>
+              <option value="analytical">{t('createAgent.personalities.analytical')}</option>
             </select>
           </div>
           
@@ -146,7 +148,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
               fontWeight: '500',
               color: 'var(--text-primary)' 
             }}>
-              Área de Expertise
+              {t('createAgent.expertise')}
             </label>
             <select
               value={formData.expertise}
@@ -161,12 +163,12 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
                 fontSize: '0.9em'
               }}
             >
-              <option value="general">Asistente General</option>
-              <option value="scheduling">Programación y Calendario</option>
-              <option value="travel">Viajes y Reservas</option>
-              <option value="research">Investigación</option>
-              <option value="creativity">Creatividad y Diseño</option>
-              <option value="finance">Finanzas</option>
+              <option value="general">{t('createAgent.expertiseAreas.general')}</option>
+              <option value="scheduling">{t('createAgent.expertiseAreas.scheduling')}</option>
+              <option value="travel">{t('createAgent.expertiseAreas.travel')}</option>
+              <option value="research">{t('createAgent.expertiseAreas.research')}</option>
+              <option value="creativity">{t('createAgent.expertiseAreas.creativity')}</option>
+              <option value="finance">{t('createAgent.expertiseAreas.finance')}</option>
             </select>
           </div>
           
@@ -190,7 +192,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
                   cursor: 'pointer'
                 }}
               />
-              Agente Público
+              {t('createAgent.publicAgent')}
             </label>
             <div style={{
               fontSize: '0.75em',
@@ -198,17 +200,17 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
               marginTop: '4px',
               marginLeft: '24px'
             }}>
-              Otros usuarios podrán conectarse y comunicarse con este agente
+              {t('createAgent.publicAgentDescription')}
             </div>
           </div>
         </div>
 
         <div className="modal-footer">
           <button onClick={handleCancel} className="btn btn-secondary">
-            Cancelar
+            {t('createAgent.cancel')}
           </button>
           <button onClick={handleSubmit} className="btn btn-primary">
-            Crear Agente
+            {t('createAgent.create')}
           </button>
         </div>
       </div>

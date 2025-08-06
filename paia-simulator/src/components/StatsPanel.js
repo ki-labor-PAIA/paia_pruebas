@@ -1,4 +1,7 @@
+import { useTranslation } from 'react-i18next';
+
 export default function StatsPanel({ stats }) {
+  const { t } = useTranslation();
   const getStatusColor = (status) => {
     if (status.includes('error') || status.includes('Error')) {
       return 'var(--danger-color)';
@@ -13,18 +16,18 @@ export default function StatsPanel({ stats }) {
 
   return (
     <div className="stats-panel">
-      <h4>📊 Estadísticas</h4>
+      <h4>{t('stats.title')}</h4>
       <ul className="stats-list">
         <li>
-          <span>Tiempo:</span>
+          <span>{t('stats.time')}</span>
           <span>{stats.responseTime}s</span>
         </li>
         <li>
-          <span>Consultas:</span>
+          <span>{t('stats.queries')}</span>
           <span>{stats.queriesProcessed}</span>
         </li>
         <li>
-          <span>Estado:</span>
+          <span>{t('stats.status')}</span>
           <span style={{ color: getStatusColor(stats.status), fontSize: '0.9em' }}>
             {stats.status}
           </span>

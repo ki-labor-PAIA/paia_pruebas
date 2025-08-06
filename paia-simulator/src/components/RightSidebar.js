@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 export default function RightSidebar({ 
   onAddActor, 
   onConnect, 
@@ -9,37 +11,38 @@ export default function RightSidebar({
   onAddPublicAgent,
   isBackendConnected 
 }) {
+  const { t } = useTranslation();
   return (
     <div className="sidebar right">
       <div className="button-group">
-        <div className="button-group-title">Agregar Actores</div>
+        <div className="button-group-title">{t('rightSidebar.addActors')}</div>
         <button onClick={() => onAddActor('human')} className="discreet-button">
-          <i className="fas fa-user"></i> Humano Simple
+          <i className="fas fa-user"></i> {t('rightSidebar.simpleHuman')}
         </button>
         <button onClick={() => onAddActor('ai')} className="discreet-button">
-          <i className="fas fa-robot"></i> IA Simple
+          <i className="fas fa-robot"></i> {t('rightSidebar.simpleAI')}
         </button>
         <button onClick={onCreateAgent} className="discreet-button" style={{ background: 'var(--primary-color) !important', color: 'white !important' }}>
-          <i className="fas fa-cog"></i> Crear Agente PAIA
+          <i className="fas fa-cog"></i> {t('rightSidebar.createPAIAAgent')}
         </button>
       </div>
 
       <div className="button-group">
-        <div className="button-group-title">Conexiones</div>
+        <div className="button-group-title">{t('rightSidebar.connections')}</div>
         <div style={{ fontSize: '0.8em', color: 'var(--text-secondary)', marginBottom: '10px' }}>
-          Arrastra desde un nodo a otro para conectarlos
+          {t('rightSidebar.dragToConnect')}
         </div>
       </div>
 
       {isBackendConnected && (
         <div className="button-group">
-          <div className="button-group-title">Agentes Públicos</div>
+          <div className="button-group-title">{t('rightSidebar.publicAgents')}</div>
           <button 
             onClick={onLoadPublicAgents}
             className="discreet-button"
             style={{ marginBottom: '10px' }}
           >
-            🌐 Cargar Agentes Disponibles
+            {t('rightSidebar.loadAvailableAgents')}
           </button>
           
           {publicAgents.length > 0 && (
@@ -85,14 +88,14 @@ export default function RightSidebar({
           
           {publicAgents.length === 0 && (
             <div style={{ fontSize: '0.8em', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-              Carga agentes para conectar con otros usuarios
+              {t('rightSidebar.loadAgentsToConnect')}
             </div>
           )}
         </div>
       )}
 
       <div className="button-group">
-        <div className="button-group-title">💬 Chat con Agentes</div>
+        <div className="button-group-title">{t('rightSidebar.chatWithAgents')}</div>
         {nodes.length > 0 ? (
           <div style={{ maxHeight: '200px', overflow: 'auto' }}>
             {nodes.map(node => (
@@ -122,9 +125,9 @@ export default function RightSidebar({
                   {node.data.emoji} {node.data.label}
                 </span>
                 <span style={{ fontSize: '0.7em', color: 'var(--text-secondary)' }}>
-                  {node.data.isExternal && '(externo)'}
-                  {node.data.actorType === 'human' && '(tú)'}
-                  {node.data.actorType === 'ai' && !node.data.isExternal && '(IA)'}
+                  {node.data.isExternal && t('rightSidebar.external')}
+                  {node.data.actorType === 'human' && t('rightSidebar.you')}
+                  {node.data.actorType === 'ai' && !node.data.isExternal && t('rightSidebar.ai')}
                 </span>
               </button>
             ))}
@@ -141,9 +144,9 @@ export default function RightSidebar({
             border: '1px dashed var(--border-color)'
           }}>
             <div style={{ marginBottom: '8px', fontSize: '1.5em' }}>💬</div>
-            <div>Agrega actores para comenzar a chatear</div>
+            <div>{t('rightSidebar.addActorsToChat')}</div>
             <div style={{ fontSize: '0.7em', marginTop: '4px' }}>
-              Usa los botones de arriba para crear agentes
+              {t('rightSidebar.useButtonsAbove')}
             </div>
           </div>
         )}

@@ -1,0 +1,97 @@
+{
+  "app": {
+    "title": "PAIA Builder UI - Profesional",
+    "description": "Interfaz Profesional de Constructor PAIA"
+  },
+  "nav": {
+    "simulate": "Simular", 
+    "reset": "Reiniciar",
+    "export": "Exportar",
+    "import": "Importar",
+    "guide": "Mostrar Guía"
+  },
+  "scenarios": {
+    "choose": "Elegir escenario...",
+    "trash": {
+      "name": "Basura",
+      "description": "La esposa le pide a la IA del esposo que le recuerde sacar la basura al terminar su junta."
+    },
+    "calendar": {
+      "name": "Calendario",
+      "description": "El asistente agenda una reunión y manda un recordatorio al usuario."
+    },
+    "party": {
+      "name": "Cancelar Fiesta",
+      "description": "Una persona con COVID-19 usa su PAIA para cancelar una fiesta programada."
+    }
+  },
+  "form": {
+    "placeholder": {
+      "scenarioName": "Nombre del escenario",
+      "scenarioDescription": "Descripción del escenario..."
+    }
+  },
+  "rightSidebar": {
+    "addActors": "Agregar Actores",
+    "simpleHuman": "Humano Simple",
+    "simpleAI": "IA Simple",
+    "createPAIAAgent": "Crear Agente PAIA",
+    "connections": "Conexiones",
+    "dragToConnect": "Arrastra desde un nodo a otro para conectarlos",
+    "publicAgents": "Agentes Públicos",
+    "loadAvailableAgents": "🌐 Cargar Agentes Disponibles",
+    "chatWithAgents": "💬 Chat con Agentes",
+    "addActorsToChat": "Agrega actores para comenzar a chatear",
+    "useButtonsAbove": "Usa los botones de arriba para crear agentes",
+    "external": "(externo)",
+    "you": "(tú)",
+    "ai": "(IA)",
+    "loadAgentsToConnect": "Carga agentes para conectar con otros usuarios"
+  },
+  "stats": {
+    "title": "📊 Estadísticas",
+    "time": "Tiempo:",
+    "queries": "Consultas:",
+    "status": "Estado:"
+  },
+  "decisions": {
+    "title": "🤖 Decisiones",
+    "system": "Sistema",
+    "paiaOf": "PAIA de {{name}}"
+  },
+  "language": {
+    "english": "Idioma"
+  },
+  "status": {
+    "simulating": "Simulando...",
+    "waiting": "En espera..."
+  },
+  "createAgent": {
+    "title": "Crear Nuevo Agente PAIA",
+    "agentName": "Nombre del Agente *",
+    "agentNamePlaceholder": "Ej: María Asistente Personal",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Describe las capacidades de tu agente...",
+    "personality": "Personalidad",
+    "expertise": "Área de Experiencia",
+    "publicAgent": "Agente Público",
+    "publicAgentDescription": "Otros usuarios podrán conectarse y comunicarse con este agente",
+    "cancel": "Cancelar",
+    "create": "Crear Agente",
+    "nameRequired": "El nombre del agente es requerido",
+    "personalities": {
+      "friendly": "Amigable",
+      "professional": "Profesional",
+      "creative": "Creativo",
+      "analytical": "Analítico"
+    },
+    "expertiseAreas": {
+      "general": "Asistente General",
+      "scheduling": "Programación y Calendario",
+      "travel": "Viajes y Reservas",
+      "research": "Investigación",
+      "creativity": "Creatividad y Diseño",
+      "finance": "Finanzas"
+    }
+  }
+}
