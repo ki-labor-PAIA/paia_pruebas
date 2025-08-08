@@ -6,22 +6,36 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
 from fastapi import FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from langchain_mcp_adapters.client import MultiServerMCPClient, load_mcp_tools
+from langchain_mcp_adapters.client import MultiServerMCPClient, load_mcp_tools 
 from langgraph.prebuilt import create_react_agent
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.tools import tool
 from langchain_core.messages import HumanMessage, AIMessage
+from long_term_store_pg import LongTermStorePG
 import uvicorn
 import os
-
-# Configuración
-os.environ["GOOGLE_API_KEY"] = "YOUR_API_KEY"
+from memory_manager import MemoryManager, Message
 
 app = FastAPI(title="PAIA Platform Backend", version="1.0.0")
 
+# === MEMORIA PERSISTENTE (Postgres) ===
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:root@localhost:5432/paia")
+lt_store = LongTermStorePG(DATABASE_URL)
+memory_manager = MemoryManager(long_term_backend=lt_store)
+
+# Inicializa tablas al arrancar FastAPI (no crea la base, solo las tablas)
+@app.on_event("startup")
+async def on_startup():
+    await lt_store.init_db()
+
+
+# Configuración
+os.environ["GOOGLE_API_KEY"] = "AIzaSyDrciW_INkcadba7Qu3VjaiSKsInO1VBCQ"
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -82,7 +96,7 @@ class PAIAAgentManager:
         agent_llm = create_react_agent(
             self.llm,
             agent_tools,
-            state_modifier=f"""Eres {agent_data['name']}, un asistente {agent_data['personality']} especializado en {agent_data['expertise']}.
+            prompt=f"""Eres {agent_data['name']}, un asistente {agent_data['personality']} especializado en {agent_data['expertise']}.
 
 IMPORTANTE: Tienes acceso a herramientas para comunicarte con otros agentes. Cuando el usuario te pida enviar un mensaje a otro agente:
 1. USA get_connected_agents() para ver con quién puedes hablar
@@ -93,20 +107,27 @@ Mantén el contexto de toda la conversación y responde de manera natural."""
         )
         
         agent = PAIAAgent(
-            id=agent_id,
-            name=agent_data['name'],
-            description=agent_data['description'],
-            personality=agent_data['personality'],
-            expertise=agent_data['expertise'],
-            status='online',
-            created=datetime.now().isoformat(),
-            mcp_endpoint=f"http://localhost:{3000 + len(agents_store)}/mcp",
-            user_id=agent_data.get('user_id', 'anonymous'),  # ID del usuario que lo creó
-            is_public=agent_data.get('is_public', True),  # Por defecto es público
-            llm_instance=agent_llm,
-            tools=agent_tools,
-            conversation_history=[]
+           id=agent_id,
+           name=agent_data['name'],
+           description=agent_data['description'],
+           personality=agent_data['personality'],
+           expertise=agent_data['expertise'],
+           status='online',
+           created=datetime.now().isoformat(),
+           mcp_endpoint=f"http://localhost:{3000 + len(agents_store)}/mcp",
+           user_id=agent_data.get('user_id', 'anonymous'),
+           is_public=agent_data.get('is_public', True),
+           llm_instance=agent_llm,
+           tools=agent_tools,
+           conversation_history=[]
         )
+        # (NUEVO) Vincular perfil estable para memoria larga
+        user_id = agent.user_id or "anonymous"
+        memory_profile_id = f"user:{user_id}|persona:{agent.name}"
+        memory_manager.bind_profile(agent_id, memory_profile_id)
+
+
+        
         
         agents_store[agent_id] = agent
         return agent
@@ -245,6 +266,23 @@ Mantén el contexto de toda la conversación y responde de manera natural."""
                 return f"Resultados de búsqueda para: {query}"
             base_tools.append(web_search)
         
+        @tool
+        async def get_long_term_memory() -> str:
+            """Ver lo que has aprendido del usuario o sus preferencias."""
+            mem = await memory_manager.get_long_term_memory(agent_id)
+            if not mem:
+                return "No hay memoria a largo plazo almacenada aún."
+            return "\n".join([f"{k}: {v}" for k, v in mem.items()])
+
+
+
+        @tool
+        async def remember_preference(key: str, value: str) -> str:
+            """Guardar un hecho o preferencia del usuario para el futuro."""
+            await memory_manager.add_to_long_term(agent_id, key, value)
+            return f"✓ Recordaré que '{key}' es '{value}'"
+
+        base_tools.extend([get_long_term_memory, remember_preference])
         return base_tools
     
     async def _generate_agent_response(self, from_agent_id: str, to_agent_id: str, conversation_id: str) -> str:
@@ -256,27 +294,24 @@ Mantén el contexto de toda la conversación y responde de manera natural."""
             target_agent = agents_store[to_agent_id]
             from_agent = agents_store[from_agent_id]
             
-            # Obtener el último mensaje enviado
             messages = message_history.get(conversation_id, [])
             if not messages:
                 return "No hay mensajes para responder"
             
             last_message = messages[-1]
             
-            # Crear prompt simple
             prompt = f"""Eres {target_agent.name}, especializado en {target_agent.expertise}.
     {from_agent.name} te pregunta: {last_message.content}
 
     Responde de manera útil según tu especialidad."""
             
-            # ✅ CAMBIO CLAVE: await target_agent.llm_instance.ainvoke()
-            response = await target_agent.llm_instance.ainvoke({
-                "messages": [HumanMessage(content=prompt)]
-            })
-            
+            response = await target_agent.llm_instance.ainvoke({"messages": [HumanMessage(content=prompt)]})
             response_content = response["messages"][-1].content
-            
-            # Guardar la respuesta
+
+            # (FIJO) Guardar en memoria corta del agente que responde
+            memory_manager.add_to_short_term(to_agent_id, role="assistant", content=response_content)
+
+            # Guardar la respuesta en historial
             response_message = AgentMessage(
                 id=str(uuid.uuid4())[:8],
                 from_agent=to_agent_id,
@@ -285,15 +320,25 @@ Mantén el contexto de toda la conversación y responde de manera natural."""
                 timestamp=datetime.now().isoformat(),
                 conversation_id=conversation_id
             )
-            
             message_history[conversation_id].append(response_message)
-            
             return f"{target_agent.name} respondió: \"{response_content}\""
-            
         except Exception as e:
             return f"Error generando respuesta: {str(e)}"
-    
+
     async def connect_agents(self, agent1_id: str, agent2_id: str, connection_type: str = "direct") -> AgentConnection:
+        """Conectar dos agentes para permitir la comunicación entre ellos.
+        
+        Args:
+            agent1_id: ID del primer agente
+            agent2_id: ID del segundo agente
+            connection_type: Tipo de conexión (default: "direct")
+            
+        Returns:
+            AgentConnection: Objeto que representa la conexión creada
+            
+        Raises:
+            HTTPException: Si alguno de los agentes no existe
+        """
         if agent1_id not in agents_store or agent2_id not in agents_store:
             raise HTTPException(status_code=404, detail="Uno o ambos agentes no encontrados")
         
@@ -313,7 +358,7 @@ Mantén el contexto de toda la conversación y responde de manera natural."""
         """API endpoint para envío de mensajes entre agentes"""
         if from_agent_id not in agents_store or to_agent_id not in agents_store:
             raise HTTPException(status_code=404, detail="Agente no encontrado")
-        
+    
         # Verificar conexión
         connected = any(
             (conn.agent1 == from_agent_id and conn.agent2 == to_agent_id) or
@@ -323,9 +368,9 @@ Mantén el contexto de toda la conversación y responde de manera natural."""
         
         if not connected:
             raise HTTPException(status_code=400, detail="Los agentes no están conectados")
-        
+            
         conversation_id = f"{min(from_agent_id, to_agent_id)}_{max(from_agent_id, to_agent_id)}"
-        
+            
         # Enviar mensaje
         sent_message = AgentMessage(
             id=str(uuid.uuid4())[:8],
@@ -335,14 +380,14 @@ Mantén el contexto de toda la conversación y responde de manera natural."""
             timestamp=datetime.now().isoformat(),
             conversation_id=conversation_id
         )
-        
+            
         if conversation_id not in message_history:
             message_history[conversation_id] = []
         message_history[conversation_id].append(sent_message)
-        
+            
         # ✅ CAMBIO: Usar await
         response = await self._generate_agent_response(from_agent_id, to_agent_id, conversation_id)
-        
+            
         return response
 
 # Instancia del gestor
@@ -407,57 +452,74 @@ async def get_connections():
 @app.post("/api/agents/{agent_id}/message")
 async def send_message_to_agent(agent_id: str, message_data: dict):
     try:
+        print(f"[DEBUG] Endpoint /api/agents/{agent_id}/message llamado con body: {message_data}")
         if agent_id not in agents_store:
+            print(f"[ERROR] Agente no encontrado: {agent_id}")
             raise HTTPException(status_code=404, detail="Agente no encontrado")
         
         agent = agents_store[agent_id]
-        
-        # Agregar mensaje a historial del agente
-        if agent.conversation_history is None:
-            agent.conversation_history = []
-        
-        agent.conversation_history.append({
-            "role": "user",
-            "content": message_data['message'],
-            "timestamp": datetime.now().isoformat()
-        })
-        
-        # Crear contexto de conversación completo
+        print(f"[DEBUG] Agente encontrado: {agent}")
+
+        # 1) Agrega mensaje del usuario a memoria corta
+        memory_manager.add_to_short_term(agent_id, role="user", content=message_data['message'])
+        print(f"[DEBUG] Mensaje agregado a memoria corta")
+
+        # 2) Construye contexto de corto plazo
         conversation_context = []
-        for msg in agent.conversation_history[-10:]:  # Últimos 10 mensajes
-            if msg["role"] == "user":
-                conversation_context.append(HumanMessage(content=msg["content"]))
-            else:
-                conversation_context.append(AIMessage(content=msg["content"]))
-        
-        # Si no hay contexto previo, agregar mensaje inicial
-        if not conversation_context:
-            conversation_context.append(HumanMessage(content=message_data['message']))
-        else:
-            # Agregar el mensaje actual si no está ya
-            if conversation_context[-1].content != message_data['message']:
-                conversation_context.append(HumanMessage(content=message_data['message']))
-        
-        response = await agent.llm_instance.ainvoke({
-            "messages": conversation_context
-        })
-        
-        response_content = response["messages"][-1].content
-        
-        # Agregar respuesta al historial
-        agent.conversation_history.append({
-            "role": "assistant", 
-            "content": response_content,
-            "timestamp": datetime.now().isoformat()
-        })
-        
+        try:
+            for msg in memory_manager.get_short_term_context(agent_id):
+                if hasattr(msg, 'role') and hasattr(msg, 'content'):
+                    if msg.role == "user":
+                        conversation_context.append(HumanMessage(content=msg.content))
+                    else:
+                        conversation_context.append(AIMessage(content=msg.content))
+            print(f"[DEBUG] Contexto de corto plazo construido: {conversation_context}")
+        except Exception as e:
+            print(f"[ERROR] Al construir contexto de corto plazo: {e}")
+            raise
+
+        # 3) Prefijo con memoria larga (si existe)
+        try:
+            long_term = await memory_manager.get_long_term_memory(agent_id)
+            if long_term:
+                resumen = "; ".join([f"{k}: {v}" for k, v in long_term.items()])
+                conversation_context.insert(0, HumanMessage(content=f"🧠 Preferencias del usuario: {resumen}"))
+            print(f"[DEBUG] Contexto después de memoria larga: {conversation_context}")
+        except Exception as e:
+            print(f"[ERROR] Al obtener/agregar memoria larga: {e}")
+            raise
+
+        # 4) Llama al LLM
+        try:
+            response = await agent.llm_instance.ainvoke({"messages": conversation_context})
+            print(f"[DEBUG] Respuesta LLM cruda: {response}")
+            response_content = response["messages"][-1].content
+        except Exception as e:
+            print(f"[ERROR] Al invocar LLM: {e}")
+            raise
+
+        # 5) Guarda respuesta en memoria corta e historial
+        try:
+            memory_manager.add_to_short_term(agent_id, role="assistant", content=response_content)
+            agent.conversation_history.append({
+                "role": "assistant",
+                "content": response_content,
+                "timestamp": datetime.now().isoformat()
+            })
+            print(f"[DEBUG] Respuesta guardada en memoria corta e historial")
+        except Exception as e:
+            print(f"[ERROR] Al guardar respuesta en memoria/historial: {e}")
+            raise
+
         return {
             "agent_id": agent_id,
             "agent_name": agent.name,
             "response": response_content
         }
     except Exception as e:
+        print(f"[ERROR] Excepción en send_message_to_agent: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/api/agents/{from_agent_id}/send-to/{to_agent_id}")
 async def send_message_between_agents_endpoint(from_agent_id: str, to_agent_id: str, message_data: dict):
@@ -536,42 +598,40 @@ async def websocket_endpoint(websocket: WebSocket, agent_id: str):
             message_data = json.loads(data)
             
             if message_data['type'] == 'chat':
-                if agent_id in agents_store:
-                    agent = agents_store[agent_id]
-                    
-                    # Mantener contexto de conversación
-                    if agent.conversation_history is None:
-                        agent.conversation_history = []
-                    
-                    agent.conversation_history.append({
-                        "role": "user",
-                        "content": message_data['message'],
-                        "timestamp": datetime.now().isoformat()
-                    })
-                    
-                    context = []
-                    for msg in agent.conversation_history[-10:]:
-                        if msg["role"] == "user":
-                            context.append(HumanMessage(content=msg["content"]))
-                        else:
-                            context.append(AIMessage(content=msg["content"]))
-                    
-                    response = await agent.llm_instance.ainvoke({"messages": context})
-                    response_content = response["messages"][-1].content
-                    
-                    agent.conversation_history.append({
-                        "role": "assistant",
-                        "content": response_content,
-                        "timestamp": datetime.now().isoformat()
-                    })
-                    
-                    await websocket.send_text(json.dumps({
-                        "type": "response",
-                        "agent_id": agent_id,
-                        "agent_name": agent.name,
-                        "message": response_content,
-                        "timestamp": datetime.now().isoformat()
-                    }))
+              if agent_id in agents_store:
+                agent = agents_store[agent_id]
+
+                if agent.conversation_history is None:
+                  agent.conversation_history = []
+
+                memory_manager.add_to_short_term(agent_id, role="user", content=message_data['message'])
+
+                context = []
+                for msg in memory_manager.get_short_term_context(agent_id):
+                  if msg.role == "user":
+                    context.append(HumanMessage(content=msg.content))
+                  else:
+                    context.append(AIMessage(content=msg.content))
+
+                # (Opcional) prefijo de largo plazo
+                long_term = await memory_manager.get_long_term_memory(agent_id)
+                if long_term:
+                  resumen = "; ".join([f"{k}: {v}" for k, v in long_term.items()])
+                  context.insert(0, HumanMessage(content=f"🧠 Preferencias del usuario: {resumen}"))
+
+                response = await agent.llm_instance.ainvoke({"messages": context})
+                response_content = response["messages"][-1].content
+
+                memory_manager.add_to_short_term(agent_id, role="assistant", content=response_content)
+
+                await websocket.send_text(json.dumps({
+                "type": "response",
+                "agent_id": agent_id,
+                "agent_name": agent.name,
+                "message": response_content,
+                "timestamp": datetime.now().isoformat()
+                }))
+
             
             elif message_data['type'] == 'agent_to_agent':
                 target_agent_id = message_data['target_agent_id']
