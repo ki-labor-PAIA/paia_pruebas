@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 class PAIAApi {
   constructor() {
@@ -137,6 +137,24 @@ class PAIAApi {
       console.error('Error fetching conversation history:', error);
       return [];
     }
+  }
+
+  async getEmails() {
+    const response = await fetch(`${this.baseUrl}/emails`);
+    if (!response.ok) throw new Error('Error al obtener emails');
+    return await response.json();
+  }
+  
+  async getEventos() {
+    const response = await fetch(`${this.baseUrl}/eventos`);
+    if (!response.ok) throw new Error('Error al obtener eventos');
+    return await response.json();
+  }
+  
+  async getNotas() {
+    const response = await fetch(`${this.baseUrl}/notas`);
+    if (!response.ok) throw new Error('Error al obtener notas');
+    return await response.json();
   }
 
   async getHealthCheck() {

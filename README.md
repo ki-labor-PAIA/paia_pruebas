@@ -52,6 +52,43 @@ pip install -r requirements.txt
 ```python
 os.environ["GOOGLE_API_KEY"] = "TU_API_KEY_AQUÍ"
 ```
+
+#### Configurar PostgreSQL en Docker
+
+##### Instalar docker desktop
+Windows: https://docs.docker.com/desktop/setup/install/windows-install
+##### Abrir docker desktop y ejecutar el sigueinte comando:
+
+```
+docker run --name paia-postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=root -e POSTGRES_DB=paia -p 5432:5432 -d postgres:15
+```
+
+##### Verificar que PostgreSQL esté funcionando
+
+```
+# Verificar que el contenedor esté ejecutándose
+docker ps
+
+# Verificar logs del contenedor
+docker logs paia-postgres
+```
+
+#### Comandos útiles para gestionar Docker
+
+```
+# Detener el contenedor
+docker stop paia-postgres
+
+# Iniciar el contenedor existente
+docker start paia-postgres
+
+# Eliminar el contenedor (si necesitas empezar de nuevo)
+docker rm -f paia-postgres
+
+# Conectarse a PostgreSQL desde línea de comandos
+docker exec -it paia-postgres psql -U postgres -d paia
+```
+
 ### ⚠️ Asegúrate de que al compartir tus cambios con el equipo, no compartas la api key
 
 #### Ejecutar el backend:
@@ -61,7 +98,6 @@ python paia_backend.py
 El backend estará corriendo en: http://localhost:8000
 
 ### 3. Configurar la Interfaz
-
 #### En otra terminal, instalar dependencias de Node.js:
 ```bash
 cd paia-simulator
