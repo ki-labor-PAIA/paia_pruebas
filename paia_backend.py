@@ -15,7 +15,7 @@ import uvicorn
 import os
 
 # Configuración
-os.environ["GOOGLE_API_KEY"] = "YOUR_API_KEY"
+os.environ["GOOGLE_API_KEY"] = "AIzaSyDD4sluD_ep4p5iovOrspRUoS227PnP30c"
 
 app = FastAPI(title="PAIA Platform Backend", version="1.0.0")
 
