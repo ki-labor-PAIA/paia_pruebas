@@ -57,12 +57,12 @@ os.environ["GOOGLE_API_KEY"] = "TU_API_KEY_AQUÍ"
 
 ##### Instalar docker desktop
 Windows: https://docs.docker.com/desktop/setup/install/windows-install
-##### Abrir docker desktop y ejecutar el sigueinte comando:
-
+##### Abrir docker desktop y ejecutar el sigueinte comando en la terminal que estes usando:
+-
 ```
 docker run --name paia-postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=root -e POSTGRES_DB=paia -p 5432:5432 -d postgres:15
 ```
-
+-
 ##### Verificar que PostgreSQL esté funcionando
 
 ```
@@ -79,7 +79,7 @@ docker logs paia-postgres
 # Detener el contenedor
 docker stop paia-postgres
 
-# Iniciar el contenedor existente
+# Iniciar el contenedor existente, ejecutar cada vez que se reinicie la pc
 docker start paia-postgres
 
 # Eliminar el contenedor (si necesitas empezar de nuevo)
