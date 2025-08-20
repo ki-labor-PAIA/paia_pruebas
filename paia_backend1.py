@@ -62,21 +62,6 @@ class AgentMessage:
     timestamp: str
     conversation_id: Optional[str] = None
 
-
-# Modelo de Notas
-@dataclass
-class Nota:
-    id: str
-    title: str
-    content: str
-    created: str
-    updated: str
-    tags: List[str]
-
-# Almacenamiento de notas
-notas_store: Dict[str, Nota] = {}
-
-
 # Storage en memoria
 agents_store: Dict[str, PAIAAgent] = {}
 connections_store: Dict[str, AgentConnection] = {}
@@ -691,55 +676,3 @@ if __name__ == "__main__":
         port=8000,
         log_level="info"
     )
-
-# ================== CRUD de Notas ===================
-# ================== CRUD de Notas ===================
-
-from fastapi import Query
-
-@app.get("/api/notas")
-async def get_all_notes():
-    return [asdict(nota) for nota in notas_store.values()]
-
-@app.get("/api/notas/buscar")
-async def search_notes(q: str = Query(..., description="Texto a buscar en título o contenido")):
-    resultados = [
-        asdict(nota)
-        for nota in notas_store.values()
-        if q.lower() in nota.title.lower() or q.lower() in nota.content.lower()
-    ]
-    return resultados
-
-@app.post("/api/notas")
-async def create_note(note_data: dict):
-    nota_id = str(uuid.uuid4())[:8]
-    nueva_nota = Nota(
-        id=nota_id,
-        title=note_data["title"],
-        content=note_data["content"],
-        created=datetime.now().isoformat(),
-        updated=datetime.now().isoformat(),
-        tags=note_data.get("tags", [])
-    )
-    notas_store[nota_id] = nueva_nota
-    return asdict(nueva_nota)
-
-@app.put("/api/notas/{nota_id}")
-async def update_note(nota_id: str, note_data: dict):
-    if nota_id not in notas_store:
-        raise HTTPException(status_code=404, detail="Nota no encontrada")
-
-    nota = notas_store[nota_id]
-    nota.title = note_data.get("title", nota.title)
-    nota.content = note_data.get("content", nota.content)
-    nota.updated = datetime.now().isoformat()
-    nota.tags = note_data.get("tags", nota.tags)
-    return asdict(nota)
-
-@app.delete("/api/notas/{nota_id}")
-async def delete_note(nota_id: str):
-    if nota_id not in notas_store:
-        raise HTTPException(status_code=404, detail="Nota no encontrada")
-
-    del notas_store[nota_id]
-    return {"mensaje": "Nota eliminada correctamente"}
