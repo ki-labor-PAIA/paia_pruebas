@@ -76,7 +76,7 @@ export default function ActorNode({ data, isConnectable }) {
       onDoubleClick={handleDoubleClick}
       style={{
         padding: '15px',
-        background: 'inherit',
+        background: data.agentColor || 'inherit',
         borderRadius: '12px',
         minWidth: '80px',
         minHeight: '80px',
