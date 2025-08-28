@@ -6,7 +6,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    personality: 'friendly',
+    personality: 'Analítico',
     expertise: 'general',
     is_public: true,
     customColor: ''
@@ -26,7 +26,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
     setFormData({
       name: '',
       description: '',
-      personality: 'friendly',
+      personality: 'Analítico',
       expertise: 'general',
       is_public: true
     });
@@ -37,7 +37,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
     setFormData({
       name: '',
       description: '',
-      personality: 'friendly',
+      personality: 'Analítico',
       expertise: 'general',
       is_public: true
     });
@@ -133,10 +133,18 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
                 fontSize: '0.9em'
               }}
             >
-              <option value="friendly">{t('createAgent.personalities.friendly')}</option>
-              <option value="professional">{t('createAgent.personalities.professional')}</option>
-              <option value="creative">{t('createAgent.personalities.creative')}</option>
-              <option value="analytical">{t('createAgent.personalities.analytical')}</option>
+              <option value="Analítico">Analítico</option>
+              <option value="Creativo">Creativo</option>
+              <option value="Empático">Empático</option>
+              <option value="Pragmático">Pragmático</option>
+              <option value="Entusiasta">Entusiasta</option>
+              <option value="Metódico">Metódico</option>
+              <option value="Innovador">Innovador</option>
+              <option value="Colaborativo">Colaborativo</option>
+              <option value="Estratégico">Estratégico</option>
+              <option value="Aventurero">Aventurero</option>
+              <option value="Reflexivo">Reflexivo</option>
+              <option value="Dinámico">Dinámico</option>
             </select>
           </div>
           

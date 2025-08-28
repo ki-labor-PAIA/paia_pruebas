@@ -73,7 +73,8 @@ a {
 }
 
 .react-flow__node.selected {
-  box-shadow: 0 0 0 3px rgba(255,255,255,0.3);
+  transform: scale(1.05);
+  box-shadow: 0 0 0 3px #ccd5ae;
 }
 
 .react-flow__node.dragging {
@@ -81,13 +82,13 @@ a {
 }
 
 .react-flow__node-human {
-  background: var(--warning-color);
-  border-color: #fbbf24;
+  background: #f4a261;
+  border-color: #e76f51;
 }
 
 .react-flow__node-ai {
-  background: var(--primary-color);
-  border-color: #5d7eff;
+  background: #2a9d8f;
+  border-color: #264653;
 }
 
 .react-flow__edge-path {

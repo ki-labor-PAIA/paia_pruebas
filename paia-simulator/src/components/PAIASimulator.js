@@ -33,33 +33,25 @@ const initialEdges = [];
 
 // Colores para agentes basados en personalidad
 const personalityColors = {
-  'Analítico': '#4a6bdf',     // Azul
-  'Creativo': '#8b5cf6',      // Morado
-  'Empático': '#10b981',      // Verde
-  'Pragmático': '#f59e0b',    // Naranja
-  'Entusiasta': '#ec4899',    // Rosa
-  'Metódico': '#06b6d4',      // Cyan
-  'Innovador': '#84cc16',     // Lima
-  'Colaborativo': '#f97316',  // Orange
-  'Estratégico': '#ff6b6b',   // Rojo coral
-  'Aventurero': '#4ecdc4',    // Turquesa
-  'Reflexivo': '#a8e6cf',     // Verde menta
-  'Dinámico': '#ff8b94',      // Rosa salmón
+  'Analítico': '#023e7d',     // Azul
+  'Creativo': '#049a8f',      // Morado
+  'Empático': '#b9375e',      // Verde
+  'Pragmático': '#4a2419',    // Naranja
+  'Entusiasta': '#dbb42c',    // Rosa
+  'Metódico': '#932f6d',      // Cyan
+  'Innovador': '#4c956c',     // Lima
+  'Colaborativo': '#f4a259',  // Orange
+  'Estratégico': '#564592',   // Rojo coral
+  'Aventurero': '#e76f51',    // Turquesa
+  'Reflexivo': '#6a994e',     // Verde menta
+  'Dinámico': '#c32f27',      // Rosa salmón
   'default': '#6366f1'        // Indigo por defecto
 };
 
-const fallbackColors = [
-  '#4a6bdf', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', 
-  '#06b6d4', '#f97316', '#84cc16', '#ec4899', '#6366f1',
-  '#ff6b6b', '#4ecdc4', '#a8e6cf', '#ff8b94', '#feca57',
-  '#48dbfb', '#0abde3', '#006ba6', '#ff9ff3', '#54a0ff'
-];
-
-const getAgentColor = (personality, agentIndex) => {
-  if (personality && personalityColors[personality]) {
-    return personalityColors[personality];
-  }
-  return fallbackColors[agentIndex % fallbackColors.length];
+const getAgentColor = (personality) => {
+  if (!personality) return personalityColors['default'];
+  const key = personality.trim();
+  return personalityColors[key] || personalityColors['default'];
 };
 
 export default function PAIASimulator() {
@@ -204,7 +196,7 @@ export default function PAIASimulator() {
     const id = `actor-${actorIdRef.current}`;
     const actorName = name || `${type === 'human' ? 'Humano' : 'IA'} ${actorIdRef.current}`;
     
-    const agentColor = type === 'ai' ? getAgentColor(null, actorIdRef.current) : undefined;
+    const agentColor = type === 'ai' ? getAgentColor(null) : undefined;
     
     const newNode = {
       id,
@@ -275,7 +267,7 @@ export default function PAIASimulator() {
       }
     }
     
-    const agentColor = getAgentColor(agentConfig.personality, actorIdRef.current);
+    const agentColor = getAgentColor(agentConfig.personality);
     
     const newNode = {
       id: backendAgent?.id || id,
@@ -429,7 +421,7 @@ export default function PAIASimulator() {
       return;
     }
 
-    const agentColor = getAgentColor(publicAgent.personality, actorIdRef.current);
+    const agentColor = getAgentColor(publicAgent.personality);
     
     const newNode = {
       id: `external-${publicAgent.id}`,
