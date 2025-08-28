@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import PAIAApi from '@/utils/api';
 
 export default function usePAIABackend() {
+  const { data: session } = useSession();
   const [backendAgents, setBackendAgents] = useState([]);
   const [backendConnections, setBackendConnections] = useState([]);
   const [isConnected, setIsConnected] = useState(false);
@@ -20,7 +22,7 @@ export default function usePAIABackend() {
   }, []);
 
   const createBackendAgent = useCallback(async (nodeData) => {
-    if (!isConnected) return null;
+    if (!isConnected || !session?.user?.id) return null;
     
     try {
       setLoading(true);
@@ -28,7 +30,8 @@ export default function usePAIABackend() {
         name: nodeData.label,
         description: `${nodeData.actorType === 'ai' ? 'Asistente IA' : 'Actor humano'} - ${nodeData.label}`,
         personality: nodeData.actorType === 'ai' ? 'útil y profesional' : 'humano',
-        expertise: nodeData.actorType === 'ai' ? 'general' : 'ninguna'
+        expertise: nodeData.actorType === 'ai' ? 'general' : 'ninguna',
+        user_id: session.user.id
       };
       
       const agent = await PAIAApi.createAgent(agentData);
@@ -40,7 +43,7 @@ export default function usePAIABackend() {
     } finally {
       setLoading(false);
     }
-  }, [isConnected]);
+  }, [isConnected, session]);
 
   const createBackendConnection = useCallback(async (sourceId, targetId) => {
     if (!isConnected) return null;
@@ -103,7 +106,7 @@ export default function usePAIABackend() {
             const message = sourceNode.data.customMessage || 'Necesito tu ayuda con una tarea.';
             
             try {
-              const response = await PAIAApi.sendMessage(targetAgent.id, message);
+              const response = await PAIAApi.sendMessage(targetAgent.id, message, session?.user?.id);
               onLogMessage(`👤→🤖 ${sourceAgent.name}: "${message}"`);
               onLogMessage(`🤖→👤 ${targetAgent.name}: "${response.response}"`);
               onDecisionMessage(targetAgent.name, response.response, false);

@@ -2,6 +2,8 @@ import { useTranslation } from 'react-i18next';
 
 export default function RightSidebar({ 
   onAddActor, 
+  onAddTelegram,
+  onAddCalendar,
   onConnect, 
   onCreateAgent, 
   onChatWithAgent, 
@@ -24,6 +26,16 @@ export default function RightSidebar({
         </button>
         <button onClick={onCreateAgent} className="discreet-button" style={{ background: 'var(--primary-color) !important', color: 'white !important' }}>
           <i className="fas fa-cog"></i> {t('rightSidebar.createPAIAAgent')}
+        </button>
+      </div>
+
+      <div className="button-group">
+        <div className="button-group-title">🔧 Herramientas</div>
+        <button onClick={onAddTelegram} className="discreet-button" style={{ background: '#0088cc', color: 'white' }}>
+          <i className="fas fa-paper-plane"></i> Telegram
+        </button>
+        <button onClick={onAddCalendar} className="discreet-button" style={{ background: '#4285f4', color: 'white' }}>
+          <i className="fas fa-calendar"></i> Google Calendar
         </button>
       </div>
 
@@ -95,10 +107,13 @@ export default function RightSidebar({
       )}
 
       <div className="button-group">
-        <div className="button-group-title">{t('rightSidebar.chatWithAgents')}</div>
-        {nodes.length > 0 ? (
+        <div className="button-group-title">💬 Chat</div>
+        <div style={{ fontSize: '0.8em', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+          Chatear con agentes y humanos
+        </div>
+        {nodes.filter(n => n.data.actorType === 'human' || n.data.actorType === 'ai').length > 0 ? (
           <div style={{ maxHeight: '200px', overflow: 'auto' }}>
-            {nodes.map(node => (
+            {nodes.filter(n => n.data.actorType === 'human' || n.data.actorType === 'ai').map(node => (
               <button
                 key={node.id}
                 onClick={() => onChatWithAgent(node.id)}
@@ -144,9 +159,9 @@ export default function RightSidebar({
             border: '1px dashed var(--border-color)'
           }}>
             <div style={{ marginBottom: '8px', fontSize: '1.5em' }}>💬</div>
-            <div>{t('rightSidebar.addActorsToChat')}</div>
+            <div>Crea agentes para comenzar a chatear</div>
             <div style={{ fontSize: '0.7em', marginTop: '4px' }}>
-              {t('rightSidebar.useButtonsAbove')}
+              Podrás chatear con agentes IA y humanos
             </div>
           </div>
         )}

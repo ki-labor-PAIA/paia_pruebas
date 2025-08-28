@@ -1,7 +1,7 @@
 import { Handle, Position } from 'reactflow';
 import { useState } from 'react';
 
-export default function ActorNode({ data, isConnectable }) {
+export default function TelegramNode({ data, isConnectable }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(data.label);
 
@@ -31,10 +31,10 @@ export default function ActorNode({ data, isConnectable }) {
     return (
       <div style={{
         padding: '15px',
-        background: 'var(--card-bg)',
-        border: '2px solid var(--primary-color)',
+        background: '#0088cc',
+        border: '2px solid #006699',
         borderRadius: '12px',
-        minWidth: '80px',
+        minWidth: '100px',
         minHeight: '80px',
         display: 'flex',
         alignItems: 'center',
@@ -44,6 +44,7 @@ export default function ActorNode({ data, isConnectable }) {
           type="target"
           position={Position.Top}
           isConnectable={isConnectable}
+          style={{ visibility: 'hidden' }}
         />
         <input
           type="text"
@@ -55,7 +56,7 @@ export default function ActorNode({ data, isConnectable }) {
           style={{
             background: 'transparent',
             border: 'none',
-            color: 'var(--text-primary)',
+            color: 'white',
             textAlign: 'center',
             fontSize: '12px',
             width: '100%',
@@ -76,27 +77,29 @@ export default function ActorNode({ data, isConnectable }) {
       onDoubleClick={handleDoubleClick}
       style={{
         padding: '15px',
-        background: data.agentColor || 'inherit',
+        background: '#0088cc',
         borderRadius: '12px',
-        minWidth: '80px',
+        minWidth: '100px',
         minHeight: '80px',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         cursor: 'pointer',
-        position: 'relative'
+        position: 'relative',
+        border: '2px solid #006699'
       }}
     >
+      {/* Solo handle de salida - Telegram es punto de entrada */}
       <Handle
-        type="target"
-        position={Position.Top}
+        type="source"
+        position={Position.Bottom}
         isConnectable={isConnectable}
-        style={{ background: '#555' }}
+        style={{ background: '#004d73' }}
       />
       
       <div style={{ fontSize: '24px', marginBottom: '4px' }}>
-        {data.emoji}
+        📱
       </div>
       
       <div style={{ 
@@ -104,21 +107,21 @@ export default function ActorNode({ data, isConnectable }) {
         textAlign: 'center',
         color: 'white',
         fontWeight: '500',
-        maxWidth: '70px',
+        maxWidth: '80px',
         wordWrap: 'break-word'
       }}>
         {data.label}
       </div>
 
-      {/* Mostrar información adicional si es un agente PAIA configurado */}
-      {(data.personality || data.expertise) && (
+      {/* Indicador de configuración */}
+      {data.isConfigured && (
         <div style={{
           position: 'absolute',
           top: '-8px',
           right: '-8px',
           width: '16px',
           height: '16px',
-          background: 'var(--success-color)',
+          background: '#10b981',
           borderRadius: '50%',
           display: 'flex',
           alignItems: 'center',
@@ -131,16 +134,17 @@ export default function ActorNode({ data, isConnectable }) {
         </div>
       )}
 
-      {/* Mostrar indicador si el humano tiene mensaje personalizado */}
-      {data.actorType === 'human' && data.customMessage && (
+      {/* Indicador de estado activo */}
+      {data.isActive && (
         <div style={{
           position: 'absolute',
           top: '-8px',
           left: '-8px',
           width: '16px',
           height: '16px',
-          background: 'var(--warning-color)',
+          background: '#22c55e',
           borderRadius: '50%',
+          animation: 'pulse 2s infinite',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -148,44 +152,34 @@ export default function ActorNode({ data, isConnectable }) {
           color: 'white',
           fontWeight: 'bold'
         }}>
-          💬
+          🔴
         </div>
       )}
 
-      {/* Tooltip con información del agente */}
-      {(data.personality || data.expertise) && (
-        <div 
-          style={{
-            position: 'absolute',
-            bottom: '-60px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'rgba(0,0,0,0.8)',
-            color: 'white',
-            padding: '6px 8px',
-            borderRadius: '4px',
-            fontSize: '10px',
-            whiteSpace: 'nowrap',
-            opacity: 0,
-            pointerEvents: 'none',
-            transition: 'opacity 0.2s ease',
-            zIndex: 1000
-          }}
-          className="agent-tooltip"
-        >
-          {data.personality && `${data.personality}`}
-          {data.personality && data.expertise && ' • '}
-          {data.expertise && `${data.expertise}`}
-        </div>
-      )}
-
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="actor-output"
-        isConnectable={isConnectable}
-        style={{ background: '#555', bottom: -8, borderRadius: '50%', border: '2px solid white' }}
-      />
+      {/* Tooltip con información */}
+      <div 
+        style={{
+          position: 'absolute',
+          bottom: '-60px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(0,0,0,0.8)',
+          color: 'white',
+          padding: '6px 8px',
+          borderRadius: '4px',
+          fontSize: '10px',
+          whiteSpace: 'nowrap',
+          opacity: 0,
+          pointerEvents: 'none',
+          transition: 'opacity 0.2s ease',
+          zIndex: 1000
+        }}
+        className="telegram-tooltip"
+      >
+        {data.isActive ? 'Telegram Activo' : 'Telegram Disponible'}
+        {data.botToken && <br />}
+        {data.botToken && `Bot: ${data.botToken.substring(0, 10)}...`}
+      </div>
     </div>
   );
 }

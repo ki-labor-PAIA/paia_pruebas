@@ -1,5 +1,6 @@
 import Head from "next/head";
 import dynamic from 'next/dynamic';
+import AuthGuard from '@/components/AuthGuard';
 
 const PAIASimulator = dynamic(() => import('@/components/PAIASimulator'), { 
   ssr: false 
@@ -14,7 +15,9 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <PAIASimulator />
+      <AuthGuard>
+        <PAIASimulator />
+      </AuthGuard>
     </>
   );
 }

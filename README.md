@@ -9,16 +9,29 @@ paia/
 ├── paia-simulator/          # Aplicación Next.js (interfaz)
 │   ├── src/
 │   │   ├── components/      # Componentes React
-│   │   ├── pages/          # Páginas Next.js
+│   │   ├── pages/          # Páginas Next.js y API routes
+│   │   │   └── api/
+│   │   │       └── mcp/     # Servidor MCP Google Calendar
 │   │   ├── hooks/          # Custom hooks
 │   │   ├── styles/         # Estilos CSS
 │   │   └── utils/          # Utilidades y APIs
 │   └── package.json
 ├── paia_backend.py         # Backend principal (usar este)
 ├── backend_paia_mcp.py     # Backend escalable alternativo
+├── auth_manager.py         # Gestión de autenticación
 ├── requirements.txt        # Dependencias Python
 └── index.html              # Página HTML estática
 ```
+
+## Características Principales
+
+- **Sistema de Agentes IA**: Creación y gestión de agentes con especialidades específicas
+- **Comunicación Inter-Agentes**: Los agentes pueden comunicarse entre sí dentro y entre usuarios
+- **Integración con Telegram**: Comunicación bidireccional con bots de Telegram
+- **Google Calendar MCP**: Integración completa con Google Calendar usando Model Context Protocol
+- **Autenticación Multiusuario**: Sistema de autenticación con Google OAuth y credenciales locales
+- **Interfaz Visual**: Editor visual tipo n8n usando React Flow para conectar agentes
+- **Base de Datos Persistente**: PostgreSQL para almacenamiento de datos de usuarios y agentes
 
 ## Requisitos Previos
 
@@ -26,6 +39,7 @@ paia/
 - **Node.js** (versión 18 o superior)
 - **npm** o **yarn**
 - **API Key de Google Gemini**
+- **Docker Desktop** (para PostgreSQL)
 - **Git**
 
 ## Instalación y Ejecución
@@ -52,7 +66,60 @@ pip install -r requirements.txt
 ```python
 os.environ["GOOGLE_API_KEY"] = "TU_API_KEY_AQUÍ"
 ```
-### ⚠️ Asegúrate de que al compartir tus cambios con el equipo, no compartas la api key
+
+#### Configurar PostgreSQL en Docker
+
+##### Instalar docker desktop
+Windows: https://docs.docker.com/desktop/setup/install/windows-install
+##### Abrir docker desktop y ejecutar el sigueinte comando en la terminal que estes usando:
+-
+```
+docker run --name paia-postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=root -e POSTGRES_DB=paia -p 5432:5432 -d postgres:15
+```
+-
+##### Verificar que PostgreSQL esté funcionando
+
+```
+# Verificar que el contenedor esté ejecutándose
+docker ps
+
+# Verificar logs del contenedor
+docker logs paia-postgres
+```
+
+#### Comandos útiles para gestionar Docker
+
+```
+# Detener el contenedor
+docker stop paia-postgres
+
+# Iniciar el contenedor existente, ejecutar cada vez que se reinicie la pc
+docker start paia-postgres
+
+# Eliminar el contenedor (si necesitas empezar de nuevo)
+docker rm -f paia-postgres
+
+# Conectarse a PostgreSQL desde línea de comandos
+docker exec -it paia-postgres psql -U postgres -d paia
+```
+
+#### Configurar Google Calendar (Opcional)
+Para habilitar la integración con Google Calendar:
+
+1. Ve a [Google Cloud Console](https://console.cloud.google.com/)
+2. Crea un nuevo proyecto o selecciona uno existente
+3. Habilita la API de Google Calendar
+4. Crea credenciales OAuth 2.0:
+   - Tipo: Aplicación web
+   - URLs de redirección autorizadas: `http://localhost:3000/api/mcp/oauth2callback`
+5. Crea un archivo `.env.local` en la carpeta `paia-simulator/` con:
+```bash
+GOOGLE_CLIENT_ID=tu-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=tu-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/mcp/oauth2callback
+```
+
+### ⚠️ Asegúrate de que al compartir tus cambios con el equipo, no compartas las API keys
 
 #### Ejecutar el backend:
 ```bash
@@ -61,7 +128,6 @@ python paia_backend.py
 El backend estará corriendo en: http://localhost:8000
 
 ### 3. Configurar la Interfaz
-
 #### En otra terminal, instalar dependencias de Node.js:
 ```bash
 cd paia-simulator
@@ -248,12 +314,58 @@ git stash pop  # Recupera los cambios
 4. **Probar antes de hacer PR**: Asegúrate de que el código funciona y pasa el linter
 5. **Revisar PRs de otros**: La revisión de código es importante para mantener la calidad
 
+## Funcionalidades Implementadas
+
+### 🤖 **Sistema de Agentes**
+- Creación de agentes con personalidades y especialidades específicas
+- Comunicación bidireccional entre agentes de diferentes usuarios
+- Herramientas integradas para cada agente (Telegram, Google Calendar)
+
+### 📱 **Integración con Telegram**
+- Configuración de bots de Telegram por agente
+- Envío y recepción de mensajes desde la interfaz web
+- Panel de configuración con pruebas en tiempo real
+
+### 📅 **Google Calendar MCP (Model Context Protocol)**
+- **Servidor MCP integrado**: Implementado en TypeScript dentro de Next.js
+- **Autenticación OAuth**: Flujo completo de autenticación con Google
+- **Gestión de calendarios**: Listar calendarios del usuario
+- **Creación de eventos**: Crear eventos con asistentes, ubicación y descripción
+- **Verificación de disponibilidad**: Comprobar conflictos de horarios
+- **Disponible para agentes**: Todos los agentes pueden usar las funciones de calendario
+
+### 👥 **Sistema de Autenticación**
+- Registro e inicio de sesión con credenciales locales
+- Integración con Google OAuth
+- Gestión de usuarios en PostgreSQL
+- Sesiones persistentes con NextAuth.js
+
+### 🎨 **Interfaz Visual**
+- Editor tipo n8n usando React Flow
+- Conexiones visuales entre agentes
+- Nodos especializados para diferentes herramientas
+
 ## Tecnologías Utilizadas
 
-- **Next.js 15** - Framework React
+### Frontend
+- **Next.js 15** - Framework React con API routes
 - **React 19** - Biblioteca de UI
-- **ReactFlow** - Para diagramas y flujos
-- **ESLint** - Linter de código
+- **ReactFlow** - Para diagramas y flujos visuales
+- **NextAuth.js** - Autenticación y gestión de sesiones
+- **TypeScript** - Para el servidor MCP
+
+### Backend
+- **FastAPI** - API backend en Python
+- **LangGraph** - Para la lógica de agentes IA
+- **PostgreSQL** - Base de datos principal
+- **AsyncPG** - Driver asíncrono para PostgreSQL
+- **Google Gemini** - Modelo de lenguaje para agentes
+
+### Integraciones
+- **Model Context Protocol (MCP)** - Para Google Calendar
+- **Google Calendar API** - Gestión de calendarios y eventos
+- **Telegram Bot API** - Comunicación con bots
+- **Docker** - Contenedorización de PostgreSQL
 
 ## Contribuir
 
