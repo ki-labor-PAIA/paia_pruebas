@@ -95,13 +95,13 @@ class PAIAApi {
     }
   }
 
-  async sendMessage(agentId, message) {
+  async sendMessage(agentId, message, userId = null) {
     if (!(await this.checkBackendConnection())) return null;
     try {
       const response = await fetch(`${this.baseUrl}/agents/${agentId}/message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message, user_id: userId }),
       });
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       return await response.json();

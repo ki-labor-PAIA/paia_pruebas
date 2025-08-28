@@ -15,14 +15,20 @@ from long_term_store_pg import LongTermStorePG
 import uvicorn
 import os
 import requests  # Para Telegram
+import httpx  # Para verificar servidor MCP
 from memory_manager import MemoryManager, Message
-
+from auth_manager import AuthManager
+from dotenv import load_dotenv
+load_dotenv()
 app = FastAPI(title="PAIA Platform Backend", version="1.0.0")
 
 # === MEMORIA PERSISTENTE (Postgres) ===
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:root@localhost:5432/paia")
 lt_store = LongTermStorePG(DATABASE_URL)
 memory_manager = MemoryManager(long_term_backend=lt_store)
+
+# === AUTENTICACIÓN ===
+auth_manager = AuthManager(DATABASE_URL)
 
 # =============== CONFIGURACIÓN DE TELEGRAM ===============
 TELEGRAM_BOT_TOKEN = "7631967713:AAFLKpCvsRk3PByVrvD2cwYcuOZM5smdXno"  # Reemplaza con tu token de BotFather
@@ -89,6 +95,8 @@ telegram_service = TelegramService(TELEGRAM_BOT_TOKEN)
 @app.on_event("startup")
 async def on_startup():
     await lt_store.init_db()
+    await auth_manager.init_db()
+    await init_mcp_client()
 
 # Configuración
 os.environ["GOOGLE_API_KEY"] = "AIzaSyDrciW_INkcadba7Qu3VjaiSKsInO1VBCQ"
@@ -147,27 +155,46 @@ message_history: Dict[str, List[AgentMessage]] = {}  # conversation_id -> messag
 class PAIAAgentManager:
     def __init__(self):
         self.llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.7)
+        self.mcp_client = None
+    
+    async def setup_mcp_client(self) -> None:
+        """Configurar cliente MCP con Google Calendar"""
+        try:
+                    self.mcp_client = MultiServerMCPClient({
+                        "google_calendar": {
+                            "url": "http://127.0.0.1:3000/api/mcp",
+                            "transport": "streamable_http"
+                        }
+                    })
+                    print("Cliente MCP configurado para Google Calendar TypeScript")
+        except Exception as e:
+            print(f"WARNING: Error configurando MCP cliente: {e}")
+            self.mcp_client = None
     
     async def create_agent(self, agent_data: dict) -> PAIAAgent:
         agent_id = str(uuid.uuid4())[:8]
         
-        # Crear herramientas específicas del agente (incluye Telegram)
-        agent_tools = self._create_agent_tools(agent_id, agent_data['expertise'])
+        # Crear herramientas base del agente
+        base_tools = self._create_agent_tools(agent_id, agent_data['expertise'])
         
-        # Crear instancia del agente con LangGraph
+        # Obtener herramientas MCP si están disponibles y crear wrappers
+        all_tools = base_tools
+        if self.mcp_client:
+            try:
+                mcp_tools = await self.mcp_client.get_tools()
+                
+                # Usar herramientas MCP directamente (sin wrappers)
+                all_tools = base_tools + mcp_tools
+                print(f"Herramientas MCP agregadas: {len(mcp_tools)}")
+            except Exception as e:
+                print(f"Error obteniendo herramientas MCP: {e}")
+        
+        # Crear instancia del agente con TODAS las herramientas
+        user_id = agent_data.get('user_id', 'usuario-anonimo')
         agent_llm = create_react_agent(
             self.llm,
-            agent_tools,
-            state_modifier=f"""Eres {agent_data['name']}, un asistente {agent_data['personality']} especializado en {agent_data['expertise']}.
-
-IMPORTANTE: 
-1. Tienes acceso a herramientas para comunicarte con otros agentes usando get_connected_agents() y send_message_to_agent()
-2. NUEVO: Puedes enviar mensajes por Telegram usando send_telegram_message() cuando el usuario te lo pida
-3. Si el usuario dice "enviar por telegram", "mandar a telegram", "notificar por telegram" o similar, USA la herramienta send_telegram_message()
-4. Puedes configurar tu Chat ID de Telegram con set_telegram_chat_id() si es necesario
-5. Siempre confirma al usuario cuando envíes algo por Telegram
-
-Mantén el contexto de toda la conversación y responde de manera natural."""
+            all_tools,
+            prompt=f"Eres {agent_data['name']}, un asistente {agent_data['personality']} especializado en {agent_data['expertise']}. \n\nIMPORTANTE: Tu user ID es: {user_id}\n\nCuando uses herramientas de Google Calendar (list-calendars, list-events, list-today-events, create-event), SIEMPRE incluye el parámetro userId con el valor: {user_id}\n\nCuando el usuario mencione calendario, citas o eventos, usa las herramientas de Google Calendar automáticamente. Si mencionan comunicarse con otros agentes, usa get_connected_agents() y send_message_to_agent(). Sé proactivo y usa las herramientas disponibles."
         )
         
         agent = PAIAAgent(
@@ -183,7 +210,7 @@ Mantén el contexto de toda la conversación y responde de manera natural."""
            is_public=agent_data.get('is_public', True),
            telegram_chat_id=agent_data.get('telegram_chat_id', TELEGRAM_DEFAULT_CHAT_ID),
            llm_instance=agent_llm,
-           tools=agent_tools,
+           tools=all_tools,
            conversation_history=[]
         )
         
@@ -196,7 +223,7 @@ Mantén el contexto de toda la conversación y responde de manera natural."""
         return agent
     
     def _create_agent_tools(self, agent_id: str, expertise: str) -> List:
-        """Crear herramientas mejoradas para comunicación entre agentes y Telegram"""
+        """Crear herramientas mejoradas para comunicación entre agentes, Telegram y Google Calendar"""
         
         # =============== HERRAMIENTAS DE TELEGRAM ===============
         @tool
@@ -508,7 +535,10 @@ Mantén el contexto de toda la conversación y responde de manera natural."""
                 return f"Resultados de búsqueda para: {query}"
             base_tools.append(web_search)
         
+        # Las herramientas de Google Calendar ahora vienen del MCP client
+        
         return base_tools
+    
     
     async def _generate_agent_response(self, from_agent_id: str, to_agent_id: str, conversation_id: str) -> str:
         """Generar respuesta automática del agente objetivo"""
@@ -606,6 +636,10 @@ Mantén el contexto de toda la conversación y responde de manera natural."""
 # Instancia del gestor
 agent_manager = PAIAAgentManager()
 
+# Inicializar el cliente MCP al arrancar
+async def init_mcp_client():
+    await agent_manager.setup_mcp_client()
+
 # =============== ENDPOINTS API ===============
 
 @app.post("/api/agents")
@@ -669,21 +703,30 @@ async def get_connections():
 @app.post("/api/agents/{agent_id}/message")
 async def send_message_to_agent(agent_id: str, message_data: dict):
     try:
+        print(f"[DEBUG] Recibiendo mensaje para agente {agent_id}: {message_data}")
+        
         if agent_id not in agents_store:
+            print(f"[ERROR] Agente {agent_id} no encontrado en agents_store")
             raise HTTPException(status_code=404, detail="Agente no encontrado")
         
         agent = agents_store[agent_id]
+        user_id = message_data.get('user_id')
+        print(f"[DEBUG] Agente encontrado: {agent.name}, Usuario: {user_id}, LLM instance: {type(agent.llm_instance)}")
         
         if agent.conversation_history is None:
             agent.conversation_history = []
         
         # Agregar a memoria corta
-        memory_manager.add_to_short_term(agent_id, role="user", content=message_data['message'])
+        try:
+            memory_manager.add_to_short_term(agent_id, role="user", content=message_data['message'])
+        except Exception as e:
+            print(f"[WARNING] Error agregando a memoria corta: {e}")
         
         agent.conversation_history.append({
             "role": "user",
             "content": message_data['message'],
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "user_id": user_id  # Agregar user_id al historial
         })
         
         # Crear contexto con memoria
@@ -695,10 +738,13 @@ async def send_message_to_agent(agent_id: str, message_data: dict):
                 conversation_context.append(AIMessage(content=msg["content"]))
         
         # Agregar memoria a largo plazo si existe
-        long_term = memory_manager.get_long_term_memories(agent_id)
-        if long_term:
-            resumen = ", ".join([f"{k}: {v}" for k, v in long_term.items()])
-            conversation_context.insert(0, HumanMessage(content=f"🧠 Preferencias del usuario: {resumen}"))
+        try:
+            long_term = await memory_manager.get_long_term_memory(agent_id)
+            if long_term:
+                resumen = ", ".join([f"{k}: {v}" for k, v in long_term.items()])
+                conversation_context.insert(0, HumanMessage(content=f"Preferencias del usuario: {resumen}"))
+        except Exception as e:
+            print(f"[WARNING] Error obteniendo memoria a largo plazo: {e}")
         
         if not conversation_context:
             conversation_context.append(HumanMessage(content=message_data['message']))
@@ -706,9 +752,21 @@ async def send_message_to_agent(agent_id: str, message_data: dict):
             if conversation_context[-1].content != message_data['message']:
                 conversation_context.append(HumanMessage(content=message_data['message']))
         
-        response = await agent.llm_instance.ainvoke({
-            "messages": conversation_context
-        })
+        print(f"[DEBUG] Invocando LLM con {len(conversation_context)} mensajes")
+        
+        try:
+            print(f"[DEBUG] Conversation context: {[msg.content[:50] + '...' if len(msg.content) > 50 else msg.content for msg in conversation_context]}")
+            response = await agent.llm_instance.ainvoke({
+                "messages": conversation_context
+            })
+            print(f"[DEBUG] Respuesta LLM recibida: {type(response)}")
+        except Exception as e:
+            print(f"[ERROR] Error invocando LLM: {e}")
+            print(f"[ERROR] Tipo de agent.llm_instance: {type(agent.llm_instance)}")
+            import traceback
+            print(f"[ERROR] Traceback completo:")
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail=f"Error invocando LLM: {str(e)}")
         
         response_content = response["messages"][-1].content
         
@@ -722,14 +780,18 @@ async def send_message_to_agent(agent_id: str, message_data: dict):
             })
         except Exception as e:
             print(f"[ERROR] Al guardar respuesta en memoria/historial: {e}")
-            raise
 
         return {
             "agent_id": agent_id,
             "agent_name": agent.name,
             "response": response_content
         }
+    except HTTPException:
+        raise
     except Exception as e:
+        print(f"[ERROR] Error general en send_message_to_agent: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 # =============== NUEVOS ENDPOINTS DE TELEGRAM ===============
@@ -1014,6 +1076,84 @@ async def create_architecture(architecture_data: dict):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# =============== ENDPOINTS DE AUTENTICACIÓN ===============
+
+@app.post("/auth/register")
+async def register_user(request: dict):
+    """Registrar nuevo usuario"""
+    email = request.get("email")
+    password = request.get("password")
+    name = request.get("name")
+    
+    if not email or not password:
+        raise HTTPException(status_code=400, detail="Email y contraseña son requeridos")
+    
+    result = await auth_manager.register_user(email, password, name)
+    
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["message"])
+    
+    return {"message": result["message"], "user_id": result["user_id"]}
+
+@app.post("/auth/login")
+async def login_user(request: dict):
+    """Login con email y contraseña"""
+    email = request.get("email")
+    password = request.get("password")
+    
+    if not email or not password:
+        raise HTTPException(status_code=400, detail="Email y contraseña son requeridos")
+    
+    result = await auth_manager.login_user(email, password)
+    
+    if not result["success"]:
+        raise HTTPException(status_code=401, detail=result["message"])
+    
+    return {
+        "id": result["id"],
+        "email": result["email"],
+        "name": result["name"]
+    }
+
+@app.post("/auth/google-signin")
+async def google_signin(request: dict):
+    """Login/registro con Google OAuth"""
+    email = request.get("email")
+    name = request.get("name")
+    google_id = request.get("google_id")
+    image = request.get("image")
+    
+    if not email or not google_id:
+        raise HTTPException(status_code=400, detail="Email y Google ID son requeridos")
+    
+    result = await auth_manager.google_signin(email, name, google_id, image)
+    
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["message"])
+    
+    return {
+        "user_id": result["user_id"],
+        "email": result["email"],
+        "name": result["name"]
+    }
+
+@app.get("/auth/user/{user_id}")
+async def get_user(user_id: str):
+    """Obtener información del usuario"""
+    user = await auth_manager.get_user_by_id(user_id)
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    return {
+        "id": user.id,
+        "email": user.email,
+        "name": user.name,
+        "image": user.image,
+        "is_active": user.is_active,
+        "created_at": user.created_at.isoformat() if user.created_at else None
+    }
+
 @app.get("/api/health")
 async def health_check():
     telegram_status = "configured" if TELEGRAM_BOT_TOKEN != "TU_TOKEN_AQUI" else "not_configured"
@@ -1029,17 +1169,17 @@ async def health_check():
     }
 
 if __name__ == "__main__":
-    print("🚀 Iniciando PAIA Platform Backend con Telegram Integration...")
-    print("📡 Funcionalidades:")
-    print("   - ✅ Comunicación async entre agentes")
-    print("   - ✅ Contexto de conversación persistente")
-    print("   - ✅ Reconocimiento automático de conexiones")
-    print("   - ✅ Respuestas inmediatas sin errores de loop")
-    print("   - ✅ Memoria persistente con PostgreSQL")
-    print("   - ✅ Soporte multi-usuario")
-    print("   - 📱 TELEGRAM: Integración completa con notificaciones")
+    print("Iniciando PAIA Platform Backend con Telegram Integration...")
+    print("Funcionalidades:")
+    print("   - Comunicacion async entre agentes")
+    print("   - Contexto de conversacion persistente")
+    print("   - Reconocimiento automatico de conexiones")
+    print("   - Respuestas inmediatas sin errores de loop")
+    print("   - Memoria persistente con PostgreSQL")
+    print("   - Soporte multi-usuario")
+    print("   - TELEGRAM: Integracion completa con notificaciones")
     print("")
-    print("⚠️  IMPORTANTE: Configura tu token de Telegram y Chat ID en las líneas 21-22")
+    print("IMPORTANTE: Configura tu token de Telegram y Chat ID en las lineas 21-22")
     print("")
     
     uvicorn.run(

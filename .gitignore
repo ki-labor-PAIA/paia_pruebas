@@ -3,3 +3,4 @@
 .tokens/*.json
 _pycache_/
 *.pyc
+.claude/

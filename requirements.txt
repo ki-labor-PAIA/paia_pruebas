@@ -16,3 +16,6 @@ psutil
 redis
 asyncpg
 aioredis
+bcrypt
+python-jose[cryptography]
+sqlalchemy

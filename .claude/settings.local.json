@@ -14,7 +14,12 @@
       "Bash(python:*)",
       "Bash(sed:*)",
       "Bash(cp:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "mcp__context7__get-library-docs",
+      "mcp__context7__resolve-library-id",
+      "WebSearch",
+      "Bash(docker exec:*)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": []
   }
