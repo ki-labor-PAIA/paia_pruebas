@@ -17,7 +17,8 @@ export default function LeftSidebar({
   useBackend,
   setUseBackend,
   isBackendConnected,
-  onCheckBackend
+  onCheckBackend,
+  onAddConnectionNode
 }) {
   const fileInputRef = useRef(null);
   const { t, i18n } = useTranslation();
@@ -205,6 +206,39 @@ export default function LeftSidebar({
             🇫🇷 FR
           </button>
         </div>
+      </div>
+
+      {/* Sección para agregar nodos */}
+      <div className="button-group">
+        <div className="button-group-title">🔗 Conexiones</div>
+        <button 
+          onClick={() => onAddConnectionNode && onAddConnectionNode('user')} 
+          className="discreet-button"
+          style={{ 
+            fontSize: '0.85em', 
+            fontWeight: '500',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '8px 12px'
+          }}
+        >
+          👤 Conectar Usuario
+        </button>
+        <button 
+          onClick={() => onAddConnectionNode && onAddConnectionNode('notification')} 
+          className="discreet-button"
+          style={{ 
+            fontSize: '0.85em', 
+            fontWeight: '500',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '8px 12px'
+          }}
+        >
+          📢 Notificaciones
+        </button>
       </div>
 
       <div className="button-group">

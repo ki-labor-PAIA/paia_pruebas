@@ -18,7 +18,6 @@ import requests  # Para Telegram
 import httpx  # Para verificar servidor MCP
 from memory_manager import MemoryManager, Message
 from auth_manager import AuthManager
-from db_manager import DatabaseManager
 from dotenv import load_dotenv
 load_dotenv()
 app = FastAPI(title="PAIA Platform Backend", version="1.0.0")
@@ -30,9 +29,6 @@ memory_manager = MemoryManager(long_term_backend=lt_store)
 
 # === AUTENTICACIÓN ===
 auth_manager = AuthManager(DATABASE_URL)
-
-# === GESTOR DE BASE DE DATOS ===
-db_manager = DatabaseManager(DATABASE_URL)
 
 # =============== CONFIGURACIÓN DE TELEGRAM ===============
 TELEGRAM_BOT_TOKEN = "7631967713:AAFLKpCvsRk3PByVrvD2cwYcuOZM5smdXno"  # Reemplaza con tu token de BotFather
@@ -101,7 +97,6 @@ async def on_startup():
     await lt_store.init_db()
     await auth_manager.init_db()
     await init_mcp_client()
-    await load_persistent_agents()
 
 # Configuración
 os.environ["GOOGLE_API_KEY"] = "AIzaSyDrciW_INkcadba7Qu3VjaiSKsInO1VBCQ"
@@ -177,17 +172,18 @@ class PAIAAgentManager:
             self.mcp_client = None
     
     async def create_agent(self, agent_data: dict) -> PAIAAgent:
-        # Primero guardar en BD
-        db_agent = await db_manager.create_agent(agent_data)
+        agent_id = str(uuid.uuid4())[:8]
         
         # Crear herramientas base del agente
-        base_tools = self._create_agent_tools(db_agent.id, agent_data['expertise'])
+        base_tools = self._create_agent_tools(agent_id, agent_data['expertise'])
         
-        # Obtener herramientas MCP si están disponibles
+        # Obtener herramientas MCP si están disponibles y crear wrappers
         all_tools = base_tools
         if self.mcp_client:
             try:
                 mcp_tools = await self.mcp_client.get_tools()
+                
+                # Usar herramientas MCP directamente (sin wrappers)
                 all_tools = base_tools + mcp_tools
                 print(f"Herramientas MCP agregadas: {len(mcp_tools)}")
             except Exception as e:
@@ -198,52 +194,32 @@ class PAIAAgentManager:
         agent_llm = create_react_agent(
             self.llm,
             all_tools,
-            prompt=f"""Eres {agent_data['name']}, un asistente {agent_data['personality']} especializado en {agent_data['expertise']}.
-
-IMPORTANTE: Tu user ID es: {user_id}
-
-🔧 HERRAMIENTAS DISPONIBLES:
-
-📅 CALENDARIO:
-- Cuando uses herramientas de Google Calendar (list-calendars, list-events, list-today-events, create-event), SIEMPRE incluye el parámetro userId con el valor: {user_id}
-
-🤖 COMUNICACIÓN INTELIGENTE:
-- Para enviar un mensaje a una PERSONA: usa send_notification_to_user(user_name, message, priority)
-- Para hacer PREGUNTAS INTELIGENTES a otro agente: usa ask_connected_agent(user_name, question, context)
-  
-📢 EJEMPLOS DE USO:
-- "Dile a Mari que la espero mañana a las 7" → send_notification_to_user("Mari", "Te espero mañana a las 7", "normal")
-- "Pregúntale a Mari si está libre mañana a las 7" → ask_connected_agent("Mari", "¿Estás disponible mañana a las 7pm?", "Para una reunión de trabajo")
-
-🎯 COMPORTAMIENTO:
-- Sé PROACTIVO: Si mencionan calendario o disponibilidad, usa las herramientas automáticamente
-- Para consultas de disponibilidad, siempre usa ask_connected_agent() - el otro agente consultará su calendario
-- Para mensajes simples, usa send_notification_to_user()
-- Siempre confirma qué acción realizaste"""
+            prompt=f"Eres {agent_data['name']}, un asistente {agent_data['personality']} especializado en {agent_data['expertise']}. \n\nIMPORTANTE: Tu user ID es: {user_id}\n\nCuando uses herramientas de Google Calendar (list-calendars, list-events, list-today-events, create-event), SIEMPRE incluye el parámetro userId con el valor: {user_id}\n\nCuando el usuario mencione calendario, citas o eventos, usa las herramientas de Google Calendar automáticamente. Si mencionan comunicarse con otros agentes, usa get_connected_agents() y send_message_to_agent(). Sé proactivo y usa las herramientas disponibles."
         )
         
         agent = PAIAAgent(
-           id=db_agent.id,
-           name=db_agent.name,
-           description=db_agent.description,
-           personality=db_agent.personality,
-           expertise=db_agent.expertise,
-           status=db_agent.status,
-           created=db_agent.created_at.isoformat(),
-           mcp_endpoint=db_agent.mcp_endpoint or f"http://localhost:{3000 + len(agents_store)}/mcp",
-           user_id=db_agent.user_id,
-           is_public=db_agent.is_public,
-           telegram_chat_id=db_agent.telegram_chat_id or TELEGRAM_DEFAULT_CHAT_ID,
+           id=agent_id,
+           name=agent_data['name'],
+           description=agent_data['description'],
+           personality=agent_data['personality'],
+           expertise=agent_data['expertise'],
+           status='online',
+           created=datetime.now().isoformat(),
+           mcp_endpoint=f"http://localhost:{3000 + len(agents_store)}/mcp",
+           user_id=agent_data.get('user_id', 'anonymous'),
+           is_public=agent_data.get('is_public', True),
+           telegram_chat_id=agent_data.get('telegram_chat_id', TELEGRAM_DEFAULT_CHAT_ID),
            llm_instance=agent_llm,
            tools=all_tools,
            conversation_history=[]
         )
         
-        # Vincular perfil estable para memoria larga
-        memory_profile_id = f"user:{db_agent.user_id}|persona:{db_agent.name}"
-        memory_manager.bind_profile(db_agent.id, memory_profile_id)
+        # (NUEVO) Vincular perfil estable para memoria larga
+        user_id = agent.user_id or "anonymous"
+        memory_profile_id = f"user:{user_id}|persona:{agent.name}"
+        memory_manager.bind_profile(agent_id, memory_profile_id)
         
-        agents_store[db_agent.id] = agent
+        agents_store[agent_id] = agent
         return agent
     
     def _create_agent_tools(self, agent_id: str, expertise: str) -> List:
@@ -396,132 +372,6 @@ IMPORTANTE: Tu user ID es: {user_id}
                 return f"Error obteniendo conexiones: {str(e)}"
         
         @tool
-        async def send_notification_to_user(user_name: str, message: str, priority: str = "normal") -> str:
-            """
-            Enviar notificación directa a un usuario conectado.
-            
-            Args:
-                user_name: Nombre del usuario o email
-                message: Mensaje a enviar
-                priority: Prioridad (low, normal, high, urgent)
-            
-            Returns:
-                Confirmación del envío
-            """
-            try:
-                # Buscar usuario por nombre o email
-                users = await db_manager.search_users(user_name, exclude_user_id=agent_id, limit=5)
-                
-                if not users:
-                    return f"❌ No se encontró usuario '{user_name}'"
-                
-                target_user = users[0]  # Tomar el primer resultado
-                
-                # Crear notificación
-                await db_manager.create_notification({
-                    'user_id': target_user['id'],
-                    'agent_id': agent_id,
-                    'title': f'Mensaje de {agents_store.get(agent_id, {}).name if agent_id in agents_store else "Agente"}',
-                    'content': message,
-                    'notification_type': 'message',
-                    'priority': priority
-                })
-                
-                # También enviar por Telegram si está configurado
-                sender_agent = agents_store.get(agent_id)
-                if sender_agent and sender_agent.telegram_chat_id:
-                    telegram_msg = f"📧 Mensaje enviado a {target_user['name']}:\n\n{message}"
-                    telegram_service.send_message(sender_agent.telegram_chat_id, telegram_msg)
-                
-                return f"✅ Notificación enviada a {target_user['name']} ({target_user['email']})"
-                
-            except Exception as e:
-                return f"❌ Error enviando notificación: {str(e)}"
-
-        @tool
-        async def ask_connected_agent(user_name: str, question: str, context: str = "") -> str:
-            """
-            Hacer una pregunta inteligente al agente de otro usuario.
-            Perfecto para consultas de calendario, disponibilidad, etc.
-            
-            Args:
-                user_name: Nombre del usuario cuyo agente quieres consultar
-                question: Pregunta específica (ej: "¿Está disponible mañana a las 7pm?")
-                context: Contexto adicional opcional
-            
-            Returns:
-                Respuesta del agente consultado
-            """
-            try:
-                # Buscar usuario
-                users = await db_manager.search_users(user_name, limit=5)
-                if not users:
-                    return f"❌ No se encontró usuario '{user_name}'"
-                
-                target_user = users[0]
-                
-                # Buscar agente del usuario (el más reciente y activo)
-                target_agents = await db_manager.get_agents_by_user(target_user['id'])
-                if not target_agents:
-                    return f"❌ {target_user['name']} no tiene agentes configurados"
-                
-                # Tomar el primer agente activo
-                target_agent_data = None
-                for agent_data in target_agents:
-                    if agent_data.status == 'online':
-                        target_agent_data = agent_data
-                        break
-                
-                if not target_agent_data:
-                    target_agent_data = target_agents[0]  # Fallback al primero
-                
-                # Verificar si el agente está en memoria (cargado)
-                if target_agent_data.id not in agents_store:
-                    return f"⏳ El agente de {target_user['name']} ({target_agent_data.name}) no está activo en este momento"
-                
-                target_agent = agents_store[target_agent_data.id]
-                
-                # Construir mensaje inteligente
-                sender_agent = agents_store.get(agent_id)
-                sender_name = sender_agent.name if sender_agent else "Un agente"
-                
-                intelligent_prompt = f"""Pregunta de {sender_name}: {question}
-
-Contexto adicional: {context}
-
-Por favor responde de manera útil y directa. Si la pregunta es sobre disponibilidad o calendario, consulta el calendario del usuario usando las herramientas disponibles."""
-
-                # Enviar mensaje al agente objetivo
-                response = await target_agent.llm_instance.ainvoke({
-                    "messages": [HumanMessage(content=intelligent_prompt)]
-                })
-                
-                response_content = response["messages"][-1].content
-                
-                # Guardar la conversación en BD
-                conversation_id = f"intelligent_{agent_id}_{target_agent_data.id}"
-                await db_manager.save_message({
-                    'conversation_id': conversation_id,
-                    'from_agent_id': agent_id,
-                    'to_agent_id': target_agent_data.id,
-                    'content': question,
-                    'message_type': 'intelligent_query'
-                })
-                
-                await db_manager.save_message({
-                    'conversation_id': conversation_id,
-                    'from_agent_id': target_agent_data.id,
-                    'to_agent_id': agent_id,
-                    'content': response_content,
-                    'message_type': 'intelligent_response'
-                })
-                
-                return f"🤖 {target_agent_data.name} (agente de {target_user['name']}) responde:\n\n{response_content}"
-                
-            except Exception as e:
-                return f"❌ Error consultando agente: {str(e)}"
-
-        @tool
         async def send_message_to_agent(target_agent_id: str, message: str, notify_telegram: bool = False) -> str:
             """
             Enviar mensaje a otro agente y obtener respuesta.
@@ -628,7 +478,7 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
             except Exception as e:
                 return f"Error obteniendo historial: {str(e)}"
         
-        # Lista base de herramientas (ahora incluye comunicación inteligente)
+        # Lista base de herramientas (ahora incluye Telegram)
         base_tools = [
             get_connected_agents, 
             send_message_to_agent, 
@@ -637,10 +487,7 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
             send_telegram_message,
             send_telegram_notification,
             set_telegram_chat_id,
-            get_telegram_updates,
-            # Nuevas herramientas inteligentes
-            send_notification_to_user,
-            ask_connected_agent
+            get_telegram_updates
         ]
         
         # Herramientas específicas por expertise
@@ -793,109 +640,6 @@ agent_manager = PAIAAgentManager()
 async def init_mcp_client():
     await agent_manager.setup_mcp_client()
 
-# Cargar agentes persistentes al arrancar
-async def load_persistent_agents():
-    """Cargar agentes que deben estar siempre activos"""
-    try:
-        # Buscar agentes marcados como persistentes o auto_start
-        # Por ahora cargar todos los agentes activos (se puede optimizar después)
-        print("[INFO] Cargando agentes persistentes...")
-        
-        # Esta función se ejecutará en el background para cargar agentes cuando se necesiten
-        print("[SUCCESS] Sistema de agentes persistentes inicializado")
-        
-    except Exception as e:
-        print(f"[ERROR] Error cargando agentes persistentes: {e}")
-
-async def ensure_agent_loaded(agent_id: str, user_id: str = None):
-    """Asegurar que un agente esté cargado en memoria"""
-    if agent_id in agents_store:
-        return agents_store[agent_id]
-    
-    try:
-        # Cargar agente desde BD
-        db_agent = await db_manager.get_agent_by_id(agent_id)
-        if not db_agent:
-            return None
-        
-        # Recrear agente en memoria
-        agent_data = {
-            'name': db_agent.name,
-            'description': db_agent.description,
-            'personality': db_agent.personality,
-            'expertise': db_agent.expertise,
-            'user_id': db_agent.user_id,
-            'is_public': db_agent.is_public,
-            'telegram_chat_id': db_agent.telegram_chat_id
-        }
-        
-        # Usar el create_agent pero sin guardar en BD (ya existe)
-        base_tools = agent_manager._create_agent_tools(db_agent.id, db_agent.expertise)
-        all_tools = base_tools
-        
-        if agent_manager.mcp_client:
-            try:
-                mcp_tools = await agent_manager.mcp_client.get_tools()
-                all_tools = base_tools + mcp_tools
-            except:
-                pass
-        
-        agent_llm = create_react_agent(
-            agent_manager.llm,
-            all_tools,
-            prompt=f"""Eres {db_agent.name}, un asistente {db_agent.personality} especializado en {db_agent.expertise}.
-
-IMPORTANTE: Tu user ID es: {db_agent.user_id}
-
-🔧 HERRAMIENTAS DISPONIBLES:
-
-📅 CALENDARIO:
-- Cuando uses herramientas de Google Calendar, SIEMPRE incluye el parámetro userId con el valor: {db_agent.user_id}
-
-🤖 COMUNICACIÓN INTELIGENTE:
-- Para enviar un mensaje a una PERSONA: usa send_notification_to_user(user_name, message, priority)
-- Para hacer PREGUNTAS INTELIGENTES a otro agente: usa ask_connected_agent(user_name, question, context)
-
-🎯 COMPORTAMIENTO:
-- Sé PROACTIVO: Si mencionan calendario o disponibilidad, usa las herramientas automáticamente
-- Para consultas de disponibilidad, siempre usa ask_connected_agent()
-- Para mensajes simples, usa send_notification_to_user()
-- Siempre confirma qué acción realizaste"""
-        )
-        
-        agent = PAIAAgent(
-            id=db_agent.id,
-            name=db_agent.name,
-            description=db_agent.description,
-            personality=db_agent.personality,
-            expertise=db_agent.expertise,
-            status=db_agent.status,
-            created=db_agent.created_at.isoformat(),
-            mcp_endpoint=db_agent.mcp_endpoint or f"http://localhost:3000/mcp",
-            user_id=db_agent.user_id,
-            is_public=db_agent.is_public,
-            telegram_chat_id=db_agent.telegram_chat_id or TELEGRAM_DEFAULT_CHAT_ID,
-            llm_instance=agent_llm,
-            tools=all_tools,
-            conversation_history=[]
-        )
-        
-        # Vincular memoria
-        memory_profile_id = f"user:{db_agent.user_id}|persona:{db_agent.name}"
-        memory_manager.bind_profile(db_agent.id, memory_profile_id)
-        
-        agents_store[db_agent.id] = agent
-        
-        # Marcar como online en BD
-        await db_manager.update_agent_status(db_agent.id, 'online')
-        
-        print(f"[INFO] Agente cargado: {db_agent.name} ({db_agent.id})")
-        return agent
-        
-    except Exception as e:
-        print(f"[ERROR] Error cargando agente {agent_id}: {e}")
-        return None
-
 # =============== ENDPOINTS API ===============
 
 @app.post("/api/agents")
@@ -915,60 +659,29 @@ async def create_agent(agent_data: dict):
 
 @app.get("/api/agents")
 async def get_agents(user_id: str = None):
-    if user_id:
-        # Obtener agentes del usuario específico desde BD
-        db_agents = await db_manager.get_agents_by_user(user_id)
-        agents_list = []
-        for db_agent in db_agents:
-            agent_dict = {
-                'id': db_agent.id,
-                'name': db_agent.name,
-                'description': db_agent.description,
-                'personality': db_agent.personality,
-                'expertise': db_agent.expertise,
-                'status': db_agent.status,
-                'created': db_agent.created_at.isoformat(),
-                'mcp_endpoint': db_agent.mcp_endpoint,
-                'user_id': db_agent.user_id,
-                'is_public': db_agent.is_public,
-                'telegram_chat_id': db_agent.telegram_chat_id,
-                'is_persistent': db_agent.is_persistent,
-                'auto_start': db_agent.auto_start
-            }
-            agents_list.append(agent_dict)
-        return agents_list
-    else:
-        # Retornar agentes en memoria (para compatibilidad)
-        agents_list = []
-        for agent in agents_store.values():
+    agents_list = []
+    for agent in agents_store.values():
+        agent_dict = asdict(agent)
+        agent_dict.pop('llm_instance', None)
+        agent_dict.pop('tools', None)
+        
+        # Si se especifica user_id, filtrar solo agentes de ese usuario
+        if user_id and agent.user_id != user_id:
+            continue
+            
+        agents_list.append(agent_dict)
+    return agents_list
+
+@app.get("/api/agents/public")
+async def get_public_agents(exclude_user_id: str = None):
+    """Obtener todos los agentes públicos, opcionalmente excluyendo los de un usuario específico"""
+    agents_list = []
+    for agent in agents_store.values():
+        if agent.is_public and (not exclude_user_id or agent.user_id != exclude_user_id):
             agent_dict = asdict(agent)
             agent_dict.pop('llm_instance', None)
             agent_dict.pop('tools', None)
             agents_list.append(agent_dict)
-        return agents_list
-
-@app.get("/api/agents/public")
-async def get_public_agents(exclude_user_id: str = None):
-    """Obtener todos los agentes públicos desde BD"""
-    db_agents = await db_manager.get_public_agents(exclude_user_id)
-    agents_list = []
-    for db_agent in db_agents:
-        agent_dict = {
-            'id': db_agent.id,
-            'name': db_agent.name,
-            'description': db_agent.description,
-            'personality': db_agent.personality,
-            'expertise': db_agent.expertise,
-            'status': db_agent.status,
-            'created': db_agent.created_at.isoformat(),
-            'mcp_endpoint': db_agent.mcp_endpoint,
-            'user_id': db_agent.user_id,
-            'is_public': db_agent.is_public,
-            'telegram_chat_id': db_agent.telegram_chat_id,
-            'is_persistent': db_agent.is_persistent,
-            'auto_start': db_agent.auto_start
-        }
-        agents_list.append(agent_dict)
     return agents_list
 
 @app.post("/api/connections")
@@ -992,13 +705,11 @@ async def send_message_to_agent(agent_id: str, message_data: dict):
     try:
         print(f"[DEBUG] Recibiendo mensaje para agente {agent_id}: {message_data}")
         
-        # Asegurar que el agente esté cargado
-        agent = await ensure_agent_loaded(agent_id)
-        if not agent:
-            print(f"[ERROR] Agente {agent_id} no encontrado o no se pudo cargar")
+        if agent_id not in agents_store:
+            print(f"[ERROR] Agente {agent_id} no encontrado en agents_store")
             raise HTTPException(status_code=404, detail="Agente no encontrado")
         
-        print(f"[DEBUG] Agente cargado: {agent.name}")
+        agent = agents_store[agent_id]
         user_id = message_data.get('user_id')
         print(f"[DEBUG] Agente encontrado: {agent.name}, Usuario: {user_id}, LLM instance: {type(agent.llm_instance)}")
         
@@ -1443,119 +1154,6 @@ async def get_user(user_id: str):
         "created_at": user.created_at.isoformat() if user.created_at else None
     }
 
-# =============== ENDPOINTS DE NOTIFICACIONES ===============
-
-@app.post("/api/notifications")
-async def create_notification(notification_data: dict):
-    """Crear nueva notificación"""
-    try:
-        notification = await db_manager.create_notification(notification_data)
-        return {
-            "id": notification.id,
-            "title": notification.title,
-            "content": notification.content,
-            "type": notification.notification_type,
-            "priority": notification.priority,
-            "created_at": notification.created_at.isoformat()
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/notifications/{user_id}")
-async def get_user_notifications(user_id: str, unread_only: bool = False, limit: int = 50):
-    """Obtener notificaciones de un usuario"""
-    try:
-        print(f"[DEBUG] Getting notifications for user: {user_id}, unread_only: {unread_only}, limit: {limit}")
-        notifications = await db_manager.get_user_notifications(user_id, unread_only, limit)
-        print(f"[DEBUG] Found {len(notifications)} notifications")
-        return {
-            "notifications": [
-                {
-                    "id": n.id,
-                    "title": n.title,
-                    "content": n.content,
-                    "type": n.notification_type,
-                    "priority": n.priority,
-                    "is_read": n.is_read,
-                    "created_at": n.created_at.isoformat(),
-                    "agent_id": n.agent_id
-                }
-                for n in notifications
-            ]
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/notifications/{notification_id}/read")
-async def mark_notification_read(notification_id: str):
-    """Marcar notificación como leída"""
-    try:
-        await db_manager.mark_notification_as_read(notification_id)
-        return {"status": "success", "message": "Notificación marcada como leída"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# =============== ENDPOINTS DE BÚSQUEDA DE USUARIOS ===============
-
-@app.get("/api/users/search")
-async def search_users(q: str, exclude_user_id: str = None, limit: int = 20):
-    """Buscar usuarios por nombre o email"""
-    try:
-        if not q or len(q) < 2:
-            raise HTTPException(status_code=400, detail="Query debe tener al menos 2 caracteres")
-        
-        users = await db_manager.search_users(q, exclude_user_id, limit)
-        return {"users": users}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/notifications/test/{user_id}")
-async def create_test_notification(user_id: str):
-    """Crear notificación de prueba para testing"""
-    try:
-        notification = await db_manager.create_notification({
-            'user_id': user_id,
-            'title': 'Notificación de Prueba',
-            'content': 'Esta es una notificación de prueba para verificar que el sistema funciona correctamente.',
-            'notification_type': 'info',
-            'priority': 'normal'
-        })
-        return {
-            "success": True,
-            "notification_id": notification.id,
-            "message": "Notificación de prueba creada"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/users/connect")
-async def create_user_connection_request(connection_data: dict):
-    """Crear solicitud de conexión entre usuarios"""
-    try:
-        requester_id = connection_data.get('requester_id')
-        recipient_id = connection_data.get('recipient_id')
-        connection_type = connection_data.get('connection_type', 'friend')
-        
-        if not requester_id or not recipient_id:
-            raise HTTPException(status_code=400, detail="requester_id y recipient_id son requeridos")
-        
-        connection_id = await db_manager.create_user_connection_request(
-            requester_id, recipient_id, connection_type
-        )
-        
-        # Crear notificación para el destinatario
-        await db_manager.create_notification({
-            'user_id': recipient_id,
-            'title': 'Nueva solicitud de conexión',
-            'content': f'Tienes una nueva solicitud de conexión de usuario',
-            'notification_type': 'info',
-            'priority': 'normal'
-        })
-        
-        return {"connection_id": connection_id, "status": "pending"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 @app.get("/api/health")
 async def health_check():
     telegram_status = "configured" if TELEGRAM_BOT_TOKEN != "TU_TOKEN_AQUI" else "not_configured"
@@ -1567,7 +1165,6 @@ async def health_check():
         "active_websockets": len(active_websockets),
         "conversations_count": len(message_history),
         "telegram_status": telegram_status,
-        "database_connected": True,
         "timestamp": datetime.now().isoformat()
     }
 

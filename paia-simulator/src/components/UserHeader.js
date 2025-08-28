@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import Image from 'next/image'
 import TelegramPanel from './TelegramPanel'
+import NotificationPanel from './NotificationPanel'
 
 export default function UserHeader() {
   const { data: session } = useSession()
   const [showTelegramPanel, setShowTelegramPanel] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
 
   if (!session) return null
 
@@ -66,6 +68,41 @@ export default function UserHeader() {
         </div>
         
         <button
+          onClick={() => setShowNotifications(!showNotifications)}
+          style={{
+            background: 'rgba(255,255,255,0.2)',
+            border: '1px solid rgba(255,255,255,0.3)',
+            color: 'white',
+            padding: '8px 16px',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            transition: 'background 0.2s',
+            marginRight: '10px',
+            position: 'relative'
+          }}
+          onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
+          onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
+        >
+          📢 Notificaciones
+          {/* Badge de notificaciones no leídas - TODO: conectar con API */}
+          <span style={{
+            position: 'absolute',
+            top: '-2px',
+            right: '-2px',
+            backgroundColor: '#EF4444',
+            color: 'white',
+            borderRadius: '50%',
+            width: '12px',
+            height: '12px',
+            fontSize: '8px',
+            display: 'none' // Se mostrará cuando haya notificaciones
+          }}>
+            !
+          </span>
+        </button>
+        
+        <button
           onClick={() => setShowTelegramPanel(true)}
           style={{
             background: 'rgba(255,255,255,0.2)',
@@ -106,6 +143,12 @@ export default function UserHeader() {
       {showTelegramPanel && (
         <TelegramPanel onClose={() => setShowTelegramPanel(false)} />
       )}
+      
+      <NotificationPanel 
+        userId={session?.user?.id}
+        isOpen={showNotifications}
+        onClose={() => setShowNotifications(false)}
+      />
     </div>
   )
 }

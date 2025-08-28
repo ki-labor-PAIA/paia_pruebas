@@ -17,10 +17,12 @@ import GuideModal from './GuideModal';
 import ActorNode from './ActorNode';
 import TelegramNode from './TelegramNode';
 import CalendarNode from './CalendarNode';
+import ConnectionNode from './ConnectionNode';
 import CreateAgentModal from './CreateAgentModal';
 import ChatModal from './ChatModal';
 import UserHeader from './UserHeader';
 import ConfigureCalendarModal from './ConfigureCalendarModal';
+import ConnectUserModal from './ConnectUserModal';
 import { useSession } from 'next-auth/react';
 import usePAIABackend from '@/hooks/usePAIABackend';
 import { generateMockResponse } from '@/utils/mockResponses';
@@ -64,6 +66,7 @@ export default function PAIASimulator() {
   const [isRunning, setIsRunning] = useState(false);
   const [useBackend, setUseBackend] = useState(false);
   const [activeTelegramNodes, setActiveTelegramNodes] = useState(new Set());
+  const [showConnectUserModal, setShowConnectUserModal] = useState(false);
   
   // Sistema multi-usuario - usar ID de sesión de NextAuth
   const userId = session?.user?.id || 'anonymous';
@@ -325,6 +328,43 @@ export default function PAIASimulator() {
     addLogMessage(`📱 Nodo Telegram agregado`);
   }, [addLogMessage]);
 
+  // Función para manejar click en ConnectionNode
+  const handleConnectionNodeClick = useCallback((nodeData) => {
+    switch (nodeData.connectionType) {
+      case 'user':
+        setShowConnectUserModal(true);
+        addLogMessage('🔗 Abriendo búsqueda de usuarios...');
+        break;
+      case 'notification':
+        addLogMessage('📢 Configurando sistema de notificaciones...');
+        // TODO: Implementar panel de notificaciones
+        break;
+      default:
+        addLogMessage(`🔗 Conexión tipo: ${nodeData.connectionType}`);
+    }
+  }, [addLogMessage]);
+
+  // Función para agregar nodo de Conexión
+  const addConnectionNode = useCallback((connectionType = 'user') => {
+    const newNode = {
+      id: `connection-${actorIdRef.current}`,
+      type: 'connection',
+      position: { x: 300 + Math.random() * 200, y: 300 + Math.random() * 200 },
+      data: {
+        label: connectionType === 'user' ? 'Buscar Usuario' : 'Conexión',
+        connectionType: connectionType,
+        status: 'offline',
+        isConnected: false,
+        unreadNotifications: 0,
+        onConnectionClick: handleConnectionNodeClick
+      },
+    };
+
+    setNodes((nds) => [...nds, newNode]);
+    actorIdRef.current++;
+    addLogMessage(`🔗 Nodo de ${connectionType === 'user' ? 'búsqueda de usuarios' : 'conexión'} agregado`);
+  }, [addLogMessage, handleConnectionNodeClick]);
+
   // Función para mostrar configuración de Calendar
   const addCalendarNode = useCallback(() => {
     setShowConfigureCalendar(true);
@@ -398,6 +438,17 @@ export default function PAIASimulator() {
       addLogMessage(`❌ Error solicitando autenticación: ${error.message}`);
     }
   }, [userId, addLogMessage]);
+
+  // Función para manejar cuando se establece una conexión con usuario
+  const handleUserConnection = useCallback((connectionData) => {
+    addLogMessage(`✅ Solicitud enviada a ${connectionData.user.name} (${connectionData.user.email})`);
+    
+    // Agregar notificación local (temporal)
+    addDecisionMessage('Sistema', `Solicitud de conexión enviada a ${connectionData.user.name}`, true);
+    
+    // TODO: Actualizar el ConnectionNode correspondiente con el estado de conexión
+    // y agregar nodos de agentes del usuario conectado cuando se acepte
+  }, [addLogMessage, addDecisionMessage]);
 
   // Función para cargar agentes públicos de otros usuarios
   const loadPublicAgents = useCallback(async () => {
@@ -576,7 +627,7 @@ export default function PAIASimulator() {
       
       setIsTyping(false);
     }, 1000 + Math.random() * 2000);
-  }, [activeChatAgent, nodes, useBackend, isConnected, addDecisionMessage, addLogMessage, addMessageToNodeHistory]);
+  }, [activeChatAgent, nodes, useBackend, isConnected, addDecisionMessage, addMessageToNodeHistory, updateHumanMessage]);
 
   const closeChat = useCallback(() => {
     setShowChat(false);
@@ -900,7 +951,8 @@ export default function PAIASimulator() {
     actor: ActorNode,
     telegram: TelegramNode,
     calendar: (props) => <CalendarNode {...props} onRequestAuth={handleCalendarAuthRequest} />,
-  }), [handleCalendarAuthRequest]);
+    connection: (props) => <ConnectionNode {...props} onConnectionClick={handleConnectionNodeClick} />,
+  }), [handleCalendarAuthRequest, handleConnectionNodeClick]);
 
   return (
     <div style={{ width: '100vw', height: '100vh', display: 'flex' }}>
@@ -923,6 +975,7 @@ export default function PAIASimulator() {
         setUseBackend={setUseBackend}
         isBackendConnected={isConnected}
         onCheckBackend={checkBackendConnection}
+        onAddConnectionNode={addConnectionNode}
       />
       
       <div style={{ flex: 1, margin: '0 280px', position: 'relative' }}>
@@ -986,6 +1039,15 @@ export default function PAIASimulator() {
           onSendMessage={sendChatMessage}
           chatMessages={chatMessages}
           isTyping={isTyping}
+        />
+      )}
+
+      {showConnectUserModal && (
+        <ConnectUserModal
+          isOpen={showConnectUserModal}
+          onClose={() => setShowConnectUserModal(false)}
+          currentUserId={userId}
+          onConnect={handleUserConnection}
         />
       )}
       </div>
