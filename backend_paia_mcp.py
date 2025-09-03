@@ -16,12 +16,31 @@ from langchain_core.tools import tool
 from langchain_core.messages import HumanMessage, AIMessage
 import uvicorn
 import os
-import redis
+import redis.asyncio as redis
 import asyncpg
 from contextlib import asynccontextmanager
+from fastapi import UploadFile, File, Form
+from starlette.responses import FileResponse
+from pathlib import Path
+import aiofiles
+import mimetypes
 
 # Configuración
 os.getenv("GOOGLE_API_KEY")
+
+# ==== Archivo / Storage ====
+FILES_DIR = Path(os.getenv("FILES_DIR", "uploads")).resolve()
+FILES_DIR.mkdir(parents=True, exist_ok=True)
+
+MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "25"))
+ALLOWED_EXTS = set(os.getenv("ALLOWED_EXTS", "jpg,jpeg,png,gif,pdf,doc,docx,txt").split(","))
+
+def safe_join(base: Path, rel: str) -> Path:
+    p = (base / rel).resolve()
+    if not str(p).startswith(str(base)):
+        raise HTTPException(status_code=400, detail="Ruta inválida")
+    p.parent.mkdir(parents=True, exist_ok=True)
+    return p
 
 # Base de datos y cache
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
@@ -414,10 +433,16 @@ class PAIAScalableManager:
         self.mcp = mcp_manager
         self.cross_comm = CrossUserCommunicationManager(db_manager, mcp_manager)
         self.redis = None
-    
+
     async def init_redis(self):
-        import aioredis
-        self.redis = await aioredis.from_url(REDIS_URL)
+        # Cliente asyncio oficial de redis-py
+        self.redis = redis.from_url(
+            REDIS_URL,
+            encoding="utf-8",
+            decode_responses=True,
+        )
+        # Probar conexión
+        await self.redis.ping()
     
     async def create_user(self, user_data: dict) -> PAIAUser:
         """Crea un nuevo usuario con su servidor MCP dedicado"""
@@ -830,6 +855,112 @@ async def get_conversation_history(agent1_id: str, agent2_id: str, user_id: str 
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# =================== FILES API (subir / listar / descargar / borrar) ===================
+
+CHUNK_SIZE = 1024 * 1024  # 1MB
+MAX_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+
+def _user_root(user_id: str) -> Path:
+    """Directorio raíz aislado por usuario."""
+    root = FILES_DIR / user_id
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+def _safe_join(base: Path, rel: str) -> Path:
+    """Evita path traversal (..)."""
+    target = (base / rel).resolve()
+    if base.resolve() not in target.parents and base.resolve() != target:
+        raise HTTPException(status_code=400, detail="Ruta inválida")
+    return target
+
+def _ext_ok(filename: str) -> bool:
+    ext = Path(filename).suffix.lower().lstrip(".")
+    return ext in ALLOWED_EXTS
+
+@app.post("/api/files/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    path: str = Form(""),
+    user_id: str = Depends(get_current_user)
+):
+    # 1) Validar extensión
+    if not _ext_ok(file.filename):
+        ext = Path(file.filename).suffix.lower().lstrip(".")
+        raise HTTPException(status_code=400, detail=f"Extensión no permitida: {ext or '?'}")
+
+    # 2) Root absoluto por usuario + path seguro
+    user_root = _user_root(user_id).resolve()           # <-- ABSOLUTO
+    rel = (path or "").strip()
+
+    # Si te mandan sólo carpeta, usa nombre del archivo
+    if rel.endswith("/") or rel.endswith("\\"):
+        rel = rel + Path(file.filename).name
+    elif not rel:
+        rel = Path(file.filename).name
+
+    fpath = _safe_join(user_root, rel).resolve()        # <-- ABSOLUTO
+
+    # 3) Leer contenido y validar tamaño
+    content = await file.read()
+    if len(content) > MAX_BYTES:
+        raise HTTPException(status_code=400, detail=f"Archivo supera {MAX_FILE_SIZE_MB}MB")
+
+    # 4) Guardar
+    fpath.parent.mkdir(parents=True, exist_ok=True)
+    fpath.write_bytes(content)
+
+    # 5) Responder con ruta relativa a FILES_DIR (o al root del usuario)
+    saved_as = str(fpath.relative_to(FILES_DIR.resolve()))   # p.ej. "demo_user/imagenes/foto.jpg"
+    return {"saved_as": saved_as, "size": len(content)}
+
+@app.get("/api/files/list")
+async def list_files(
+    path: str = "",             # subcarpeta opcional
+    recursive: bool = True,     # listar recursivo
+    user_id: str = Depends(get_current_user)
+):
+    user_root = _user_root(user_id)
+    base = _safe_join(user_root, path) if path else user_root
+    if not base.exists():
+        return {"files": []}
+
+    files = []
+    iterator = base.rglob("*") if recursive else base.glob("*")
+    for p in iterator:
+        if p.is_file():
+            stat = p.stat()
+            files.append({
+                "relpath": str(p.relative_to(user_root)),
+                "size": stat.st_size,
+                "modified": datetime.fromtimestamp(stat.st_mtime).isoformat()
+            })
+    return {"files": files}
+
+@app.get("/api/files/download")
+async def download_file(
+    relpath: str,  # ruta relativa dentro del usuario, p.ej. "imagenes/abc.png"
+    user_id: str = Depends(get_current_user)
+):
+    user_root = _user_root(user_id)
+    fpath = _safe_join(user_root, relpath)
+    if not fpath.exists() or not fpath.is_file():
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+
+    media_type, _ = mimetypes.guess_type(fpath.name)
+    return FileResponse(path=fpath, media_type=media_type or "application/octet-stream", filename=fpath.name)
+
+@app.delete("/api/files")
+async def delete_file(
+    relpath: str,
+    user_id: str = Depends(get_current_user)
+):
+    user_root = _user_root(user_id)
+    fpath = _safe_join(user_root, relpath)
+    if not fpath.exists() or not fpath.is_file():
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    fpath.unlink()
+    return {"message": "Archivo eliminado", "relpath": relpath}
 
 # =================== NUEVOS ENDPOINTS PARA ESCALABILIDAD ===================
 
