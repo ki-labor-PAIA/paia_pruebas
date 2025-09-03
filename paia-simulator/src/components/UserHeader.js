@@ -1,13 +1,17 @@
 import { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
+import { useRouter } from 'next/router'
 import Image from 'next/image'
 import TelegramPanel from './TelegramPanel'
 import NotificationPanel from './NotificationPanel'
+import FriendsPanel from './FriendsPanel'
 
 export default function UserHeader() {
   const { data: session } = useSession()
+  const router = useRouter()
   const [showTelegramPanel, setShowTelegramPanel] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
+  const [showFriends, setShowFriends] = useState(false)
 
   if (!session) return null
 
@@ -68,6 +72,25 @@ export default function UserHeader() {
         </div>
         
         <button
+          onClick={() => router.push('/')}
+          style={{
+            background: 'rgba(255,255,255,0.2)',
+            border: '1px solid rgba(255,255,255,0.3)',
+            color: 'white',
+            padding: '8px 16px',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            transition: 'background 0.2s',
+            marginRight: '10px'
+          }}
+          onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
+          onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
+        >
+          📚 Biblioteca
+        </button>
+
+        <button
           onClick={() => setShowNotifications(!showNotifications)}
           style={{
             background: 'rgba(255,255,255,0.2)',
@@ -100,6 +123,25 @@ export default function UserHeader() {
           }}>
             !
           </span>
+        </button>
+        
+        <button
+          onClick={() => setShowFriends(!showFriends)}
+          style={{
+            background: 'rgba(255,255,255,0.2)',
+            border: '1px solid rgba(255,255,255,0.3)',
+            color: 'white',
+            padding: '8px 16px',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            transition: 'background 0.2s',
+            marginRight: '10px'
+          }}
+          onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
+          onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
+        >
+          👥 Amigos
         </button>
         
         <button
@@ -148,6 +190,12 @@ export default function UserHeader() {
         userId={session?.user?.id}
         isOpen={showNotifications}
         onClose={() => setShowNotifications(false)}
+      />
+      
+      <FriendsPanel 
+        userId={session?.user?.id}
+        isOpen={showFriends}
+        onClose={() => setShowFriends(false)}
       />
     </div>
   )

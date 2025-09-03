@@ -1,12 +1,12 @@
 import { Handle, Position } from 'reactflow';
 import { useState } from 'react';
 
-export default function ConnectionNode({ data, isConnectable }) {
+export default function ConnectionNode({ data, isConnectable, id }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const handleClick = () => {
     if (data.onConnectionClick) {
-      data.onConnectionClick(data);
+      data.onConnectionClick(data, id);
     }
   };
 

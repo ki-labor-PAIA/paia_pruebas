@@ -65,7 +65,8 @@ export default NextAuth({
           
           const result = await response.json()
           if (response.ok) {
-            user.id = result.user_id
+            // Asignar el ID correcto de la base de datos
+            user.dbId = result.user_id
             return true
           }
         } catch (error) {
@@ -75,15 +76,18 @@ export default NextAuth({
       return true
     },
     
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
-        token.userId = user.id
+        // Para usuarios de Google, usar el dbId del callback signIn
+        // Para otros usuarios, usar el id original
+        token.userId = user.dbId || user.id
       }
       return token
     },
     
     async session({ session, token }) {
-      session.user.id = token.userId
+      // Usar el userId del token que contiene el ID correcto de la DB
+      session.user.id = token.userId || token.sub
       return session
     }
   },

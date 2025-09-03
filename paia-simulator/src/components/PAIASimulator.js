@@ -23,6 +23,8 @@ import ChatModal from './ChatModal';
 import UserHeader from './UserHeader';
 import ConfigureCalendarModal from './ConfigureCalendarModal';
 import ConnectUserModal from './ConnectUserModal';
+import SaveFlowModal from './SaveFlowModal';
+import FriendsPanel from './FriendsPanel';
 import { useSession } from 'next-auth/react';
 import usePAIABackend from '@/hooks/usePAIABackend';
 import { generateMockResponse } from '@/utils/mockResponses';
@@ -56,17 +58,43 @@ const getAgentColor = (personality) => {
   return personalityColors[key] || personalityColors['default'];
 };
 
-export default function PAIASimulator() {
+export default function PAIASimulator({ initialFlow }) {
   const { data: session } = useSession();
-  const [nodes, setNodes] = useState(initialNodes);
-  const [edges, setEdges] = useState(initialEdges);
-  const [scenarioName, setScenarioName] = useState('');
-  const [scenarioDesc, setScenarioDesc] = useState('');
+  const [nodes, setNodes] = useState(() => {
+    if (initialFlow && initialFlow.flow_data) {
+      try {
+        const flowData = JSON.parse(initialFlow.flow_data);
+        return flowData.nodes || initialNodes;
+      } catch (err) {
+        console.error('Error parsing flow data:', err);
+        return initialNodes;
+      }
+    }
+    return initialNodes;
+  });
+  const [edges, setEdges] = useState(() => {
+    if (initialFlow && initialFlow.flow_data) {
+      try {
+        const flowData = JSON.parse(initialFlow.flow_data);
+        return flowData.edges || initialEdges;
+      } catch (err) {
+        console.error('Error parsing flow data:', err);
+        return initialEdges;
+      }
+    }
+    return initialEdges;
+  });
+  const [scenarioName, setScenarioName] = useState(() => initialFlow?.name || '');
+  const [scenarioDesc, setScenarioDesc] = useState(() => initialFlow?.description || '');
   const [showGuide, setShowGuide] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [useBackend, setUseBackend] = useState(false);
   const [activeTelegramNodes, setActiveTelegramNodes] = useState(new Set());
   const [showConnectUserModal, setShowConnectUserModal] = useState(false);
+  const [showSaveFlow, setShowSaveFlow] = useState(false);
+  const [showFriendsPanel, setShowFriendsPanel] = useState(false);
+  const [connectionMode, setConnectionMode] = useState('social'); // 'social' o 'flow'
+  const [activeConnectionNodeId, setActiveConnectionNodeId] = useState(null);
   
   // Sistema multi-usuario - usar ID de sesión de NextAuth
   const userId = session?.user?.id || 'anonymous';
@@ -329,11 +357,13 @@ export default function PAIASimulator() {
   }, [addLogMessage]);
 
   // Función para manejar click en ConnectionNode
-  const handleConnectionNodeClick = useCallback((nodeData) => {
+  const handleConnectionNodeClick = useCallback((nodeData, nodeId) => {
     switch (nodeData.connectionType) {
       case 'user':
+        setConnectionMode('flow');
+        setActiveConnectionNodeId(nodeId);
         setShowConnectUserModal(true);
-        addLogMessage('🔗 Abriendo búsqueda de usuarios...');
+        addLogMessage('⚡ Abriendo búsqueda de usuarios para conexión de flujo...');
         break;
       case 'notification':
         addLogMessage('📢 Configurando sistema de notificaciones...');
@@ -351,7 +381,7 @@ export default function PAIASimulator() {
       type: 'connection',
       position: { x: 300 + Math.random() * 200, y: 300 + Math.random() * 200 },
       data: {
-        label: connectionType === 'user' ? 'Buscar Usuario' : 'Conexión',
+        label: connectionType === 'user' ? 'Conexión de Flujo' : 'Conexión',
         connectionType: connectionType,
         status: 'offline',
         isConnected: false,
@@ -364,6 +394,60 @@ export default function PAIASimulator() {
     actorIdRef.current++;
     addLogMessage(`🔗 Nodo de ${connectionType === 'user' ? 'búsqueda de usuarios' : 'conexión'} agregado`);
   }, [addLogMessage, handleConnectionNodeClick]);
+
+  // Función para abrir modal de conexión social (desde LeftSidebar)
+  const openSocialConnectionModal = useCallback(() => {
+    setConnectionMode('social');
+    setActiveConnectionNodeId(null);
+    setShowConnectUserModal(true);
+    addLogMessage('👥 Buscando usuarios para conexión social...');
+  }, [addLogMessage]);
+
+  // Función para guardar flujo
+  const saveFlow = useCallback(async (flowData) => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/flows/save`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          name: flowData.name,
+          description: flowData.description,
+          is_public: flowData.is_public,
+          tags: flowData.tags,
+          flow_data: {
+            nodes: nodes,
+            edges: edges,
+            scenario: {
+              name: scenarioName,
+              description: scenarioDesc
+            }
+          },
+          metadata: {
+            node_count: nodes.length,
+            edge_count: edges.length,
+            created_from: 'simulator'
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Error guardando el flujo');
+      }
+
+      const result = await response.json();
+      addLogMessage(`💾 Flujo '${flowData.name}' guardado exitosamente`);
+      addDecisionMessage('Sistema', `Flujo guardado con ID: ${result.flow_id}`, true);
+      
+      return result;
+    } catch (error) {
+      addLogMessage(`❌ Error guardando flujo: ${error.message}`);
+      throw error;
+    }
+  }, [userId, nodes, edges, scenarioName, scenarioDesc, addLogMessage, addDecisionMessage]);
 
   // Función para mostrar configuración de Calendar
   const addCalendarNode = useCallback(() => {
@@ -441,13 +525,33 @@ export default function PAIASimulator() {
 
   // Función para manejar cuando se establece una conexión con usuario
   const handleUserConnection = useCallback((connectionData) => {
-    addLogMessage(`✅ Solicitud enviada a ${connectionData.user.name} (${connectionData.user.email})`);
-    
-    // Agregar notificación local (temporal)
-    addDecisionMessage('Sistema', `Solicitud de conexión enviada a ${connectionData.user.name}`, true);
-    
-    // TODO: Actualizar el ConnectionNode correspondiente con el estado de conexión
-    // y agregar nodos de agentes del usuario conectado cuando se acepte
+    if (connectionData.mode === 'flow') {
+      // Conexión de flujo creada
+      addLogMessage(`⚡ Conexión de flujo establecida con ${connectionData.user.name} (${connectionData.user.email})`);
+      addDecisionMessage('Sistema', `Flujo conectado con ${connectionData.user.name}`, true);
+      
+      // Actualizar el ConnectionNode correspondiente
+      setNodes(currentNodes => 
+        currentNodes.map(node => 
+          node.id === connectionData.connectionNodeId
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  isConnected: true,
+                  status: 'online',
+                  connectedUser: connectionData.user,
+                  flowConnectionId: connectionData.flowConnectionId
+                }
+              }
+            : node
+        )
+      );
+    } else {
+      // Conexión social (comportamiento original)
+      addLogMessage(`✅ Solicitud enviada a ${connectionData.user.name} (${connectionData.user.email})`);
+      addDecisionMessage('Sistema', `Solicitud de conexión enviada a ${connectionData.user.name}`, true);
+    }
   }, [addLogMessage, addDecisionMessage]);
 
   // Función para cargar agentes públicos de otros usuarios
@@ -875,8 +979,32 @@ export default function PAIASimulator() {
             addLogMessage(`🤖→${targetNode.data.actorType === 'human' ? '👤' : '🤖'} ${sourceNode.data.label}: "${messageContent}"`);
           }
           
-          // Generar respuesta si el target es IA
-          if (targetNode.data.actorType === 'ai') {
+          // Manejar diferentes tipos de nodos destino
+          if (targetNode.type === 'connection') {
+            // ConnectionNode - enrutar a usuario externo
+            if (targetNode.data.isConnected && targetNode.data.connectedUser) {
+              addLogMessage(`🌐→ ${sourceNode.data.label} envió mensaje a ${targetNode.data.connectedUser.name}: "${messageContent}"`);
+              addDecisionMessage('Sistema', `Mensaje enviado a ${targetNode.data.connectedUser.name} vía conexión de flujo`, true);
+              
+              // Aquí se enviaría el mensaje al backend para comunicación cross-user
+              if (useBackend && isConnected) {
+                try {
+                  // TODO: Implementar API call para enviar mensaje a usuario externo
+                  // await PAIAApi.sendCrossUserMessage({
+                  //   fromUserId: userId,
+                  //   toUserId: targetNode.data.connectedUser.id,
+                  //   message: messageContent,
+                  //   flowConnectionId: targetNode.data.flowConnectionId
+                  // });
+                } catch (error) {
+                  addLogMessage(`❌ Error enviando mensaje cross-user: ${error.message}`);
+                }
+              }
+            } else {
+              addLogMessage(`⚠️ Nodo de conexión ${targetNode.data.label} no está conectado`);
+            }
+          } else if (targetNode.data.actorType === 'ai') {
+            // Generar respuesta si el target es IA
             const response = generateMockResponse(targetNode.data, messageContent);
             addLogMessage(`🤖→${sourceNode.data.actorType === 'human' ? '👤' : '🤖'} ${targetNode.data.label}: "${response}"`);
             addDecisionMessage(targetNode.data.label, response, false);
@@ -976,6 +1104,9 @@ export default function PAIASimulator() {
         isBackendConnected={isConnected}
         onCheckBackend={checkBackendConnection}
         onAddConnectionNode={addConnectionNode}
+        onConnectUser={openSocialConnectionModal}
+        onSaveFlow={() => setShowSaveFlow(true)}
+        onShowFriends={() => setShowFriendsPanel(true)}
       />
       
       <div style={{ flex: 1, margin: '0 280px', position: 'relative' }}>
@@ -1045,9 +1176,31 @@ export default function PAIASimulator() {
       {showConnectUserModal && (
         <ConnectUserModal
           isOpen={showConnectUserModal}
-          onClose={() => setShowConnectUserModal(false)}
+          onClose={() => {
+            setShowConnectUserModal(false);
+            setConnectionMode('social');
+            setActiveConnectionNodeId(null);
+          }}
           currentUserId={userId}
           onConnect={handleUserConnection}
+          connectionMode={connectionMode}
+          connectionNodeId={activeConnectionNodeId}
+        />
+      )}
+
+      {showSaveFlow && (
+        <SaveFlowModal
+          isOpen={showSaveFlow}
+          onClose={() => setShowSaveFlow(false)}
+          onSave={saveFlow}
+        />
+      )}
+
+      {showFriendsPanel && (
+        <FriendsPanel 
+          isOpen={showFriendsPanel} 
+          onClose={() => setShowFriendsPanel(false)} 
+          userId={userId} 
         />
       )}
       </div>

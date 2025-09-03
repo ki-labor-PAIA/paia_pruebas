@@ -18,7 +18,10 @@ export default function LeftSidebar({
   setUseBackend,
   isBackendConnected,
   onCheckBackend,
-  onAddConnectionNode
+  onAddConnectionNode,
+  onSaveFlow,
+  onConnectUser,
+  onShowFriends
 }) {
   const fileInputRef = useRef(null);
   const { t, i18n } = useTranslation();
@@ -130,11 +133,19 @@ export default function LeftSidebar({
 
       <div className="button-group">
         <div className="button-group-title">💾 Archivo</div>
+        <button onClick={onSaveFlow} className="discreet-button" style={{ 
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+          color: 'white',
+          fontWeight: '600',
+          border: 'none'
+        }}>
+          <i className="fas fa-save"></i> Guardar Flujo
+        </button>
         <button onClick={onExport} className="discreet-button">
-          <i className="fas fa-download"></i> Guardar Sistema
+          <i className="fas fa-download"></i> Exportar JSON
         </button>
         <button onClick={handleImport} className="discreet-button">
-          <i className="fas fa-upload"></i> Cargar Sistema
+          <i className="fas fa-upload"></i> Importar JSON
         </button>
         <input
           type="file"
@@ -208,9 +219,41 @@ export default function LeftSidebar({
         </div>
       </div>
 
-      {/* Sección para agregar nodos */}
       <div className="button-group">
         <div className="button-group-title">🔗 Conexiones</div>
+        <button 
+          onClick={onShowFriends} 
+          className="discreet-button"
+          style={{ 
+            fontSize: '0.85em', 
+            fontWeight: '500',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '8px 12px',
+            width: '100%',
+            justifyContent: 'center',
+            marginBottom: '8px'
+          }}
+        >
+          <i className="fas fa-users"></i> Amigos
+        </button>
+        <button 
+          onClick={onConnectUser} 
+          className="discreet-button"
+          style={{ 
+            fontSize: '0.85em', 
+            fontWeight: '500',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '8px 12px',
+            width: '100%',
+            justifyContent: 'center'
+          }}
+        >
+          <i className="fas fa-search"></i> Buscar Usuario
+        </button>
         <button 
           onClick={() => onAddConnectionNode && onAddConnectionNode('user')} 
           className="discreet-button"
@@ -223,7 +266,7 @@ export default function LeftSidebar({
             padding: '8px 12px'
           }}
         >
-          👤 Conectar Usuario
+          👤 Añadir Nodo Conexión
         </button>
         <button 
           onClick={() => onAddConnectionNode && onAddConnectionNode('notification')} 

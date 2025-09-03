@@ -97,6 +97,53 @@ export default function NotificationPanel({ userId, isOpen, onClose }) {
     }
   };
 
+  // Manejar respuesta a solicitud de conexión
+  const handleConnectionResponse = async (notificationId, response, connectionId) => {
+    try {
+      const apiResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/connect/respond`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          connection_id: connectionId,
+          response: response // 'accept' o 'reject'
+        })
+      });
+
+      if (apiResponse.ok) {
+        // Marcar notificación como leída y actualizar
+        await markAsRead(notificationId);
+        
+        // Actualizar la notificación localmente para mostrar la respuesta
+        setNotifications(prev => 
+          prev.map(notif => 
+            notif.id === notificationId 
+              ? { 
+                  ...notif, 
+                  is_read: true,
+                  metadata: {
+                    ...notif.metadata,
+                    response_given: response,
+                    responded_at: new Date().toISOString()
+                  }
+                }
+              : notif
+          )
+        );
+
+        console.log(`Conexión ${response === 'accept' ? 'aceptada' : 'rechazada'} correctamente`);
+      } else {
+        const errorData = await apiResponse.json();
+        console.error('Error responding to connection:', errorData);
+        alert(`Error al ${response === 'accept' ? 'aceptar' : 'rechazar'} la conexión`);
+      }
+    } catch (err) {
+      console.error('Error handling connection response:', err);
+      alert('Error de conexión. Intenta de nuevo.');
+    }
+  };
+
   const getNotificationIcon = (type) => {
     switch (type) {
       case 'message': return '💬';
@@ -385,6 +432,96 @@ export default function NotificationPanel({ userId, isOpen, onClose }) {
                 }}>
                   {notification.content}
                 </p>
+
+                {/* Botones para solicitudes de conexión */}
+                {notification.title === 'Nueva solicitud de conexión' && 
+                 !notification.metadata?.response_given && 
+                 !notification.is_read && (
+                  <div style={{
+                    marginTop: '12px',
+                    display: 'flex',
+                    gap: '8px',
+                    alignItems: 'center'
+                  }}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleConnectionResponse(
+                          notification.id, 
+                          'accept', 
+                          notification.metadata?.connection_id
+                        );
+                      }}
+                      style={{
+                        background: '#10B981',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '6px 12px',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => e.target.style.backgroundColor = '#059669'}
+                      onMouseLeave={(e) => e.target.style.backgroundColor = '#10B981'}
+                    >
+                      ✅ Aceptar
+                    </button>
+                    
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleConnectionResponse(
+                          notification.id, 
+                          'reject', 
+                          notification.metadata?.connection_id
+                        );
+                      }}
+                      style={{
+                        background: '#EF4444',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '6px 12px',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => e.target.style.backgroundColor = '#DC2626'}
+                      onMouseLeave={(e) => e.target.style.backgroundColor = '#EF4444'}
+                    >
+                      ❌ Rechazar
+                    </button>
+                  </div>
+                )}
+
+                {/* Mostrar respuesta ya dada */}
+                {notification.title === 'Nueva solicitud de conexión' && 
+                 notification.metadata?.response_given && (
+                  <div style={{
+                    marginTop: '8px',
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    backgroundColor: notification.metadata.response_given === 'accept' 
+                      ? 'rgba(16, 185, 129, 0.1)' 
+                      : 'rgba(239, 68, 68, 0.1)',
+                    color: notification.metadata.response_given === 'accept' 
+                      ? '#10B981' 
+                      : '#EF4444',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    {notification.metadata.response_given === 'accept' ? '✅ Aceptada' : '❌ Rechazada'}
+                    <span style={{ fontSize: '11px', opacity: 0.7 }}>
+                      • {getTimeAgo(notification.metadata.responded_at)}
+                    </span>
+                  </div>
+                )}
 
                 {notification.priority === 'urgent' && (
                   <div style={{

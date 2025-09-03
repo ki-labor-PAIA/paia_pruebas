@@ -100,6 +100,7 @@ telegram_service = TelegramService(TELEGRAM_BOT_TOKEN)
 async def on_startup():
     await lt_store.init_db()
     await auth_manager.init_db()
+    await db_manager.init_db()
     await init_mcp_client()
     await load_persistent_agents()
 
@@ -167,7 +168,7 @@ class PAIAAgentManager:
         try:
                     self.mcp_client = MultiServerMCPClient({
                         "google_calendar": {
-                            "url": "http://127.0.0.1:3000/api/mcp",
+                            "url": "https://paia-pruebas.vercel.app/api/mcp",
                             "transport": "streamable_http"
                         }
                     })
@@ -1538,21 +1539,235 @@ async def create_user_connection_request(connection_data: dict):
         
         if not requester_id or not recipient_id:
             raise HTTPException(status_code=400, detail="requester_id y recipient_id son requeridos")
-        
+
+        if requester_id == recipient_id:
+            raise HTTPException(status_code=400, detail="No puedes enviarte una solicitud de conexión a ti mismo.")
+
         connection_id = await db_manager.create_user_connection_request(
             requester_id, recipient_id, connection_type
         )
+
+        if not connection_id:
+            raise HTTPException(status_code=409, detail="Ya existe una conexión o solicitud pendiente con este usuario.")
         
-        # Crear notificación para el destinatario
+        # Crear notificación para el destinatario con connection_id en metadatos
         await db_manager.create_notification({
             'user_id': recipient_id,
             'title': 'Nueva solicitud de conexión',
-            'content': f'Tienes una nueva solicitud de conexión de usuario',
-            'notification_type': 'info',
-            'priority': 'normal'
+            'content': f'Tienes una nueva solicitud de conexión de un usuario.',
+            'notification_type': 'connection_request',
+            'priority': 'normal',
+            'metadata': {
+                'connection_id': connection_id,
+                'requester_id': requester_id,
+                'connection_type': connection_type
+            }
         })
         
         return {"connection_id": connection_id, "status": "pending"}
+    except HTTPException:  # Re-raise HTTPException para que FastAPI la maneje
+        raise
+    except Exception as e:
+        print(f"Error creating user connection request: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/users/connect/respond")
+async def respond_to_connection_request(response_data: dict):
+    """Responder a una solicitud de conexión (aceptar o rechazar)"""
+    try:
+        connection_id = response_data.get('connection_id')
+        response = response_data.get('response')  # 'accept' o 'reject'
+        
+        if not connection_id or not response:
+            raise HTTPException(status_code=400, detail="connection_id y response son requeridos")
+        
+        if response not in ['accept', 'reject']:
+            raise HTTPException(status_code=400, detail="response debe ser 'accept' o 'reject'")
+        
+        # Actualizar estado de la conexión
+        new_status = 'accepted' if response == 'accept' else 'rejected'
+        success = await db_manager.update_connection_status(connection_id, new_status)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Conexión no encontrada")
+        
+        # Obtener información de la conexión para crear notificaciones
+        connection = await db_manager.get_connection_by_id(connection_id)
+        if not connection:
+            raise HTTPException(status_code=404, detail="Información de conexión no encontrada")
+        
+        # Crear notificación para el solicitante
+        requester_notification_content = (
+            f"Tu solicitud de conexión fue {'aceptada' if response == 'accept' else 'rechazada'}"
+        )
+        
+        await db_manager.create_notification({
+            'user_id': connection['requester_id'],
+            'title': f'Solicitud de conexión {'aceptada' if response == 'accept' else 'rechazada'}',
+            'content': requester_notification_content,
+            'notification_type': 'success' if response == 'accept' else 'info',
+            'priority': 'normal'
+        })
+        
+        return {
+            "success": True, 
+            "status": new_status,
+            "connection_id": connection_id,
+            "message": f"Conexión {'aceptada' if response == 'accept' else 'rechazada'} correctamente"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/users/{user_id}/connections")
+async def get_user_connections(user_id: str, status: str = 'accepted'):
+    """Obtener las conexiones/amigos de un usuario"""
+    try:
+        connections = await db_manager.get_user_connections(user_id, status)
+        return {"connections": connections, "count": len(connections)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/flow/connections")
+async def create_flow_connection(connection_data: dict):
+    """Crear una conexión de flujo entre usuarios"""
+    try:
+        flow_owner_id = connection_data.get('flow_owner_id')
+        target_user_id = connection_data.get('target_user_id')
+        connection_node_id = connection_data.get('connection_node_id')
+        
+        if not flow_owner_id or not target_user_id or not connection_node_id:
+            raise HTTPException(status_code=400, detail="flow_owner_id, target_user_id y connection_node_id son requeridos")
+        
+        # Verificar que ambos usuarios existan y sean amigos (conexión social)
+        friends_connections = await db_manager.get_user_connections(flow_owner_id, 'accepted')
+        
+        # Extraer el ID del amigo de cada conexión
+        friend_ids = []
+        for conn in friends_connections:
+            if conn['requester']['id'] == flow_owner_id:
+                friend_ids.append(conn['recipient']['id'])
+            else:
+                friend_ids.append(conn['requester']['id'])
+
+        is_friend = target_user_id in friend_ids
+        
+        if not is_friend:
+            raise HTTPException(
+                status_code=403, 
+                detail="Solo puedes crear conexiones de flujo con usuarios que sean tus amigos"
+            )
+        
+        connection_id = await db_manager.create_flow_connection(connection_data)
+        
+        return {
+            "flow_connection_id": connection_id, 
+            "status": "active",
+            "message": "Conexión de flujo creada exitosamente"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/flow/connections/{flow_owner_id}")
+async def get_flow_connections(flow_owner_id: str):
+    """Obtener las conexiones de flujo de un usuario"""
+    try:
+        connections = await db_manager.get_flow_connections(flow_owner_id)
+        return {"flow_connections": connections, "count": len(connections)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/flow/connections/{connection_id}")
+async def delete_flow_connection(connection_id: str):
+    """Eliminar una conexión de flujo"""
+    try:
+        success = await db_manager.delete_flow_connection(connection_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Conexión de flujo no encontrada")
+        
+        return {"message": "Conexión de flujo eliminada exitosamente"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/flows/save")
+async def save_flow(flow_data: dict):
+    """Guardar un flujo en el backend"""
+    try:
+        user_id = flow_data.get('user_id')
+        name = flow_data.get('name')
+        flow_data_content = flow_data.get('flow_data')
+        
+        if not user_id or not name or not flow_data_content:
+            raise HTTPException(status_code=400, detail="user_id, name y flow_data son requeridos")
+        
+        flow_id = await db_manager.save_flow(flow_data)
+        
+        return {
+            "flow_id": flow_id,
+            "message": f"Flujo '{name}' guardado exitosamente"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/flows/user/{user_id}")
+async def get_user_flows(user_id: str):
+    """Obtener los flujos guardados de un usuario"""
+    try:
+        flows = await db_manager.get_user_flows(user_id)
+        return {"flows": flows, "count": len(flows)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/users/{user_id}/public-flows")
+async def get_public_flows_by_user(user_id: str):
+    """Obtener los flujos públicos de un amigo."""
+    try:
+        # Por seguridad, podríamos verificar si el usuario que hace la petición es amigo
+        # del user_id solicitado, pero por ahora lo dejamos abierto.
+        flows = await db_manager.get_public_flows_by_user(user_id)
+        return {"flows": flows}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/flows/friends/{user_id}/active")
+async def get_friends_active_flows(user_id: str):
+    """Obtener flujos activos de amigos"""
+    try:
+        flows = await db_manager.get_friends_active_flows(user_id)
+        return {"active_flows": flows, "count": len(flows)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/flows/{flow_id}/status")
+async def update_flow_status(flow_id: str, status_data: dict):
+    """Actualizar el estado de un flujo (activo/inactivo)"""
+    try:
+        is_active = status_data.get('is_active', False)
+        success = await db_manager.update_flow_status(flow_id, is_active)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Flujo no encontrado")
+        
+        return {
+            "message": f"Flujo {'activado' if is_active else 'desactivado'} exitosamente"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/flows/{flow_id}")
+async def delete_flow(flow_id: str, user_data: dict):
+    """Eliminar un flujo"""
+    try:
+        user_id = user_data.get('user_id')
+        if not user_id:
+            raise HTTPException(status_code=400, detail="user_id es requerido")
+        
+        success = await db_manager.delete_flow(flow_id, user_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Flujo no encontrado o sin permisos")
+        
+        return {"message": "Flujo eliminado exitosamente"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
