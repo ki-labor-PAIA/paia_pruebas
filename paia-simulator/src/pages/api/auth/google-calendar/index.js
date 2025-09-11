@@ -4,7 +4,7 @@ import { Pool } from 'pg';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'your-client-id.apps.googleusercontent.com';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || 'your-client-secret';
-const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'https://paia-pruebas.vercel.app/api/auth/google-calendar/callback';
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI0 || 'https://paia-pruebas.vercel.app/api/auth/google-calendar/callback';
 
 const pool = new Pool({
   user: 'postgres',
