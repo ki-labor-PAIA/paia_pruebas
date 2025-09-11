@@ -1,14 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
-export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
+export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initialData }) {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     personality: 'friendly',
     expertise: 'general',
-    is_public: true,
+    is_capability_node: false,
     customColor: ''
   });
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData(prev => ({ ...prev, ...initialData }));
+    }
+  }, [initialData]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -26,7 +32,8 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
       description: '',
       personality: 'friendly',
       expertise: 'general',
-      is_public: true
+      is_public: true,
+      is_capability_node: false
     });
     onClose();
   };
@@ -37,7 +44,8 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
       description: '',
       personality: 'friendly',
       expertise: 'general',
-      is_public: true
+      is_public: true,
+      is_capability_node: false
     });
     onClose();
   };
@@ -165,10 +173,45 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
               <option value="scheduling">Programación y Calendario</option>
               <option value="travel">Viajes y Reservas</option>
               <option value="research">Investigación</option>
+              <option value="notes">Gestión de Notas</option>
               <option value="creativity">Creatividad y Diseño</option>
               <option value="finance">Finanzas</option>
             </select>
           </div>
+
+          {formData.expertise === 'notes' && (
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '0.9em',
+                fontWeight: '500',
+                color: 'var(--text-primary)',
+                cursor: 'pointer'
+              }}>
+                <input
+                  type="checkbox"
+                  checked={formData.is_capability_node}
+                  onChange={(e) => handleChange('is_capability_node', e.target.checked)}
+                  style={{
+                    width: '16px',
+                    height: '16px',
+                    cursor: 'pointer'
+                  }}
+                />
+                Nodo de Capacidades
+              </label>
+              <div style={{
+                fontSize: '0.75em',
+                color: 'var(--text-secondary)',
+                marginTop: '4px',
+                marginLeft: '24px'
+              }}>
+                Este agente actuará como un nodo de capacidades, proveyendo herramientas a otros agentes.
+              </div>
+            </div>
+          )}
           
           <div style={{ marginBottom: '20px' }}>
             <label style={{

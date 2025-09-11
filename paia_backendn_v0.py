@@ -62,6 +62,21 @@ class AgentMessage:
     timestamp: str
     conversation_id: Optional[str] = None
 
+
+# Modelo de Notas
+@dataclass
+class Nota:
+    id: str
+    title: str
+    content: str
+    created: str
+    updated: str
+    tags: List[str]
+
+# Almacenamiento de notas
+notas_store: Dict[str, Nota] = {}
+
+
 # Storage en memoria
 agents_store: Dict[str, PAIAAgent] = {}
 connections_store: Dict[str, AgentConnection] = {}
@@ -78,19 +93,18 @@ class PAIAAgentManager:
         # Crear herramientas específicas del agente
         agent_tools = self._create_agent_tools(agent_id, agent_data['expertise'])
         
-        # Crear una descripción de las herramientas para el prompt del sistema
-        tools_description = "\n".join([f'- {tool.name}: {tool.description}' for tool in agent_tools])
-        
         # Crear instancia del agente con LangGraph
         agent_llm = create_react_agent(
             self.llm,
             agent_tools,
             state_modifier=f"""Eres {agent_data['name']}, un asistente {agent_data['personality']} especializado en {agent_data['expertise']}.
 
-Estas son tus herramientas disponibles:
-{tools_description}
+IMPORTANTE: Tienes acceso a herramientas para comunicarte con otros agentes. Cuando el usuario te pida enviar un mensaje a otro agente:
+1. USA get_connected_agents() para ver con quién puedes hablar
+2. USA send_message_to_agent() para enviar el mensaje y obtener respuesta automáticamente
+3. Comparte INMEDIATAMENTE la respuesta con el usuario
 
-IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Mantén el contexto de toda la conversación y responde de manera natural."""
+Mantén el contexto de toda la conversación y responde de manera natural."""
         )
         
         agent = PAIAAgent(
@@ -102,8 +116,8 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
             status='online',
             created=datetime.now().isoformat(),
             mcp_endpoint=f"http://localhost:{3000 + len(agents_store)}/mcp",
-            user_id=agent_data.get('user_id', 'anonymous'),
-            is_public=agent_data.get('is_public', True),
+            user_id=agent_data.get('user_id', 'anonymous'),  # ID del usuario que lo creó
+            is_public=agent_data.get('is_public', True),  # Por defecto es público
             llm_instance=agent_llm,
             tools=agent_tools,
             conversation_history=[]
@@ -113,11 +127,11 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
         return agent
     
     def _create_agent_tools(self, agent_id: str, expertise: str) -> List:
-        """Crea el conjunto de herramientas base para cualquier agente."""
+        """Crear herramientas mejoradas para comunicación entre agentes"""
         
         @tool
         def get_connected_agents() -> str:
-            """Ver agentes conectados a ti."""
+            """Ver agentes conectados"""
             try:
                 connected = []
                 for conn in connections_store.values():
@@ -131,13 +145,14 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
                 return f"Conectado con: {', '.join(connected)}" if connected else "Sin conexiones"
             except Exception as e:
                 return f"Error obteniendo conexiones: {str(e)}"
-
+        
         @tool
         async def send_message_to_agent(target_agent_id: str, message: str) -> str:
-            """Enviar un mensaje a otro agente y obtener su respuesta."""
+            """Enviar mensaje y obtener respuesta automáticamente"""
             try:
                 sender_id = agent_id
                 
+                # Verificar conexión
                 is_connected = any(
                     (conn.agent1 == sender_id and conn.agent2 == target_agent_id) or
                     (conn.agent1 == target_agent_id and conn.agent2 == sender_id)
@@ -150,8 +165,10 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
                 if target_agent_id not in agents_store:
                     return f"Error: Agente {target_agent_id} no encontrado"
                 
+                # Crear ID de conversación único
                 conversation_id = f"{min(sender_id, target_agent_id)}_{max(sender_id, target_agent_id)}"
                 
+                # Guardar mensaje enviado
                 sent_message = AgentMessage(
                     id=str(uuid.uuid4())[:8],
                     from_agent=sender_id,
@@ -165,6 +182,7 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
                     message_history[conversation_id] = []
                 message_history[conversation_id].append(sent_message)
                 
+                # ✅ CAMBIO: Usar await con la función async
                 response = await agent_manager._generate_agent_response(sender_id, target_agent_id, conversation_id)
                 target_agent_name = agents_store[target_agent_id].name
                 
@@ -173,72 +191,75 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
             except Exception as e:
                 return f"Error enviando mensaje: {str(e)}"
 
-        # --- Herramientas de Notas Integradas ---
-        NOTES_FILE = "./mcp-notes/data/notes.jsonl"
-
-        def _get_notes():
-            if not os.path.exists(NOTES_FILE):
-                os.makedirs(os.path.dirname(NOTES_FILE), exist_ok=True)
-                return []
-            with open(NOTES_FILE, "r", encoding="utf-8") as f:
-                return [json.loads(line) for line in f if line.strip()]
-
-        def _save_notes(notes):
-            with open(NOTES_FILE, "w", encoding="utf-8") as f:
-                for note in notes:
-                    f.write(json.dumps(note) + "\n")
-
         @tool
-        def save_note(title: str, content: str, tags: List[str] = None) -> str:
-            """Guarda una nueva nota personal. Útil para recordar información."""
+        async def get_agent_response(target_agent_id: str) -> str:
+            """Obtener la respuesta más reciente de un agente específico"""
             try:
-                notes = _get_notes()
-                new_note = {
-                    "id": str(uuid.uuid4())[:8],
-                    "title": title,
-                    "content": content,
-                    "tags": tags or [],
-                    "created_at": datetime.now().isoformat(),
-                }
-                notes.append(new_note)
-                _save_notes(notes)
-                return f"Nota guardada con éxito. ID: {new_note['id']}"
+                sender_id = agent_id
+                conversation_id = f"{min(sender_id, target_agent_id)}_{max(sender_id, target_agent_id)}"
+                
+                if conversation_id not in message_history:
+                    return "No hay conversación iniciada con ese agente."
+                
+                # Buscar la última respuesta del agente objetivo
+                messages = message_history[conversation_id]
+                for message in reversed(messages):
+                    if message.from_agent == target_agent_id:
+                        agent_name = agents_store[target_agent_id].name
+                        return f"{agent_name} respondió: \"{message.content}\""
+                
+                # ✅ CAMBIO: Usar await
+                return await agent_manager._generate_agent_response(sender_id, target_agent_id, conversation_id)
+                
             except Exception as e:
-                return f"Error al guardar la nota: {e}"
-
-        @tool
-        def search_notes(query: str) -> str:
-            """Busca en todas tus notas personales."""
-            notes = _get_notes()
-            results = [
-                note for note in notes
-                if query.lower() in note["title"].lower() or query.lower() in note["content"].lower()
-            ]
-            if not results:
-                return "No se encontraron notas con ese criterio."
-            
-            formatted_results = []
-            for r in results:
-                tags = ", ".join(r.get('tags', []))
-                formatted_results.append(f"- ID: {r['id']}, Título: {r['title']}, Etiquetas: {tags}")
-            return "Notas encontradas:\n" + "\n".join(formatted_results)
-
-        # --- Fin de Herramientas de Notas ---
-
-        base_tools = [
-            get_connected_agents, 
-            send_message_to_agent,
-            save_note,
-            search_notes
-        ]
+                return f"Error obteniendo respuesta: {str(e)}"
         
-        # Aquí se podrían agregar herramientas adicionales basadas en 'expertise' si fuera necesario
-        if "scheduling" in expertise:
+        @tool
+        def get_conversation_history(target_agent_id: str) -> str:
+            """Obtener el historial completo de conversación con un agente"""
+            try:
+                sender_id = agent_id
+                conversation_id = f"{min(sender_id, target_agent_id)}_{max(sender_id, target_agent_id)}"
+                
+                if conversation_id not in message_history:
+                    return "No hay historial de conversación con ese agente."
+                
+                history = []
+                for msg in message_history[conversation_id]:
+                    sender_name = agents_store[msg.from_agent].name
+                    history.append(f"{sender_name}: {msg.content}")
+                
+                return "Historial de conversación:\n" + "\n".join(history)
+                
+            except Exception as e:
+                return f"Error obteniendo historial: {str(e)}"
+        
+        base_tools = [get_connected_agents, send_message_to_agent, get_agent_response, get_conversation_history]
+        
+        # Herramientas específicas por expertise
+        if expertise == "scheduling":
             @tool
             def schedule_meeting(title: str, date: str, participants: List[str]) -> str:
                 return f"Reunión '{title}' programada para {date} con {', '.join(participants)}"
             base_tools.append(schedule_meeting)
-
+            
+        elif expertise == "travel":
+            @tool
+            def book_flight(from_city: str, to_city: str, date: str) -> str:
+                return f"Vuelo reservado de {from_city} a {to_city} para {date}"
+            
+            @tool
+            def book_hotel(city: str, checkin: str, checkout: str) -> str:
+                return f"Hotel reservado en {city} del {checkin} al {checkout}"
+            
+            base_tools.extend([book_flight, book_hotel])
+            
+        elif expertise == "research":
+            @tool
+            def web_search(query: str) -> str:
+                return f"Resultados de búsqueda para: {query}"
+            base_tools.append(web_search)
+        
         return base_tools
     
     async def _generate_agent_response(self, from_agent_id: str, to_agent_id: str, conversation_id: str) -> str:
@@ -290,9 +311,7 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
     async def connect_agents(self, agent1_id: str, agent2_id: str, connection_type: str = "direct") -> AgentConnection:
         if agent1_id not in agents_store or agent2_id not in agents_store:
             raise HTTPException(status_code=404, detail="Uno o ambos agentes no encontrados")
-
         
-
         connection = AgentConnection(
             id=str(uuid.uuid4())[:8],
             agent1=agent1_id,
@@ -304,27 +323,6 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
         
         connections_store[connection.id] = connection
         return connection
-
-    def _add_capability_to_agent(self, agent: PAIAAgent, expertise: str):
-        if expertise not in agent.expertise.split(', '):
-            agent.expertise += f", {expertise}"
-            self._recreate_agent(agent)
-
-    def _recreate_agent(self, agent: PAIAAgent):
-        agent_tools = self._create_agent_tools(agent.id, agent.expertise)
-        tools_description = "\n".join([f'- {tool.name}: {tool.description}' for tool in agent_tools])
-        
-        agent.tools = agent_tools
-        agent.llm_instance = create_react_agent(
-            self.llm,
-            agent.tools,
-            state_modifier=f"""Eres {agent.name}, un asistente {agent.personality} especializado en {agent.expertise}.
-
-Estas son tus herramientas disponibles:
-{tools_description}
-
-IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Mantén el contexto de toda la conversación y responde de manera natural."""
-        )
     
     async def send_message_to_agent_api(self, from_agent_id: str, to_agent_id: str, message: str) -> str:
         """API endpoint para envío de mensajes entre agentes"""
@@ -678,11 +676,6 @@ async def health_check():
         "timestamp": datetime.now().isoformat()
     }
 
-
-
-
-
-
 if __name__ == "__main__":
     print("Iniciando PAIA Platform Backend Async...")
     print("Funcionalidades:")
@@ -698,5 +691,55 @@ if __name__ == "__main__":
         port=8000,
         log_level="info"
     )
-    
-    
+
+# ================== CRUD de Notas ===================
+# ================== CRUD de Notas ===================
+
+from fastapi import Query
+
+@app.get("/api/notas")
+async def get_all_notes():
+    return [asdict(nota) for nota in notas_store.values()]
+
+@app.get("/api/notas/buscar")
+async def search_notes(q: str = Query(..., description="Texto a buscar en título o contenido")):
+    resultados = [
+        asdict(nota)
+        for nota in notas_store.values()
+        if q.lower() in nota.title.lower() or q.lower() in nota.content.lower()
+    ]
+    return resultados
+
+@app.post("/api/notas")
+async def create_note(note_data: dict):
+    nota_id = str(uuid.uuid4())[:8]
+    nueva_nota = Nota(
+        id=nota_id,
+        title=note_data["title"],
+        content=note_data["content"],
+        created=datetime.now().isoformat(),
+        updated=datetime.now().isoformat(),
+        tags=note_data.get("tags", [])
+    )
+    notas_store[nota_id] = nueva_nota
+    return asdict(nueva_nota)
+
+@app.put("/api/notas/{nota_id}")
+async def update_note(nota_id: str, note_data: dict):
+    if nota_id not in notas_store:
+        raise HTTPException(status_code=404, detail="Nota no encontrada")
+
+    nota = notas_store[nota_id]
+    nota.title = note_data.get("title", nota.title)
+    nota.content = note_data.get("content", nota.content)
+    nota.updated = datetime.now().isoformat()
+    nota.tags = note_data.get("tags", nota.tags)
+    return asdict(nota)
+
+@app.delete("/api/notas/{nota_id}")
+async def delete_note(nota_id: str):
+    if nota_id not in notas_store:
+        raise HTTPException(status_code=404, detail="Nota no encontrada")
+
+    del notas_store[nota_id]
+    return {"mensaje": "Nota eliminada correctamente"}

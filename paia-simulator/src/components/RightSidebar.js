@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 export default function RightSidebar({ 
   onAddActor, 
   onConnect, 
@@ -9,6 +11,7 @@ export default function RightSidebar({
   onAddPublicAgent,
   isBackendConnected 
 }) {
+
   return (
     <div className="sidebar right">
       <div className="button-group">
@@ -21,6 +24,9 @@ export default function RightSidebar({
         </button>
         <button onClick={onCreateAgent} className="discreet-button" style={{ background: 'var(--primary-color) !important', color: 'white !important' }}>
           <i className="fas fa-cog"></i> Crear Agente PAIA
+        </button>
+        <button onClick={() => onCreateAgent({ isNotesNode: true })} className="discreet-button">
+          📒 Crear Nodo de Notas
         </button>
       </div>
 
@@ -148,6 +154,7 @@ export default function RightSidebar({
           </div>
         )}
       </div>
-    </div>
+
+      </div>
   );
 }

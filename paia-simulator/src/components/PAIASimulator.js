@@ -231,6 +231,11 @@ export default function PAIASimulator() {
   const createConfiguredAgent = useCallback(async (agentConfig) => {
     const id = `agent-${actorIdRef.current}`;
     
+    if (agentConfig.isNotesNode) {
+      agentConfig.expertise = 'notes';
+      agentConfig.is_capability_node = true;
+    }
+
     // Crear en el backend si está disponible
     let backendAgent = null;
     if (isConnected) {
@@ -263,15 +268,16 @@ export default function PAIASimulator() {
       data: { 
         label: agentConfig.name,
         actorType: 'ai',
-        emoji: '🤖',
+        emoji: agentConfig.isNotesNode ? '📒' : '🤖',
         personality: agentConfig.personality,
         expertise: agentConfig.expertise,
         description: agentConfig.description,
         backendId: backendAgent?.id,
         isConfigured: true,
-        agentColor: agentColor
+        agentColor: agentColor,
+        isCapabilityNode: agentConfig.is_capability_node
       },
-      className: 'react-flow__node-ai',
+      className: agentConfig.isNotesNode ? 'react-flow__node-capability' : 'react-flow__node-ai',
       style: {
         background: agentColor,
         borderColor: agentColor
