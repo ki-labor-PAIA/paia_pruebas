@@ -10,7 +10,7 @@ import { Pool } from 'pg';
 // Configuración OAuth de Google
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'your-client-id.apps.googleusercontent.com';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || 'your-client-secret';
-const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/mcp/oauth2callback';
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'https://paia-pruebas.vercel.app/api/mcp/oauth2callback';
 
 // Scopes de Google Calendar
 const SCOPES = [

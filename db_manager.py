@@ -879,6 +879,36 @@ class DatabaseManager:
                 for row in rows
             ]
 
+    async def get_public_flows_by_user(self, user_id: str) -> List[dict]:
+        """Obtener los flujos públicos de un usuario específico."""
+        async with self.Session() as session:
+            stmt = select(self.saved_flows).where(
+                and_(
+                    self.saved_flows.c.user_id == user_id,
+                    self.saved_flows.c.is_public == True
+                )
+            ).order_by(self.saved_flows.c.updated_at.desc())
+            
+            result = await session.execute(stmt)
+            rows = result.fetchall()
+            
+            return [
+                {
+                    'id': row.id,
+                    'name': row.name,
+                    'description': row.description,
+                    'flow_data': row.flow_data,
+                    'is_public': row.is_public,
+                    'is_active': row.is_active,
+                    'version': row.version,
+                    'tags': row.tags,
+                    'metadata': row.metadata,
+                    'created_at': row.created_at.isoformat() if row.created_at else None,
+                    'updated_at': row.updated_at.isoformat() if row.updated_at else None
+                }
+                for row in rows
+            ]
+
     async def get_friends_active_flows(self, user_id: str) -> List[dict]:
         """Obtener flujos activos de amigos"""
         async with self.Session() as session:

@@ -526,9 +526,9 @@ export default function PAIASimulator({ initialFlow }) {
   // Función para manejar cuando se establece una conexión con usuario
   const handleUserConnection = useCallback((connectionData) => {
     if (connectionData.mode === 'flow') {
-      // Conexión de flujo creada
-      addLogMessage(`⚡ Conexión de flujo establecida con ${connectionData.user.name} (${connectionData.user.email})`);
-      addDecisionMessage('Sistema', `Flujo conectado con ${connectionData.user.name}`, true);
+      // Conexión de flujo creada con un agente específico
+      addLogMessage(`⚡ Conexión de flujo establecida con el agente ${connectionData.agent.name}`);
+      addDecisionMessage('Sistema', `Flujo conectado al agente ${connectionData.agent.name}`, true);
       
       // Actualizar el ConnectionNode correspondiente
       setNodes(currentNodes => 
@@ -540,7 +540,8 @@ export default function PAIASimulator({ initialFlow }) {
                   ...node.data,
                   isConnected: true,
                   status: 'online',
-                  connectedUser: connectionData.user,
+                  label: `Conectado a ${connectionData.agent.name}`,
+                  connectedAgent: connectionData.agent, // Guardamos el agente completo
                   flowConnectionId: connectionData.flowConnectionId
                 }
               }
@@ -981,27 +982,53 @@ export default function PAIASimulator({ initialFlow }) {
           
           // Manejar diferentes tipos de nodos destino
           if (targetNode.type === 'connection') {
-            // ConnectionNode - enrutar a usuario externo
-            if (targetNode.data.isConnected && targetNode.data.connectedUser) {
-              addLogMessage(`🌐→ ${sourceNode.data.label} envió mensaje a ${targetNode.data.connectedUser.name}: "${messageContent}"`);
-              addDecisionMessage('Sistema', `Mensaje enviado a ${targetNode.data.connectedUser.name} vía conexión de flujo`, true);
+            // ConnectionNode - enrutar a agente externo
+            if (targetNode.data.isConnected && targetNode.data.connectedAgent) {
+              const targetAgent = targetNode.data.connectedAgent;
+              addLogMessage(`🌐→ ${sourceNode.data.label} intenta comunicarse con ${targetAgent.name} a través de un nodo de conexión.`);
               
-              // Aquí se enviaría el mensaje al backend para comunicación cross-user
-              if (useBackend && isConnected) {
+              if (useBackend && isConnected && sourceNode.data.backendId) {
+                // Construir el prompt para que el agente de origen use la herramienta
+                const intelligentPrompt = `Usa la herramienta 'ask_connected_agent' para enviar la siguiente pregunta al agente con ID '${targetAgent.id}': "${messageContent}"`;
+                
+                addLogMessage(`🤖 Prompt para ${sourceNode.data.label}: "${intelligentPrompt}"`);
+                addDecisionMessage(sourceNode.data.label, `Preparando para preguntar a ${targetAgent.name}...`, false);
+
                 try {
-                  // TODO: Implementar API call para enviar mensaje a usuario externo
-                  // await PAIAApi.sendCrossUserMessage({
-                  //   fromUserId: userId,
-                  //   toUserId: targetNode.data.connectedUser.id,
-                  //   message: messageContent,
-                  //   flowConnectionId: targetNode.data.flowConnectionId
-                  // });
+                  // Enviar el prompt al agente de origen para que ejecute la herramienta
+                  const response = await PAIAApi.sendMessage(sourceNode.data.backendId, intelligentPrompt);
+                  
+                  // La respuesta del backend será la respuesta del agente consultado
+                  const agentResponse = response.response;
+                  
+                  addLogMessage(`✅ Respuesta de ${targetAgent.name}: "${agentResponse}"`);
+                  addDecisionMessage(targetAgent.name, agentResponse, false);
+
+                  // Agregar al historial de ambos nodos
+                  addMessageToNodeHistory(sourceNode.id, {
+                    sender: 'agent',
+                    content: `Pregunta enviada a ${targetAgent.name}: "${messageContent}"`
+                  });
+                   addMessageToNodeHistory(targetNode.id, {
+                    sender: 'received',
+                    content: `Pregunta de ${sourceNode.data.label}: "${messageContent}"`,
+                    from: sourceNode.data.label
+                  });
+                  addMessageToNodeHistory(targetNode.id, {
+                    sender: 'agent',
+                    content: agentResponse
+                  });
+
                 } catch (error) {
-                  addLogMessage(`❌ Error enviando mensaje cross-user: ${error.message}`);
+                  const errorMsg = `❌ Error en la comunicación agente-a-agente: ${error.message}`;
+                  addLogMessage(errorMsg);
+                  addDecisionMessage('Sistema', errorMsg, true);
                 }
+              } else {
+                 addLogMessage(`⚠️ La comunicación agente-a-agente requiere que el backend esté activo y que el agente de origen (${sourceNode.data.label}) exista en el backend.`);
               }
             } else {
-              addLogMessage(`⚠️ Nodo de conexión ${targetNode.data.label} no está conectado`);
+              addLogMessage(`⚠️ Nodo de conexión '${targetNode.data.label}' no está configurado o conectado a un agente específico.`);
             }
           } else if (targetNode.data.actorType === 'ai') {
             // Generar respuesta si el target es IA

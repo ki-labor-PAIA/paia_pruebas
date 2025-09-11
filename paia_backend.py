@@ -168,7 +168,7 @@ class PAIAAgentManager:
         try:
                     self.mcp_client = MultiServerMCPClient({
                         "google_calendar": {
-                            "url": "https://paia-pruebas.vercel.app/api/mcp",
+                            "url": "http://localhost:3000/api/mcp",
                             "transport": "streamable_http"
                         }
                     })
@@ -210,11 +210,11 @@ IMPORTANTE: Tu user ID es: {user_id}
 
 🤖 COMUNICACIÓN INTELIGENTE:
 - Para enviar un mensaje a una PERSONA: usa send_notification_to_user(user_name, message, priority)
-- Para hacer PREGUNTAS INTELIGENTES a otro agente: usa ask_connected_agent(user_name, question, context)
+- Para hacer PREGUNTAS INTELIGENTES a otro agente: usa ask_connected_agent(target_agent_id, question, context)
   
 📢 EJEMPLOS DE USO:
 - "Dile a Mari que la espero mañana a las 7" → send_notification_to_user("Mari", "Te espero mañana a las 7", "normal")
-- "Pregúntale a Mari si está libre mañana a las 7" → ask_connected_agent("Mari", "¿Estás disponible mañana a las 7pm?", "Para una reunión de trabajo")
+- "Pregúntale al agente 'agent-xyz' si su usuario está libre mañana a las 7" → ask_connected_agent("agent-xyz", "¿Estás disponible mañana a las 7pm?", "Para una reunión de trabajo")
 
 🎯 COMPORTAMIENTO:
 - Sé PROACTIVO: Si mencionan calendario o disponibilidad, usa las herramientas automáticamente
@@ -440,48 +440,25 @@ IMPORTANTE: Tu user ID es: {user_id}
                 return f"❌ Error enviando notificación: {str(e)}"
 
         @tool
-        async def ask_connected_agent(user_name: str, question: str, context: str = "") -> str:
+        async def ask_connected_agent(target_agent_id: str, question: str, context: str = "") -> str:
             """
-            Hacer una pregunta inteligente al agente de otro usuario.
+            Hacer una pregunta inteligente a un agente específico usando su ID.
             Perfecto para consultas de calendario, disponibilidad, etc.
             
             Args:
-                user_name: Nombre del usuario cuyo agente quieres consultar
-                question: Pregunta específica (ej: "¿Está disponible mañana a las 7pm?")
+                target_agent_id: ID del agente específico al que quieres consultar.
+                question: Pregunta específica (ej: "¿Estás disponible mañana a las 7pm?")
                 context: Contexto adicional opcional
             
             Returns:
                 Respuesta del agente consultado
             """
             try:
-                # Buscar usuario
-                users = await db_manager.search_users(user_name, limit=5)
-                if not users:
-                    return f"❌ No se encontró usuario '{user_name}'"
-                
-                target_user = users[0]
-                
-                # Buscar agente del usuario (el más reciente y activo)
-                target_agents = await db_manager.get_agents_by_user(target_user['id'])
-                if not target_agents:
-                    return f"❌ {target_user['name']} no tiene agentes configurados"
-                
-                # Tomar el primer agente activo
-                target_agent_data = None
-                for agent_data in target_agents:
-                    if agent_data.status == 'online':
-                        target_agent_data = agent_data
-                        break
-                
-                if not target_agent_data:
-                    target_agent_data = target_agents[0]  # Fallback al primero
-                
-                # Verificar si el agente está en memoria (cargado)
-                if target_agent_data.id not in agents_store:
-                    return f"⏳ El agente de {target_user['name']} ({target_agent_data.name}) no está activo en este momento"
-                
-                target_agent = agents_store[target_agent_data.id]
-                
+                # Asegurar que el agente objetivo esté cargado en memoria
+                target_agent = await ensure_agent_loaded(target_agent_id)
+                if not target_agent:
+                    return f"⏳ El agente con ID '{target_agent_id}' no está activo o no existe."
+
                 # Construir mensaje inteligente
                 sender_agent = agents_store.get(agent_id)
                 sender_name = sender_agent.name if sender_agent else "Un agente"
@@ -490,7 +467,7 @@ IMPORTANTE: Tu user ID es: {user_id}
 
 Contexto adicional: {context}
 
-Por favor responde de manera útil y directa. Si la pregunta es sobre disponibilidad o calendario, consulta el calendario del usuario usando las herramientas disponibles."""
+Por favor responde de manera útil y directa. Si la pregunta es sobre disponibilidad o calendario, consulta el calendario de tu usuario ({target_agent.user_id}) usando las herramientas disponibles."""
 
                 # Enviar mensaje al agente objetivo
                 response = await target_agent.llm_instance.ainvoke({
@@ -500,24 +477,28 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
                 response_content = response["messages"][-1].content
                 
                 # Guardar la conversación en BD
-                conversation_id = f"intelligent_{agent_id}_{target_agent_data.id}"
+                conversation_id = f"intelligent_{agent_id}_{target_agent_id}"
                 await db_manager.save_message({
                     'conversation_id': conversation_id,
                     'from_agent_id': agent_id,
-                    'to_agent_id': target_agent_data.id,
+                    'to_agent_id': target_agent_id,
                     'content': question,
                     'message_type': 'intelligent_query'
                 })
                 
                 await db_manager.save_message({
                     'conversation_id': conversation_id,
-                    'from_agent_id': target_agent_data.id,
+                    'from_agent_id': target_agent_id,
                     'to_agent_id': agent_id,
                     'content': response_content,
                     'message_type': 'intelligent_response'
                 })
                 
-                return f"🤖 {target_agent_data.name} (agente de {target_user['name']}) responde:\n\n{response_content}"
+                # Obtener datos del usuario del agente para un mensaje más claro
+                target_user = await auth_manager.get_user_by_id(target_agent.user_id)
+                user_name_info = f" (agente de {target_user.name})" if target_user else ""
+
+                return f"🤖 {target_agent.name}{user_name_info} responde:\n\n{response_content}"
                 
             except Exception as e:
                 return f"❌ Error consultando agente: {str(e)}"
@@ -855,7 +836,7 @@ IMPORTANTE: Tu user ID es: {db_agent.user_id}
 
 🤖 COMUNICACIÓN INTELIGENTE:
 - Para enviar un mensaje a una PERSONA: usa send_notification_to_user(user_name, message, priority)
-- Para hacer PREGUNTAS INTELIGENTES a otro agente: usa ask_connected_agent(user_name, question, context)
+- Para hacer PREGUNTAS INTELIGENTES a otro agente: usa ask_connected_agent(target_agent_id, question, context)
 
 🎯 COMPORTAMIENTO:
 - Sé PROACTIVO: Si mencionan calendario o disponibilidad, usa las herramientas automáticamente
@@ -1788,16 +1769,6 @@ async def health_check():
 
 if __name__ == "__main__":
     print("Iniciando PAIA Platform Backend con Telegram Integration...")
-    print("Funcionalidades:")
-    print("   - Comunicacion async entre agentes")
-    print("   - Contexto de conversacion persistente")
-    print("   - Reconocimiento automatico de conexiones")
-    print("   - Respuestas inmediatas sin errores de loop")
-    print("   - Memoria persistente con PostgreSQL")
-    print("   - Soporte multi-usuario")
-    print("   - TELEGRAM: Integracion completa con notificaciones")
-    print("")
-    print("IMPORTANTE: Configura tu token de Telegram y Chat ID en las lineas 21-22")
     print("")
     
     uvicorn.run(
