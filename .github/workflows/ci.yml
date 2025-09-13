@@ -3,7 +3,7 @@ name: Deploy to EC2
 on:
   push:
     branches:
-      - main   
+      - main
 
 jobs:
   deploy:
@@ -12,13 +12,17 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v0.1.9
+      - name: Deploy to EC2 and restart service
+        uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
           script: |
-            cd /home/ubuntu/paia_pruebas
+            echo "ACTUALIZANDO DE PANAS"
+            cd ~/paia_pruebas
             git pull origin main
-            bash deploy.sh
+            echo "AGUANTA ESTOY AGARRANDO SEÑAL
+            sudo systemctl daemon-reload
+            sudo systemctl restart paia.service
+            sudo systemctl status paia.service --no-pager
