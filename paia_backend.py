@@ -168,7 +168,7 @@ class PAIAAgentManager:
         try:
                     self.mcp_client = MultiServerMCPClient({
                         "google_calendar": {
-                            "url": "http://localhost:3000/api/mcp",
+                            "url": "https://paia-pruebas.vercel.app/api/mcp",
                             "transport": "streamable_http"
                         }
                     })
