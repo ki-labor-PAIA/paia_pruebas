@@ -22,7 +22,7 @@ jobs:
             echo "ACTUALIZANDO DE PANAS"
             cd ~/paia_pruebas
             git pull origin main
-            echo "AGUANTA ESTOY AGARRANDO SEÑAL
+            echo "AGUANTA ESTOY AGARRANDO SEÑAL"
             sudo systemctl daemon-reload
             sudo systemctl restart paia.service
             sudo systemctl status paia.service --no-pager
