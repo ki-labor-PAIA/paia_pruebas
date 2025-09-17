@@ -1,18 +1,10 @@
 // src/pages/api/auth/google-calendar/index.js
 import { OAuth2Client } from 'google-auth-library';
-import { Pool } from 'pg';
+import { createServiceSupabase } from '@/lib/supabase';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'your-client-id.apps.googleusercontent.com';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || 'your-client-secret';
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI0 || 'https://paia-pruebas.vercel.app/api/auth/google-calendar/callback';
-
-const pool = new Pool({
-  user: 'postgres',
-  host: 'localhost',
-  database: 'paia',
-  password: 'root',
-  port: 5432,
-});
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -25,8 +17,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'userId y code requeridos' });
   }
 
-  const client = await pool.connect();
   try {
+    const supabase = createServiceSupabase();
+    
     const auth = new OAuth2Client(
       GOOGLE_CLIENT_ID,
       GOOGLE_CLIENT_SECRET,
@@ -39,19 +32,23 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'No se pudo obtener el token de acceso' });
     }
     
-    const expiresAt = tokens.expiry_date ? new Date(tokens.expiry_date) : null;
+    const expiresAt = tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : null;
     
-    await client.query(
-      `INSERT INTO google_tokens (user_id, access_token, refresh_token, expires_at, updated_at) 
-       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
-       ON CONFLICT (user_id) 
-       DO UPDATE SET 
-         access_token = EXCLUDED.access_token,
-         refresh_token = EXCLUDED.refresh_token,
-         expires_at = EXCLUDED.expires_at,
-         updated_at = CURRENT_TIMESTAMP`,
-      [userId, tokens.access_token, tokens.refresh_token, expiresAt]
-    );
+    const { error } = await supabase
+      .from('google_tokens')
+      .upsert({
+        user_id: userId,
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        expires_at: expiresAt,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id'
+      });
+    
+    if (error) {
+      throw error;
+    }
     
     return res.json({ 
       success: true, 
@@ -63,7 +60,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ 
       error: 'Error completando autenticación: ' + error.message 
     });
-  } finally {
-    client.release();
   }
 }

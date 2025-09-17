@@ -11,28 +11,27 @@ from langgraph.prebuilt import create_react_agent
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.tools import tool
 from langchain_core.messages import HumanMessage, AIMessage
-from long_term_store_pg import LongTermStorePG
+from long_term_store_supabase import LongTermStoreSupabase
 import uvicorn
 import os
 import requests  # Para Telegram
 import httpx  # Para verificar servidor MCP
 from memory_manager import MemoryManager, Message
-from auth_manager import AuthManager
-from db_manager import DatabaseManager
+from auth_manager_supabase import AuthManager
+from db_manager_supabase import DatabaseManager
 from dotenv import load_dotenv
 load_dotenv()
 app = FastAPI(title="PAIA Platform Backend", version="1.0.0")
 
-# === MEMORIA PERSISTENTE (Postgres) ===
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:root@localhost:5432/paia")
-lt_store = LongTermStorePG(DATABASE_URL)
+# === MEMORIA PERSISTENTE (Supabase) ===
+lt_store = LongTermStoreSupabase()
 memory_manager = MemoryManager(long_term_backend=lt_store)
 
 # === AUTENTICACIÓN ===
-auth_manager = AuthManager(DATABASE_URL)
+auth_manager = AuthManager()
 
 # === GESTOR DE BASE DE DATOS ===
-db_manager = DatabaseManager(DATABASE_URL)
+db_manager = DatabaseManager()
 
 # =============== CONFIGURACIÓN DE TELEGRAM ===============
 TELEGRAM_BOT_TOKEN = "7631967713:AAFLKpCvsRk3PByVrvD2cwYcuOZM5smdXno"  # Reemplaza con tu token de BotFather
@@ -168,7 +167,7 @@ class PAIAAgentManager:
         try:
                     self.mcp_client = MultiServerMCPClient({
                         "google_calendar": {
-                            "url": "https://paia-pruebas.vercel.app/api/mcp",
+                            "url": "http://127.0.0.1:3000/api/mcp",
                             "transport": "streamable_http"
                         }
                     })
@@ -883,15 +882,67 @@ IMPORTANTE: Tu user ID es: {db_agent.user_id}
 @app.post("/api/agents")
 async def create_agent(agent_data: dict):
     try:
+        # Verificar si el usuario existe, si no, crearlo
+        user_id = agent_data.get('user_id')
+        if user_id:
+            user = await auth_manager.get_user_by_id(user_id)
+            if not user:
+                await auth_manager.create_user(
+                    email=f"user-{user_id}@placeholder.com",
+                    name=f"User {user_id[:8]}",
+                    user_id=user_id
+                )
+        
         # Agregar telegram_chat_id si viene en los datos
         if 'telegram_chat_id' not in agent_data:
             agent_data['telegram_chat_id'] = TELEGRAM_DEFAULT_CHAT_ID
             
         agent = await agent_manager.create_agent(agent_data)
+        
         agent_dict = asdict(agent)
         agent_dict.pop('llm_instance', None)
         agent_dict.pop('tools', None)
         return agent_dict
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
+
+
+@app.post("/auth/google-signin")
+async def google_signin(request_data: dict):
+    """Handle Google OAuth sign-in from NextAuth"""
+    try:
+        google_id = request_data.get('google_id')
+        email = request_data.get('email')
+        name = request_data.get('name')
+        image = request_data.get('image')
+        
+        if not google_id or not email:
+            raise HTTPException(status_code=400, detail="google_id and email are required")
+        
+        # Check if user already exists by google_id
+        user = await auth_manager.get_user_by_google_id(google_id)
+        
+        if user:
+            return {"user_id": user.id, "message": "User logged in successfully"}
+        
+        # Check if user exists by email
+        user = await auth_manager.get_user_by_email(email)
+        
+        if user:
+            # Link Google account to existing user
+            await auth_manager.update_user_google_info(user.id, google_id, name, image)
+            return {"user_id": user.id, "message": "Google account linked successfully"}
+        
+        # Create new user with Google OAuth
+        user = await auth_manager.create_user(
+            email=email,
+            name=name,
+            google_id=google_id,
+            image=image
+        )
+        
+        return {"user_id": user.id, "message": "User created successfully"}
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1696,7 +1747,7 @@ async def get_user_flows(user_id: str):
         flows = await db_manager.get_user_flows(user_id)
         return {"flows": flows, "count": len(flows)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
 
 
 @app.get("/api/users/{user_id}/public-flows")

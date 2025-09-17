@@ -19,3 +19,5 @@ aioredis
 bcrypt
 python-jose[cryptography]
 sqlalchemy
+supabase
+python-dotenv

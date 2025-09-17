@@ -4,8 +4,18 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  experimental: {
-    allowedDevOrigins: ['192.168.1.66']
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '192.168.1.66',
+          },
+        ],
+      },
+    ]
   }
 }
 

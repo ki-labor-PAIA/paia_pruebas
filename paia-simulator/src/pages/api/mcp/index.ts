@@ -5,7 +5,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { z } from "zod";
 import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
-import { Pool } from 'pg';
+import { createServiceSupabase } from '@/lib/supabase';
 
 // Configuración OAuth de Google
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'your-client-id.apps.googleusercontent.com';
@@ -18,14 +18,6 @@ const SCOPES = [
   'https://www.googleapis.com/auth/calendar.events'
 ];
 //comentario de analisis
-// Configuración de PostgreSQL
-const pool = new Pool({
-  user: 'postgres',
-  host: 'localhost',
-  database: 'paia',
-  password: 'root',
-  port: 5432,
-});
 
 // Crear cliente OAuth
 function createOAuth2Client() {
@@ -36,55 +28,55 @@ function createOAuth2Client() {
   );
 }
 
-// Obtener tokens de usuario desde PostgreSQL
+// Obtener tokens de usuario desde Supabase
 async function getUserTokens(userId: string) {
-  const client = await pool.connect();
-  try {
-    const result = await client.query(
-      'SELECT access_token, refresh_token, expires_at FROM google_tokens WHERE user_id = $1',
-      [userId]
-    );
-    
-    if (result.rows.length === 0) {
-      throw new Error('Usuario no autenticado con Google Calendar');
-    }
-    
-    const token = result.rows[0];
-    
-    // Verificar si el token está expirado
-    if (token.expires_at && new Date() >= new Date(token.expires_at)) {
-      throw new Error('Token de Google Calendar expirado');
-    }
-    
-    return {
-      access_token: token.access_token,
-      refresh_token: token.refresh_token,
-      expiry_date: token.expires_at ? new Date(token.expires_at).getTime() : undefined
-    };
-  } finally {
-    client.release();
+  const supabase = createServiceSupabase();
+  
+  const { data, error } = await supabase
+    .from('google_tokens')
+    .select('access_token, refresh_token, expires_at')
+    .eq('user_id', userId)
+    .single();
+  
+  if (error && error.code === 'PGRST116') {
+    throw new Error('Usuario no autenticado con Google Calendar');
   }
+  
+  if (error) {
+    throw error;
+  }
+  
+  // Verificar si el token está expirado
+  if (data.expires_at && new Date() >= new Date(data.expires_at)) {
+    throw new Error('Token de Google Calendar expirado');
+  }
+  
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+    expiry_date: data.expires_at ? new Date(data.expires_at).getTime() : undefined
+  };
 }
 
-// Guardar tokens en PostgreSQL
+// Guardar tokens en Supabase
 async function saveUserTokens(userId: string, tokens: any) {
-  const client = await pool.connect();
-  try {
-    const expiresAt = tokens.expiry_date ? new Date(tokens.expiry_date) : null;
-    
-    await client.query(
-      `INSERT INTO google_tokens (user_id, access_token, refresh_token, expires_at, updated_at) 
-       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
-       ON CONFLICT (user_id) 
-       DO UPDATE SET 
-         access_token = EXCLUDED.access_token,
-         refresh_token = EXCLUDED.refresh_token,
-         expires_at = EXCLUDED.expires_at,
-         updated_at = CURRENT_TIMESTAMP`,
-      [userId, tokens.access_token, tokens.refresh_token, expiresAt]
-    );
-  } finally {
-    client.release();
+  const supabase = createServiceSupabase();
+  const expiresAt = tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : null;
+  
+  const { error } = await supabase
+    .from('google_tokens')
+    .upsert({
+      user_id: userId,
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      expires_at: expiresAt,
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict: 'user_id'
+    });
+  
+  if (error) {
+    throw error;
   }
 }
 

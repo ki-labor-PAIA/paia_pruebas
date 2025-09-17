@@ -118,7 +118,7 @@ export default function Create() {
   return (
     <>
       <Head>
-        <title>PAIA Simulador - {flowData?.name || 'Crear Flujo'}</title>
+        <title>{`PAIA Simulador - ${flowData?.name || 'Crear Flujo'}`}</title>
         <meta name="description" content="Crear y simular flujos de agentes PAIA" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
