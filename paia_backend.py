@@ -19,6 +19,10 @@ import httpx  # Para verificar servidor MCP
 from memory_manager import MemoryManager, Message
 from auth_manager import AuthManager
 from db_manager import DatabaseManager
+from pathlib import Path #Para archivos
+from fastapi import UploadFile, File, Form, Depends, Header
+from starlette.responses import FileResponse
+import mimetypes
 from dotenv import load_dotenv
 load_dotenv()
 app = FastAPI(title="PAIA Platform Backend", version="1.0.0")
@@ -114,6 +118,41 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ==== Archivo / Storage ====
+FILES_DIR = Path(os.getenv("FILES_DIR", "uploads")).resolve()
+FILES_DIR.mkdir(parents=True, exist_ok=True)
+
+MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "25"))
+ALLOWED_EXTS = set(os.getenv("ALLOWED_EXTS", "jpg,jpeg,png,gif,pdf,doc,docx,txt").split(","))
+
+CHUNK_SIZE = 1024 * 1024  # 1MB
+MAX_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+
+
+def _ext_ok(filename: str) -> bool:
+    ext = Path(filename).suffix.lower().lstrip(".")
+    return ext in ALLOWED_EXTS
+
+
+def _safe_join(base: Path, rel: str) -> Path:
+    """Evita path traversal y normaliza separadores."""
+    # Normaliza rel (soporta "/" y "\" de Windows)
+    if rel.endswith("/") or rel.endswith("\\"):
+        rel = rel[:-1]
+    target = (base / rel).resolve()
+    if base.resolve() not in target.parents and base.resolve() != target:
+        # rel absoluto o fuera de base
+        raise HTTPException(status_code=400, detail="Ruta inválida")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    return target
+
+
+def _user_root(user_id: str) -> Path:
+    """Directorio raíz aislado por usuario."""
+    root = FILES_DIR / user_id
+    root.mkdir(parents=True, exist_ok=True)
+    return root
 
 # Modelos de datos
 @dataclass
@@ -1084,6 +1123,114 @@ async def send_message_to_agent(agent_id: str, message_data: dict):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+ # =============== ENDPOINTS - Archivos (subir / listar / descargar / borrar) ===============
+
+async def get_current_user(authorization: str | None = Header(default=None),
+                           x_user_id: str | None = Header(default=None)) -> str:
+    """
+    Retorna un user_id lógico. Para pruebas:
+    - Authorization: Bearer demo_token  -> "demo_user"
+    - x-user-id: <tu_id>                -> ese valor
+    """
+    if x_user_id:
+        return x_user_id.strip()
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split()[1]
+        if token == "demo_token":
+            return "demo_user"
+    # Fallback amistoso para desarrollo (cámbialo si quieres forzar auth)
+    return "demo_user"
+
+# =============== FILES API (subir / listar / descargar / borrar) ===============
+
+@app.post("/api/files/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    path: str = Form(""),
+    user_id: str = Depends(get_current_user),
+):
+    # 1) Validar extensión
+    if not _ext_ok(file.filename):
+        ext = Path(file.filename).suffix.lower().lstrip(".")
+        raise HTTPException(status_code=400, detail=f"Extensión no permitida: {ext or '?'}")
+
+    # 2) Resolver base de usuario + path seguro
+    user_root = _user_root(user_id)
+    # path puede venir vacío (guardamos con el nombre del archivo)
+    if path and (path.endswith("/") or path.endswith("\\")):
+        rel = Path(path) / Path(file.filename).name
+    elif path:
+        # si me pasaron nombre de archivo completo
+        rel = Path(path).name if Path(path).suffix else Path(path) / Path(file.filename).name
+    else:
+        rel = Path(file.filename).name
+
+    fpath = _safe_join(user_root, str(rel))
+
+    # 3) Leer contenido y validar tamaño
+    content = await file.read()
+    if len(content) > MAX_BYTES:
+        raise HTTPException(status_code=400, detail=f"Archivo supera {MAX_FILE_SIZE_MB}MB")
+
+    # 4) Guardar
+    fpath.write_bytes(content)
+
+    # 5) Devolver ruta RELATIVA a la raíz del usuario
+    saved_as = str(fpath.relative_to(user_root))
+    return {"saved_as": saved_as, "size": len(content)}
+
+
+@app.get("/api/files/list")
+async def list_files(
+    path: str = "",
+    recursive: bool = True,
+    user_id: str = Depends(get_current_user),
+):
+    user_root = _user_root(user_id)
+    base = _safe_join(user_root, path) if path else user_root
+    if not base.exists():
+        return {"files": []}
+
+    pattern_iter = base.rglob("*") if recursive else base.glob("*")
+    files = []
+    for p in pattern_iter:
+        if p.is_file():
+            files.append(str(p.relative_to(user_root)))
+
+    return {"files": files}
+
+
+@app.get("/api/files/download")
+async def download_file(
+    relpath: str,
+    user_id: str = Depends(get_current_user),
+):
+    user_root = _user_root(user_id)
+    fpath = _safe_join(user_root, relpath)
+    if not fpath.exists() or not fpath.is_file():
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+
+    media_type, _ = mimetypes.guess_type(fpath.name)
+    return FileResponse(
+        path=fpath,
+        media_type=media_type or "application/octet-stream",
+        filename=fpath.name,
+    )
+
+
+@app.delete("/api/files")
+async def delete_file(
+    relpath: str,
+    user_id: str = Depends(get_current_user),
+):
+    user_root = _user_root(user_id)
+    fpath = _safe_join(user_root, relpath)
+    if not fpath.exists() or not fpath.is_file():
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+
+    fpath.unlink()
+    return {"message": "Archivo eliminado", "relpath": relpath}
+
 # =============== NUEVOS ENDPOINTS DE TELEGRAM ===============
 
 @app.post("/api/telegram/send")
@@ -1597,24 +1744,23 @@ async def respond_to_connection_request(response_data: dict):
             raise HTTPException(status_code=404, detail="Información de conexión no encontrada")
         
         # Crear notificación para el solicitante
-        requester_notification_content = (
-            f"Tu solicitud de conexión fue {'aceptada' if response == 'accept' else 'rechazada'}"
-        )
+        status_txt = "aceptada" if response == "accept" else "rechazada"
+        requester_notification_content = f"Tu solicitud de conexión fue {status_txt}"
         
         await db_manager.create_notification({
-            'user_id': connection['requester_id'],
-            'title': f'Solicitud de conexión {'aceptada' if response == 'accept' else 'rechazada'}',
-            'content': requester_notification_content,
-            'notification_type': 'success' if response == 'accept' else 'info',
-            'priority': 'normal'
-        })
+    "user_id": connection["requester_id"],
+    "title": f"Tu solicitud de conexión fue {status_txt}",
+    "content": requester_notification_content,
+    "notification_type": "success" if response == "accept" else "info",
+    "priority": "normal",
+})
         
         return {
-            "success": True, 
-            "status": new_status,
-            "connection_id": connection_id,
-            "message": f"Conexión {'aceptada' if response == 'accept' else 'rechazada'} correctamente"
-        }
+    "success": True,
+    "status": new_status,
+    "connection_id": connection_id,
+    "message": f"Conexión {status_txt} correctamente"
+}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

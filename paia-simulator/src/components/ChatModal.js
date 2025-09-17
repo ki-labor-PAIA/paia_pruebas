@@ -12,6 +12,11 @@ export default function ChatModal({
   const [message, setMessage] = useState('');
   const messagesEndRef = useRef(null);
 
+  // Attach / upload
+  const fileInputRef = useRef(null);
+  const [attachments, setAttachments] = useState([]); // lista de attachments subidos (por mostrar)
+  const [uploading, setUploading] = useState(false);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -33,6 +38,63 @@ export default function ChatModal({
       handleSend();
     }
   };
+
+  const handleAttachClick = () => {
+    if (fileInputRef.current) fileInputRef.current.click();
+  };
+  
+  const handleFileChange = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    // subir en serie (o en paralelo si prefieres)
+    for (const f of files) {
+      await uploadFile(f);
+    }
+    // limpiar input para poder volver a subir el mismo archivo si hace falta
+    e.target.value = '';
+  };
+  
+  const uploadFile = async (file) => {
+    try {
+      setUploading(true);
+      const fd = new FormData();
+      fd.append('file', file);
+      // opcional: enviar ruta relativa que quieras en servidor
+      fd.append('path', `chat_uploads/${file.name}`);
+  
+      // Authorization: ajusta donde obtienes el token
+      // Aquí uso localStorage como ejemplo, pero si en tu app pasas token por props
+      // reemplaza por `props.authToken` etc.
+      const token = localStorage.getItem('authToken') || ''; 
+      const xUserId = localStorage.getItem('xUserId') || ''; // o pasa por prop
+  
+      const res = await fetch('/api/files/upload', {
+        method: 'POST',
+        headers: {
+          // NO pongas Content-Type, el browser lo calcula para FormData
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(xUserId ? { 'X-User-Id': xUserId } : {})
+        },
+        body: fd
+      });
+  
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error('Upload failed', res.status, errText);
+        // aquí podrías mostrar notificación
+        return;
+      }
+  
+      const data = await res.json();
+      // data.saved_as, data.size etc. — añade a attachments
+      setAttachments(prev => [...prev, { name: file.name, info: data }]);
+    } catch (err) {
+      console.error('Upload error', err);
+    } finally {
+      setUploading(false);
+    }
+  };
+  
 
   if (!isOpen || !activeAgent) return null;
 
@@ -251,50 +313,96 @@ export default function ChatModal({
         </div>
 
         {/* Input de mensaje */}
-        <div style={{
-          padding: '16px',
-          borderTop: '1px solid var(--border-color)'
-        }}>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder={agent.data.actorType === 'human' 
-                ? `Escribe como ${agent.data.label}...` 
-                : "Escribe tu mensaje..."}
-              rows="1"
-              style={{
-                flex: 1,
-                padding: '10px 12px',
-                borderRadius: '8px',
-                border: '1px solid var(--border-color)',
-                background: 'rgba(255,255,255,0.05)',
-                color: 'var(--text-primary)',
-                fontSize: '0.9em',
-                resize: 'none',
-                maxHeight: '100px',
-                minHeight: '40px'
-              }}
-            />
-            <button
-              onClick={handleSend}
-              disabled={!message.trim() || isTyping}
-              style={{
-                padding: '10px 16px',
-                borderRadius: '8px',
-                border: 'none',
-                background: message.trim() && !isTyping ? 'var(--primary-color)' : 'var(--border-color)',
-                color: message.trim() && !isTyping ? 'white' : 'var(--text-secondary)',
-                cursor: message.trim() && !isTyping ? 'pointer' : 'not-allowed',
-                transition: 'all 0.2s ease',
-                minWidth: '60px'
-              }}
-            >
-              <i className={`fas ${isTyping ? 'fa-spinner fa-spin' : 'fa-paper-plane'}`}></i>
-            </button>
-          </div>
-        </div>
+<div style={{
+  padding: '16px',
+  borderTop: '1px solid var(--border-color)'
+}}>
+  <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
+    {/* Botón adjuntar (clip) */}
+    <button
+      onClick={handleAttachClick}
+      type="button"
+      title="Adjuntar archivo"
+      style={{
+        border: 'none',
+        background: 'none',
+        cursor: 'pointer',
+        padding: '6px',
+        display: 'flex',
+        alignItems: 'center'
+      }}
+    >
+      {/* SVG clip icon (sin dependencias FontAwesome) */}
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M21 12.5V6a5 5 0 0 0-10 0v8.5a4.5 4.5 0 0 0 9 0V8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M6 13v6a3 3 0 0 0 3 3h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    </button>
+
+    <input
+      ref={fileInputRef}
+      type="file"
+      multiple
+      style={{ display: 'none' }}
+      onChange={handleFileChange}
+    />
+
+    <textarea
+      value={message}
+      onChange={(e) => setMessage(e.target.value)}
+      onKeyPress={handleKeyPress}
+      placeholder={agent.data.actorType === 'human'
+        ? `Escribe como ${agent.data.label}...`
+        : "Escribe tu mensaje..."}
+      rows="1"
+      style={{
+        flex: 1,
+        padding: '10px 12px',
+        borderRadius: '8px',
+        border: '1px solid var(--border-color)',
+        background: 'rgba(255,255,255,0.05)',
+        color: 'var(--text-primary)',
+        fontSize: '0.9em',
+        resize: 'none',
+        maxHeight: '100px',
+        minHeight: '40px'
+      }}
+    />
+
+    <button
+      onClick={handleSend}
+      disabled={!message.trim() || isTyping}
+      style={{
+        padding: '10px 16px',
+        borderRadius: '8px',
+        border: 'none',
+        background: message.trim() && !isTyping ? 'var(--primary-color)' : 'var(--border-color)',
+        color: message.trim() && !isTyping ? 'white' : 'var(--text-secondary)',
+        cursor: message.trim() && !isTyping ? 'pointer' : 'not-allowed',
+        transition: 'all 0.2s ease',
+        minWidth: '60px'
+      }}
+    >
+      <i className={`fas ${isTyping ? 'fa-spinner fa-spin' : 'fa-paper-plane'}`}></i>
+    </button>
+  </div>
+
+  {/* Vista previa de attachments subidos */}
+  <div style={{ marginTop: '8px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+    {attachments.map((att, i) => (
+      <div key={i} style={{
+        padding: '6px 8px',
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid var(--border-color)',
+        borderRadius: '6px',
+        fontSize: '0.85em'
+      }}>
+        {att.name}
+      </div>
+    ))}
+    {uploading && <div style={{ color: 'var(--text-secondary)' }}>Subiendo...</div>}
+  </div>
+</div>
       </div>
     </div>
   );
