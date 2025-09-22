@@ -76,7 +76,7 @@ export default function ActorNode({ data, isConnectable }) {
       onDoubleClick={handleDoubleClick}
       style={{
         padding: '15px',
-        background: 'inherit',
+        background: data.agentColor || 'inherit',
         borderRadius: '12px',
         minWidth: '80px',
         minHeight: '80px',
@@ -182,8 +182,9 @@ export default function ActorNode({ data, isConnectable }) {
       <Handle
         type="source"
         position={Position.Bottom}
+        id="actor-output"
         isConnectable={isConnectable}
-        style={{ background: '#555' }}
+        style={{ background: '#555', bottom: -8, borderRadius: '50%', border: '2px solid white' }}
       />
     </div>
   );

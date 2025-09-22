@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 class PAIAApi {
   constructor() {
@@ -95,13 +95,119 @@ class PAIAApi {
     }
   }
 
-  async sendMessage(agentId, message) {
+  async getUserConnections(userId, status = 'accepted') {
+    if (!(await this.checkBackendConnection())) return { connections: [] };
+    try {
+      const response = await fetch(`${this.baseUrl}/users/${userId}/connections?status=${status}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status} ${errorText}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching user connections:', error);
+      return { connections: [] };
+    }
+  }
+
+  async respondToConnectionRequest(connectionId, response) {
+    if (!(await this.checkBackendConnection())) return null;
+    try {
+      const res = await fetch(`${this.baseUrl}/users/connect/respond`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connection_id: connectionId, response: response }),
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`HTTP error! status: ${res.status} ${errorText}`);
+      }
+      return await res.json();
+    } catch (error) {
+      console.error('Error responding to connection request:', error);
+      throw error;
+    }
+  }
+
+  async createSocialConnection(requesterId, recipientId, connectionType) {
+    if (!(await this.checkBackendConnection())) return null;
+    try {
+      const response = await fetch(`${this.baseUrl}/users/connect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requester_id: requesterId,
+          recipient_id: recipientId,
+          connection_type: connectionType,
+        }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Error enviando solicitud de conexión');
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error creating social connection:', error);
+      throw error;
+    }
+  }
+
+  async createFlowConnection(connectionData) {
+    if (!(await this.checkBackendConnection())) return null;
+    try {
+      const response = await fetch(`${this.baseUrl}/flow/connections`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(connectionData),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Error creando conexión de flujo');
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error creating flow connection:', error);
+      throw error;
+    }
+  }
+
+  async searchUsers(searchTerm, excludeUserId) {
+    if (!(await this.checkBackendConnection())) return { users: [] };
+    try {
+      const url = `${this.baseUrl}/users/search?q=${encodeURIComponent(searchTerm)}&exclude_user_id=${excludeUserId}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Error buscando usuarios');
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error searching users:', error);
+      return { users: [] };
+    }
+  }
+
+  async getPublicFlows(userId) {
+    if (!(await this.checkBackendConnection())) return { flows: [] };
+    try {
+      const response = await fetch(`${this.baseUrl}/users/${userId}/public-flows`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status} ${errorText}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching public flows:', error);
+      return { flows: [] };
+    }
+  }
+
+  async sendMessage(agentId, message, userId = null) {
     if (!(await this.checkBackendConnection())) return null;
     try {
       const response = await fetch(`${this.baseUrl}/agents/${agentId}/message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message, user_id: userId }),
       });
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       return await response.json();
@@ -137,6 +243,24 @@ class PAIAApi {
       console.error('Error fetching conversation history:', error);
       return [];
     }
+  }
+
+  async getEmails() {
+    const response = await fetch(`${this.baseUrl}/emails`);
+    if (!response.ok) throw new Error('Error al obtener emails');
+    return await response.json();
+  }
+  
+  async getEventos() {
+    const response = await fetch(`${this.baseUrl}/eventos`);
+    if (!response.ok) throw new Error('Error al obtener eventos');
+    return await response.json();
+  }
+  
+  async getNotas() {
+    const response = await fetch(`${this.baseUrl}/notas`);
+    if (!response.ok) throw new Error('Error al obtener notas');
+    return await response.json();
   }
 
   async getHealthCheck() {

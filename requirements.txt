@@ -11,10 +11,13 @@ dataclasses
 typing
 datetime
 uuid
-json
-os
 docker
 psutil
 redis
 asyncpg
 aioredis
+bcrypt
+python-jose[cryptography]
+sqlalchemy
+supabase
+python-dotenv

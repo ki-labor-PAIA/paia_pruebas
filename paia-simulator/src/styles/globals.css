@@ -69,23 +69,26 @@ a {
 }
 
 .react-flow__node:hover {
-  transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(0,0,0,0.2);
 }
 
 .react-flow__node.selected {
   transform: scale(1.05);
-  box-shadow: 0 0 0 3px rgba(255,255,255,0.3);
+  box-shadow: 0 0 0 3px #ccd5ae;
+}
+
+.react-flow__node.dragging {
+  transform: none !important;
 }
 
 .react-flow__node-human {
-  background: var(--warning-color);
-  border-color: #fbbf24;
+  background: #f4a261;
+  border-color: #e76f51;
 }
 
 .react-flow__node-ai {
-  background: var(--primary-color);
-  border-color: #5d7eff;
+  background: #2a9d8f;
+  border-color: #264653;
 }
 
 .react-flow__edge-path {
@@ -522,4 +525,35 @@ a {
 /* Tooltip para nodos */
 .react-flow__node:hover .agent-tooltip {
   opacity: 1 !important;
+}
+
+/* Tooltips para nodos especializados */
+.react-flow__node:hover .telegram-tooltip,
+.react-flow__node:hover .calendar-tooltip {
+  opacity: 1 !important;
+}
+
+/* Animación de pulso para nodos activos */
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+/* Estilos para nodos de Telegram */
+.react-flow__node-telegram {
+  border: 2px solid #006699 !important;
+  border-radius: 12px !important;
+}
+
+/* Estilos para nodos de Calendar */
+.react-flow__node-calendar {
+  border: 2px solid #1a73e8 !important;
+  border-radius: 12px !important;
 }

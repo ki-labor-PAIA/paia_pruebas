@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import ReactFlow, {
   addEdge,
   applyEdgeChanges,
@@ -15,68 +15,94 @@ import DecisionsPanel from './DecisionsPanel';
 import LogPanel from './LogPanel';
 import GuideModal from './GuideModal';
 import ActorNode from './ActorNode';
+import TelegramNode from './TelegramNode';
+import CalendarNode from './CalendarNode';
+import ConnectionNode from './ConnectionNode';
 import CreateAgentModal from './CreateAgentModal';
 import ChatModal from './ChatModal';
+import UserHeader from './UserHeader';
+import ConfigureCalendarModal from './ConfigureCalendarModal';
+import ConnectUserModal from './ConnectUserModal';
+import SaveFlowModal from './SaveFlowModal';
+import FriendsPanel from './FriendsPanel';
+import { useSession } from 'next-auth/react';
 import usePAIABackend from '@/hooks/usePAIABackend';
 import { generateMockResponse } from '@/utils/mockResponses';
 import PAIAApi from '@/utils/api';
 
-const nodeTypes = {
-  actor: ActorNode,
-};
+// Los node types se definirán dentro del componente para pasar props
 
 const initialNodes = [];
 const initialEdges = [];
 
 // Colores para agentes basados en personalidad
 const personalityColors = {
-  'Analítico': '#4a6bdf',     // Azul
-  'Creativo': '#8b5cf6',      // Morado
-  'Empático': '#10b981',      // Verde
-  'Pragmático': '#f59e0b',    // Naranja
-  'Entusiasta': '#ec4899',    // Rosa
-  'Metódico': '#06b6d4',      // Cyan
-  'Innovador': '#84cc16',     // Lima
-  'Colaborativo': '#f97316',  // Orange
-  'Estratégico': '#ff6b6b',   // Rojo coral
-  'Aventurero': '#4ecdc4',    // Turquesa
-  'Reflexivo': '#a8e6cf',     // Verde menta
-  'Dinámico': '#ff8b94',      // Rosa salmón
+  'Analítico': '#023e7d',     // Azul
+  'Creativo': '#049a8f',      // Morado
+  'Empático': '#b9375e',      // Verde
+  'Pragmático': '#4a2419',    // Naranja
+  'Entusiasta': '#dbb42c',    // Rosa
+  'Metódico': '#932f6d',      // Cyan
+  'Innovador': '#4c956c',     // Lima
+  'Colaborativo': '#f4a259',  // Orange
+  'Estratégico': '#564592',   // Rojo coral
+  'Aventurero': '#e76f51',    // Turquesa
+  'Reflexivo': '#6a994e',     // Verde menta
+  'Dinámico': '#c32f27',      // Rosa salmón
   'default': '#6366f1'        // Indigo por defecto
 };
 
-const fallbackColors = [
-  '#4a6bdf', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', 
-  '#06b6d4', '#f97316', '#84cc16', '#ec4899', '#6366f1',
-  '#ff6b6b', '#4ecdc4', '#a8e6cf', '#ff8b94', '#feca57',
-  '#48dbfb', '#0abde3', '#006ba6', '#ff9ff3', '#54a0ff'
-];
-
-const getAgentColor = (personality, agentIndex) => {
-  if (personality && personalityColors[personality]) {
-    return personalityColors[personality];
-  }
-  return fallbackColors[agentIndex % fallbackColors.length];
+const getAgentColor = (personality) => {
+  if (!personality) return personalityColors['default'];
+  const key = personality.trim();
+  return personalityColors[key] || personalityColors['default'];
 };
 
-export default function PAIASimulator() {
-  const [nodes, setNodes] = useState(initialNodes);
-  const [edges, setEdges] = useState(initialEdges);
-  const [scenarioName, setScenarioName] = useState('');
-  const [scenarioDesc, setScenarioDesc] = useState('');
-  const [showGuide, setShowGuide] = useState(false);
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [useBackend, setUseBackend] = useState(false);
-  
-  // Sistema multi-usuario
-  const [userId] = useState(() => {
-    // Generar ID único para esta sesión
-    return `user_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
+export default function PAIASimulator({ initialFlow }) {
+  const { data: session } = useSession();
+  const [nodes, setNodes] = useState(() => {
+    if (initialFlow && initialFlow.flow_data) {
+      try {
+        const flowData = JSON.parse(initialFlow.flow_data);
+        return flowData.nodes || initialNodes;
+      } catch (err) {
+        console.error('Error parsing flow data:', err);
+        return initialNodes;
+      }
+    }
+    return initialNodes;
   });
+  const [edges, setEdges] = useState(() => {
+    if (initialFlow && initialFlow.flow_data) {
+      try {
+        const flowData = JSON.parse(initialFlow.flow_data);
+        return flowData.edges || initialEdges;
+      } catch (err) {
+        console.error('Error parsing flow data:', err);
+        return initialEdges;
+      }
+    }
+    return initialEdges;
+  });
+  const [scenarioName, setScenarioName] = useState(() => initialFlow?.name || '');
+  const [scenarioDesc, setScenarioDesc] = useState(() => initialFlow?.description || '');
+  const [showGuide, setShowGuide] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
+  const [useBackend, setUseBackend] = useState(false);
+  const [activeTelegramNodes, setActiveTelegramNodes] = useState(new Set());
+  const [showConnectUserModal, setShowConnectUserModal] = useState(false);
+  const [showSaveFlow, setShowSaveFlow] = useState(false);
+  const [showFriendsPanel, setShowFriendsPanel] = useState(false);
+  const [connectionMode, setConnectionMode] = useState('social'); // 'social' o 'flow'
+  const [activeConnectionNodeId, setActiveConnectionNodeId] = useState(null);
+  
+  // Sistema multi-usuario - usar ID de sesión de NextAuth
+  const userId = session?.user?.id || 'anonymous';
   const [publicAgents, setPublicAgents] = useState([]);
   
   // Chat states
   const [showCreateAgent, setShowCreateAgent] = useState(false);
+  const [showConfigureCalendar, setShowConfigureCalendar] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [activeChatAgent, setActiveChatAgent] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
@@ -104,7 +130,8 @@ export default function PAIASimulator() {
     loading, 
     simulateWithBackend, 
     clearBackendData,
-    checkBackendConnection 
+    checkBackendConnection,
+    createBackendAgent
   } = usePAIABackend();
 
   useEffect(() => {
@@ -162,7 +189,7 @@ export default function PAIASimulator() {
     async (params) => {
       const edge = {
         ...params,
-        type: 'smoothstep',
+        type: 'straight',
         animated: false,
         markerEnd: {
           type: MarkerType.ArrowClosed,
@@ -196,11 +223,11 @@ export default function PAIASimulator() {
     [isConnected, useBackend, nodes, addLogMessage, addDecisionMessage]
   );
 
-  const addActor = useCallback((type, name = null, x = null, y = null) => {
+  const addActor = useCallback(async (type, name = null, x = null, y = null) => {
     const id = `actor-${actorIdRef.current}`;
     const actorName = name || `${type === 'human' ? 'Humano' : 'IA'} ${actorIdRef.current}`;
     
-    const agentColor = type === 'ai' ? getAgentColor(null, actorIdRef.current) : undefined;
+    const agentColor = type === 'ai' ? getAgentColor(null) : undefined;
     
     const newNode = {
       id,
@@ -226,7 +253,27 @@ export default function PAIASimulator() {
 
     setNodes((nds) => [...nds, newNode]);
     actorIdRef.current++;
-  }, []);
+
+    // Si es un agente IA y el backend está disponible, crear el agente en el backend
+    if (type === 'ai' && isConnected) {
+      try {
+        const agentData = {
+          id: id,
+          name: actorName,
+          personality: "Eres un asistente útil y eficiente.",
+          expertise: "General",
+          use_mcp: true,
+          is_public: false
+        };
+        
+        await createBackendAgent(agentData);
+        addLogMessage(`🤖 Agente ${actorName} creado en el backend`);
+      } catch (error) {
+        console.error('Error creating backend agent:', error);
+        addLogMessage(`⚠️ Agente ${actorName} creado solo en frontend`);
+      }
+    }
+  }, [isConnected, createBackendAgent, addLogMessage]);
 
   const createConfiguredAgent = useCallback(async (agentConfig) => {
     const id = `agent-${actorIdRef.current}`;
@@ -256,7 +303,7 @@ export default function PAIASimulator() {
       }
     }
     
-    const agentColor = getAgentColor(agentConfig.personality, actorIdRef.current);
+    const agentColor = getAgentColor(agentConfig.personality);
     
     const newNode = {
       id: backendAgent?.id || id,
@@ -288,6 +335,232 @@ export default function PAIASimulator() {
     actorIdRef.current++;
   }, [isConnected, addLogMessage, addDecisionMessage, userId]);
 
+  // Función para agregar nodo de Telegram
+  const addTelegramNode = useCallback((x = null, y = null) => {
+    const id = `telegram-${actorIdRef.current}`;
+    
+    const newNode = {
+      id,
+      type: 'telegram',
+      position: { 
+        x: x ?? (100 + actorIdRef.current * 60), 
+        y: y ?? (100 + actorIdRef.current * 30) 
+      },
+      data: { 
+        label: 'Telegram',
+        nodeType: 'telegram',
+        isConfigured: false,
+        isActive: false,
+        botToken: null,
+        chatId: null
+      },
+      className: 'react-flow__node-telegram'
+    };
+
+    setNodes((nds) => [...nds, newNode]);
+    actorIdRef.current++;
+    addLogMessage(`📱 Nodo Telegram agregado`);
+  }, [addLogMessage]);
+
+  // Función para manejar click en ConnectionNode
+  const handleConnectionNodeClick = useCallback((nodeData, nodeId) => {
+    switch (nodeData.connectionType) {
+      case 'user':
+        setConnectionMode('flow');
+        setActiveConnectionNodeId(nodeId);
+        setShowConnectUserModal(true);
+        addLogMessage('⚡ Abriendo búsqueda de usuarios para conexión de flujo...');
+        break;
+      case 'notification':
+        addLogMessage('📢 Configurando sistema de notificaciones...');
+        // TODO: Implementar panel de notificaciones
+        break;
+      default:
+        addLogMessage(`🔗 Conexión tipo: ${nodeData.connectionType}`);
+    }
+  }, [addLogMessage]);
+
+  // Función para agregar nodo de Conexión
+  const addConnectionNode = useCallback((connectionType = 'user') => {
+    const newNode = {
+      id: `connection-${actorIdRef.current}`,
+      type: 'connection',
+      position: { x: 300 + Math.random() * 200, y: 300 + Math.random() * 200 },
+      data: {
+        label: connectionType === 'user' ? 'Conexión de Flujo' : 'Conexión',
+        connectionType: connectionType,
+        status: 'offline',
+        isConnected: false,
+        unreadNotifications: 0,
+        onConnectionClick: handleConnectionNodeClick
+      },
+    };
+
+    setNodes((nds) => [...nds, newNode]);
+    actorIdRef.current++;
+    addLogMessage(`🔗 Nodo de ${connectionType === 'user' ? 'búsqueda de usuarios' : 'conexión'} agregado`);
+  }, [addLogMessage, handleConnectionNodeClick]);
+
+  // Función para abrir modal de conexión social (desde LeftSidebar)
+  const openSocialConnectionModal = useCallback(() => {
+    setConnectionMode('social');
+    setActiveConnectionNodeId(null);
+    setShowConnectUserModal(true);
+    addLogMessage('👥 Buscando usuarios para conexión social...');
+  }, [addLogMessage]);
+
+  // Función para guardar flujo
+  const saveFlow = useCallback(async (flowData) => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/flows/save`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          name: flowData.name,
+          description: flowData.description,
+          is_public: flowData.is_public,
+          tags: flowData.tags,
+          flow_data: {
+            nodes: nodes,
+            edges: edges,
+            scenario: {
+              name: scenarioName,
+              description: scenarioDesc
+            }
+          },
+          metadata: {
+            node_count: nodes.length,
+            edge_count: edges.length,
+            created_from: 'simulator'
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Error guardando el flujo');
+      }
+
+      const result = await response.json();
+      addLogMessage(`💾 Flujo '${flowData.name}' guardado exitosamente`);
+      addDecisionMessage('Sistema', `Flujo guardado con ID: ${result.flow_id}`, true);
+      
+      return result;
+    } catch (error) {
+      addLogMessage(`❌ Error guardando flujo: ${error.message}`);
+      throw error;
+    }
+  }, [userId, nodes, edges, scenarioName, scenarioDesc, addLogMessage, addDecisionMessage]);
+
+  // Función para mostrar configuración de Calendar
+  const addCalendarNode = useCallback(() => {
+    setShowConfigureCalendar(true);
+  }, []);
+
+  // Función para crear nodo Calendar configurado
+  const createConfiguredCalendar = useCallback((calendarConfig, x = null, y = null) => {
+    const id = `calendar-${actorIdRef.current}`;
+    
+    const newNode = {
+      id,
+      type: 'calendar',
+      position: { 
+        x: x ?? (100 + actorIdRef.current * 60), 
+        y: y ?? (100 + actorIdRef.current * 30) 
+      },
+      data: { 
+        label: calendarConfig.name || 'Google Calendar',
+        nodeType: 'calendar',
+        isAuthenticated: calendarConfig.isAuthenticated,
+        userEmail: calendarConfig.userEmail,
+        type: 'calendar'
+      },
+      className: 'react-flow__node-calendar'
+    };
+
+    setNodes((nds) => [...nds, newNode]);
+    actorIdRef.current++;
+    addLogMessage(`📅 Nodo ${calendarConfig.name} agregado y configurado`);
+  }, [addLogMessage]);
+
+  // Función para manejar solicitud de autenticación del calendario
+  const handleCalendarAuthRequest = useCallback(async (nodeData) => {
+    try {
+      addLogMessage(`🔐 Solicitando autenticación para Google Calendar...`);
+      
+      // Llamar al MCP para obtener URL de autenticación
+      const response = await fetch('/api/mcp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tool: 'get-auth-url',
+          args: { userId: userId }
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const authUrlMatch = result.content?.[0]?.text?.match(/URL de autenticación: (.+)/);
+        
+        if (authUrlMatch) {
+          const authUrl = authUrlMatch[1];
+          addLogMessage(`🔗 Abriendo ventana de autenticación de Google...`);
+          
+          // Abrir ventana de autenticación
+          window.open(authUrl, 'google-auth', 'width=500,height=600,scrollbars=yes,resizable=yes');
+          
+          // TODO: Implementar listener para cuando se complete la autenticación
+          // Por ahora, mostrar mensaje informativo
+          addLogMessage(`ℹ️ Complete la autenticación en la ventana emergente. El nodo se actualizará automáticamente.`);
+        } else {
+          addLogMessage(`❌ Error obteniendo URL de autenticación`);
+        }
+      } else {
+        addLogMessage(`❌ Error conectando con el servicio de autenticación`);
+      }
+    } catch (error) {
+      console.error('Error requesting calendar auth:', error);
+      addLogMessage(`❌ Error solicitando autenticación: ${error.message}`);
+    }
+  }, [userId, addLogMessage]);
+
+  // Función para manejar cuando se establece una conexión con usuario
+  const handleUserConnection = useCallback((connectionData) => {
+    if (connectionData.mode === 'flow') {
+      // Conexión de flujo creada con un agente específico
+      addLogMessage(`⚡ Conexión de flujo establecida con el agente ${connectionData.agent.name}`);
+      addDecisionMessage('Sistema', `Flujo conectado al agente ${connectionData.agent.name}`, true);
+      
+      // Actualizar el ConnectionNode correspondiente
+      setNodes(currentNodes => 
+        currentNodes.map(node => 
+          node.id === connectionData.connectionNodeId
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  isConnected: true,
+                  status: 'online',
+                  label: `Conectado a ${connectionData.agent.name}`,
+                  connectedAgent: connectionData.agent, // Guardamos el agente completo
+                  flowConnectionId: connectionData.flowConnectionId
+                }
+              }
+            : node
+        )
+      );
+    } else {
+      // Conexión social (comportamiento original)
+      addLogMessage(`✅ Solicitud enviada a ${connectionData.user.name} (${connectionData.user.email})`);
+      addDecisionMessage('Sistema', `Solicitud de conexión enviada a ${connectionData.user.name}`, true);
+    }
+  }, [addLogMessage, addDecisionMessage]);
+
   // Función para cargar agentes públicos de otros usuarios
   const loadPublicAgents = useCallback(async () => {
     if (!isConnected) return;
@@ -310,7 +583,7 @@ export default function PAIASimulator() {
       return;
     }
 
-    const agentColor = getAgentColor(publicAgent.personality, actorIdRef.current);
+    const agentColor = getAgentColor(publicAgent.personality);
     
     const newNode = {
       id: `external-${publicAgent.id}`,
@@ -465,7 +738,7 @@ export default function PAIASimulator() {
       
       setIsTyping(false);
     }, 1000 + Math.random() * 2000);
-  }, [activeChatAgent, nodes, useBackend, isConnected, addDecisionMessage, addLogMessage, addMessageToNodeHistory]);
+  }, [activeChatAgent, nodes, useBackend, isConnected, addDecisionMessage, addMessageToNodeHistory, updateHumanMessage]);
 
   const closeChat = useCallback(() => {
     setShowChat(false);
@@ -645,15 +918,42 @@ export default function PAIASimulator() {
     }, duration);
   }, []);
 
-  // Función de simulación
-  const simulateScenario = useCallback(async () => {
+  // Función para ejecutar el flujo
+  const runFlow = useCallback(async () => {
     if (nodes.length === 0 || edges.length === 0) {
-      addLogMessage('❌ Necesitas tener al menos dos actores conectados para simular');
+      addLogMessage('❌ Necesitas tener al menos dos actores conectados para ejecutar el flujo');
       return;
     }
 
-    setIsSimulating(true);
-    addLogMessage('🚀 Iniciando simulación...');
+    // Verificar si hay nodos de Telegram y activarlos
+    const telegramNodes = nodes.filter(n => n.type === 'telegram');
+    const hasActiveTelegram = telegramNodes.some(n => n.data.isActive);
+
+    if (telegramNodes.length > 0 && !hasActiveTelegram) {
+      // Activar todos los nodos de Telegram configurados
+      const updatedNodes = nodes.map(node => {
+        if (node.type === 'telegram' && node.data.isConfigured) {
+          return {
+            ...node,
+            data: { ...node.data, isActive: true }
+          };
+        }
+        return node;
+      });
+      setNodes(updatedNodes);
+      
+      // Agregar nodos de Telegram activos al estado
+      const telegramIds = telegramNodes.filter(n => n.data.isConfigured).map(n => n.id);
+      setActiveTelegramNodes(new Set(telegramIds));
+      
+      setIsRunning(true);
+      addLogMessage('🚀 Flujo ejecutándose - Telegram activo y conectado...');
+      return; // No ejecutar simulación tradicional si hay Telegram
+    }
+
+    // Flujo tradicional (sin Telegram)
+    setIsRunning(true);
+    addLogMessage('🚀 Ejecutando flujo...');
     
     if (useBackend && isConnected) {
       // Usar simulación con backend
@@ -686,8 +986,58 @@ export default function PAIASimulator() {
             addLogMessage(`🤖→${targetNode.data.actorType === 'human' ? '👤' : '🤖'} ${sourceNode.data.label}: "${messageContent}"`);
           }
           
-          // Generar respuesta si el target es IA
-          if (targetNode.data.actorType === 'ai') {
+          // Manejar diferentes tipos de nodos destino
+          if (targetNode.type === 'connection') {
+            // ConnectionNode - enrutar a agente externo
+            if (targetNode.data.isConnected && targetNode.data.connectedAgent) {
+              const targetAgent = targetNode.data.connectedAgent;
+              addLogMessage(`🌐→ ${sourceNode.data.label} intenta comunicarse con ${targetAgent.name} a través de un nodo de conexión.`);
+              
+              if (useBackend && isConnected && sourceNode.data.backendId) {
+                // Construir el prompt para que el agente de origen use la herramienta
+                const intelligentPrompt = `Usa la herramienta 'ask_connected_agent' para enviar la siguiente pregunta al agente con ID '${targetAgent.id}': "${messageContent}"`;
+                
+                addLogMessage(`🤖 Prompt para ${sourceNode.data.label}: "${intelligentPrompt}"`);
+                addDecisionMessage(sourceNode.data.label, `Preparando para preguntar a ${targetAgent.name}...`, false);
+
+                try {
+                  // Enviar el prompt al agente de origen para que ejecute la herramienta
+                  const response = await PAIAApi.sendMessage(sourceNode.data.backendId, intelligentPrompt);
+                  
+                  // La respuesta del backend será la respuesta del agente consultado
+                  const agentResponse = response.response;
+                  
+                  addLogMessage(`✅ Respuesta de ${targetAgent.name}: "${agentResponse}"`);
+                  addDecisionMessage(targetAgent.name, agentResponse, false);
+
+                  // Agregar al historial de ambos nodos
+                  addMessageToNodeHistory(sourceNode.id, {
+                    sender: 'agent',
+                    content: `Pregunta enviada a ${targetAgent.name}: "${messageContent}"`
+                  });
+                   addMessageToNodeHistory(targetNode.id, {
+                    sender: 'received',
+                    content: `Pregunta de ${sourceNode.data.label}: "${messageContent}"`,
+                    from: sourceNode.data.label
+                  });
+                  addMessageToNodeHistory(targetNode.id, {
+                    sender: 'agent',
+                    content: agentResponse
+                  });
+
+                } catch (error) {
+                  const errorMsg = `❌ Error en la comunicación agente-a-agente: ${error.message}`;
+                  addLogMessage(errorMsg);
+                  addDecisionMessage('Sistema', errorMsg, true);
+                }
+              } else {
+                 addLogMessage(`⚠️ La comunicación agente-a-agente requiere que el backend esté activo y que el agente de origen (${sourceNode.data.label}) exista en el backend.`);
+              }
+            } else {
+              addLogMessage(`⚠️ Nodo de conexión '${targetNode.data.label}' no está configurado o conectado a un agente específico.`);
+            }
+          } else if (targetNode.data.actorType === 'ai') {
+            // Generar respuesta si el target es IA
             const response = generateMockResponse(targetNode.data, messageContent);
             addLogMessage(`🤖→${sourceNode.data.actorType === 'human' ? '👤' : '🤖'} ${targetNode.data.label}: "${response}"`);
             addDecisionMessage(targetNode.data.label, response, false);
@@ -718,9 +1068,32 @@ export default function PAIASimulator() {
       }
     }
 
-    setIsSimulating(false);
-    addLogMessage('✅ Simulación completada');
-  }, [nodes, edges, useBackend, isConnected, simulateWithBackend, addLogMessage, addDecisionMessage, animateEdge, addMessageToNodeHistory]);
+    // Solo detener si no hay nodos de Telegram activos
+    if (activeTelegramNodes.size === 0) {
+      setIsRunning(false);
+      addLogMessage('✅ Flujo completado');
+    }
+  }, [nodes, edges, useBackend, isConnected, simulateWithBackend, addLogMessage, addDecisionMessage, animateEdge, addMessageToNodeHistory, activeTelegramNodes]);
+
+  // Función para detener el flujo
+  const stopFlow = useCallback(() => {
+    // Desactivar todos los nodos de Telegram
+    const updatedNodes = nodes.map(node => {
+      if (node.type === 'telegram') {
+        return {
+          ...node,
+          data: { ...node.data, isActive: false }
+        };
+      }
+      return node;
+    });
+    setNodes(updatedNodes);
+    
+    // Limpiar nodos de Telegram activos
+    setActiveTelegramNodes(new Set());
+    setIsRunning(false);
+    addLogMessage('🛑 Flujo detenido - Telegram desconectado');
+  }, [nodes, addLogMessage]);
 
   // Función para reiniciar
   const resetSimulation = useCallback(() => {
@@ -734,8 +1107,18 @@ export default function PAIASimulator() {
     addLogMessage('🔄 Sistema reiniciado');
   }, [addLogMessage]);
 
+  // Definir nodeTypes con props
+  const nodeTypes = useMemo(() => ({
+    actor: ActorNode,
+    telegram: TelegramNode,
+    calendar: (props) => <CalendarNode {...props} onRequestAuth={handleCalendarAuthRequest} />,
+    connection: (props) => <ConnectionNode {...props} onConnectionClick={handleConnectionNodeClick} />,
+  }), [handleCalendarAuthRequest, handleConnectionNodeClick]);
+
   return (
     <div style={{ width: '100vw', height: '100vh', display: 'flex' }}>
+      <UserHeader />
+      <div style={{ width: '100%', height: '100%', display: 'flex', paddingTop: '60px' }}>
       <LeftSidebar
         scenarioName={scenarioName}
         setScenarioName={setScenarioName}
@@ -744,14 +1127,19 @@ export default function PAIASimulator() {
         onPresetChange={loadPresetScenario}
         onImport={importScenario}
         onExport={exportScenario}
-        onSimulate={simulateScenario}
+        onRun={runFlow}
+        onStop={stopFlow}
         onReset={resetSimulation}
-        isSimulating={isSimulating}
+        isRunning={isRunning}
         onShowGuide={() => setShowGuide(true)}
         useBackend={useBackend}
         setUseBackend={setUseBackend}
         isBackendConnected={isConnected}
         onCheckBackend={checkBackendConnection}
+        onAddConnectionNode={addConnectionNode}
+        onConnectUser={openSocialConnectionModal}
+        onSaveFlow={() => setShowSaveFlow(true)}
+        onShowFriends={() => setShowFriendsPanel(true)}
       />
       
       <div style={{ flex: 1, margin: '0 280px', position: 'relative' }}>
@@ -770,6 +1158,8 @@ export default function PAIASimulator() {
 
       <RightSidebar
         onAddActor={addActor}
+        onAddTelegram={addTelegramNode}
+        onAddCalendar={addCalendarNode}
         onConnect={() => {}} // Connect functionality handled by ReactFlow
         onCreateAgent={() => setShowCreateAgent(true)}
         onChatWithAgent={startChat}
@@ -796,6 +1186,14 @@ export default function PAIASimulator() {
         />
       )}
 
+      {showConfigureCalendar && (
+        <ConfigureCalendarModal
+          isOpen={showConfigureCalendar}
+          onClose={() => setShowConfigureCalendar(false)}
+          onConfigureCalendar={createConfiguredCalendar}
+        />
+      )}
+
       {showChat && (
         <ChatModal
           isOpen={showChat}
@@ -807,6 +1205,38 @@ export default function PAIASimulator() {
           isTyping={isTyping}
         />
       )}
+
+      {showConnectUserModal && (
+        <ConnectUserModal
+          isOpen={showConnectUserModal}
+          onClose={() => {
+            setShowConnectUserModal(false);
+            setConnectionMode('social');
+            setActiveConnectionNodeId(null);
+          }}
+          currentUserId={userId}
+          onConnect={handleUserConnection}
+          connectionMode={connectionMode}
+          connectionNodeId={activeConnectionNodeId}
+        />
+      )}
+
+      {showSaveFlow && (
+        <SaveFlowModal
+          isOpen={showSaveFlow}
+          onClose={() => setShowSaveFlow(false)}
+          onSave={saveFlow}
+        />
+      )}
+
+      {showFriendsPanel && (
+        <FriendsPanel 
+          isOpen={showFriendsPanel} 
+          onClose={() => setShowFriendsPanel(false)} 
+          userId={userId} 
+        />
+      )}
+      </div>
     </div>
   );
 }
