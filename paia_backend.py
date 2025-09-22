@@ -23,9 +23,11 @@ from dotenv import load_dotenv
 load_dotenv()
 app = FastAPI(title="PAIA Platform Backend", version="1.0.0")
 
+
 # === MEMORIA PERSISTENTE (Supabase) ===
 lt_store = LongTermStoreSupabase()
 memory_manager = MemoryManager(long_term_backend=lt_store)
+
 
 # === AUTENTICACIÓN ===
 auth_manager = AuthManager()
@@ -117,7 +119,7 @@ app.add_middleware(
 # Modelos de datos
 @dataclass
 class PAIAAgent:
-    id: str
+    id: str   
     name: str
     description: str
     personality: str
@@ -183,6 +185,7 @@ class PAIAAgentManager:
         # Crear herramientas base del agente
         base_tools = self._create_agent_tools(db_agent.id, agent_data['expertise'])
         
+
         # Obtener herramientas MCP si están disponibles
         all_tools = base_tools
         if self.mcp_client:
@@ -195,6 +198,7 @@ class PAIAAgentManager:
         
         # Crear instancia del agente con TODAS las herramientas
         user_id = agent_data.get('user_id', 'usuario-anonimo')
+
         agent_llm = create_react_agent(
             self.llm,
             all_tools,
@@ -210,7 +214,7 @@ IMPORTANTE: Tu user ID es: {user_id}
 🤖 COMUNICACIÓN INTELIGENTE:
 - Para enviar un mensaje a una PERSONA: usa send_notification_to_user(user_name, message, priority)
 - Para hacer PREGUNTAS INTELIGENTES a otro agente: usa ask_connected_agent(target_agent_id, question, context)
-  
+
 📢 EJEMPLOS DE USO:
 - "Dile a Mari que la espero mañana a las 7" → send_notification_to_user("Mari", "Te espero mañana a las 7", "normal")
 - "Pregúntale al agente 'agent-xyz' si su usuario está libre mañana a las 7" → ask_connected_agent("agent-xyz", "¿Estás disponible mañana a las 7pm?", "Para una reunión de trabajo")
@@ -219,9 +223,15 @@ IMPORTANTE: Tu user ID es: {user_id}
 - Sé PROACTIVO: Si mencionan calendario o disponibilidad, usa las herramientas automáticamente
 - Para consultas de disponibilidad, siempre usa ask_connected_agent() - el otro agente consultará su calendario
 - Para mensajes simples, usa send_notification_to_user()
-- Siempre confirma qué acción realizaste"""
+- Siempre confirma qué acción realizaste
+
+📝 NOTAS PERSONALES:
+- Para guardar información importante: usa save_note(title, content, tags)
+- Para buscar en tus notas: usa search_notes(query)
+
+IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Mantén el contexto de toda la conversación y responde de manera natural."""
         )
-        
+
         agent = PAIAAgent(
            id=db_agent.id,
            name=db_agent.name,
@@ -247,7 +257,7 @@ IMPORTANTE: Tu user ID es: {user_id}
         return agent
     
     def _create_agent_tools(self, agent_id: str, expertise: str) -> List:
-        """Crear herramientas mejoradas para comunicación entre agentes, Telegram y Google Calendar"""
+        """Crear herramientas mejoradas para comunicación entre agentes, Telegram, Google Calendar y notas personales"""
         
         # =============== HERRAMIENTAS DE TELEGRAM ===============
         @tool
@@ -380,7 +390,7 @@ IMPORTANTE: Tu user ID es: {user_id}
         # =============== HERRAMIENTAS EXISTENTES DE COMUNICACIÓN ===============
         @tool
         def get_connected_agents() -> str:
-            """Ver agentes conectados"""
+            """Ver agentes conectados a ti."""
             try:
                 connected = []
                 for conn in connections_store.values():
@@ -394,29 +404,29 @@ IMPORTANTE: Tu user ID es: {user_id}
                 return f"Conectado con: {', '.join(connected)}" if connected else "Sin conexiones"
             except Exception as e:
                 return f"Error obteniendo conexiones: {str(e)}"
-        
+
         @tool
         async def send_notification_to_user(user_name: str, message: str, priority: str = "normal") -> str:
             """
             Enviar notificación directa a un usuario conectado.
-            
+
             Args:
                 user_name: Nombre del usuario o email
                 message: Mensaje a enviar
                 priority: Prioridad (low, normal, high, urgent)
-            
+
             Returns:
                 Confirmación del envío
             """
             try:
                 # Buscar usuario por nombre o email
                 users = await db_manager.search_users(user_name, exclude_user_id=agent_id, limit=5)
-                
+
                 if not users:
                     return f"❌ No se encontró usuario '{user_name}'"
-                
+
                 target_user = users[0]  # Tomar el primer resultado
-                
+
                 # Crear notificación
                 await db_manager.create_notification({
                     'user_id': target_user['id'],
@@ -426,15 +436,15 @@ IMPORTANTE: Tu user ID es: {user_id}
                     'notification_type': 'message',
                     'priority': priority
                 })
-                
+
                 # También enviar por Telegram si está configurado
                 sender_agent = agents_store.get(agent_id)
                 if sender_agent and sender_agent.telegram_chat_id:
                     telegram_msg = f"📧 Mensaje enviado a {target_user['name']}:\n\n{message}"
                     telegram_service.send_message(sender_agent.telegram_chat_id, telegram_msg)
-                
+
                 return f"✅ Notificación enviada a {target_user['name']} ({target_user['email']})"
-                
+
             except Exception as e:
                 return f"❌ Error enviando notificación: {str(e)}"
 
@@ -443,12 +453,12 @@ IMPORTANTE: Tu user ID es: {user_id}
             """
             Hacer una pregunta inteligente a un agente específico usando su ID.
             Perfecto para consultas de calendario, disponibilidad, etc.
-            
+
             Args:
                 target_agent_id: ID del agente específico al que quieres consultar.
                 question: Pregunta específica (ej: "¿Estás disponible mañana a las 7pm?")
                 context: Contexto adicional opcional
-            
+
             Returns:
                 Respuesta del agente consultado
             """
@@ -461,7 +471,7 @@ IMPORTANTE: Tu user ID es: {user_id}
                 # Construir mensaje inteligente
                 sender_agent = agents_store.get(agent_id)
                 sender_name = sender_agent.name if sender_agent else "Un agente"
-                
+
                 intelligent_prompt = f"""Pregunta de {sender_name}: {question}
 
 Contexto adicional: {context}
@@ -472,9 +482,9 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
                 response = await target_agent.llm_instance.ainvoke({
                     "messages": [HumanMessage(content=intelligent_prompt)]
                 })
-                
+
                 response_content = response["messages"][-1].content
-                
+
                 # Guardar la conversación en BD
                 conversation_id = f"intelligent_{agent_id}_{target_agent_id}"
                 await db_manager.save_message({
@@ -484,7 +494,7 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
                     'content': question,
                     'message_type': 'intelligent_query'
                 })
-                
+
                 await db_manager.save_message({
                     'conversation_id': conversation_id,
                     'from_agent_id': target_agent_id,
@@ -492,13 +502,13 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
                     'content': response_content,
                     'message_type': 'intelligent_response'
                 })
-                
+
                 # Obtener datos del usuario del agente para un mensaje más claro
                 target_user = await auth_manager.get_user_by_id(target_agent.user_id)
                 user_name_info = f" (agente de {target_user.name})" if target_user else ""
 
                 return f"🤖 {target_agent.name}{user_name_info} responde:\n\n{response_content}"
-                
+
             except Exception as e:
                 return f"❌ Error consultando agente: {str(e)}"
 
@@ -506,19 +516,18 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
         async def send_message_to_agent(target_agent_id: str, message: str, notify_telegram: bool = False) -> str:
             """
             Enviar mensaje a otro agente y obtener respuesta.
-            
+
             Args:
                 target_agent_id: ID del agente destino
                 message: Mensaje a enviar
                 notify_telegram: Si True, también envía una notificación por Telegram
-            
+
             Returns:
                 Respuesta del agente
             """
             try:
                 sender_id = agent_id
                 
-                # Verificar conexión
                 is_connected = any(
                     (conn.agent1 == sender_id and conn.agent2 == target_agent_id) or
                     (conn.agent1 == target_agent_id and conn.agent2 == sender_id)
@@ -531,10 +540,8 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
                 if target_agent_id not in agents_store:
                     return f"Error: Agente {target_agent_id} no encontrado"
                 
-                # Crear ID de conversación único
                 conversation_id = f"{min(sender_id, target_agent_id)}_{max(sender_id, target_agent_id)}"
                 
-                # Guardar mensaje enviado
                 sent_message = AgentMessage(
                     id=str(uuid.uuid4())[:8],
                     from_agent=sender_id,
@@ -548,7 +555,7 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
                 if conversation_id not in message_history:
                     message_history[conversation_id] = []
                 message_history[conversation_id].append(sent_message)
-                
+
                 # Obtener respuesta
                 response = await agent_manager._generate_agent_response(sender_id, target_agent_id, conversation_id)
                 target_agent_name = agents_store[target_agent_id].name
@@ -567,53 +574,103 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
             except Exception as e:
                 return f"Error enviando mensaje: {str(e)}"
 
+        # --- Herramientas de Notas Integradas ---
+        NOTES_FILE = "./mcp-notes/data/notes.jsonl"
+
+        def _get_notes():
+            if not os.path.exists(NOTES_FILE):
+                os.makedirs(os.path.dirname(NOTES_FILE), exist_ok=True)
+                return []
+            with open(NOTES_FILE, "r", encoding="utf-8") as f:
+                return [json.loads(line) for line in f if line.strip()]
+
+        def _save_notes(notes):
+            with open(NOTES_FILE, "w", encoding="utf-8") as f:
+                for note in notes:
+                    f.write(json.dumps(note) + "\n")
+
+        @tool
+        def save_note(title: str, content: str, tags: List[str] = None) -> str:
+            """Guarda una nueva nota personal. Útil para recordar información."""
+            try:
+                notes = _get_notes()
+                new_note = {
+                    "id": str(uuid.uuid4())[:8],
+                    "title": title,
+                    "content": content,
+                    "tags": tags or [],
+                    "created_at": datetime.now().isoformat(),
+                }
+                notes.append(new_note)
+                _save_notes(notes)
+                return f"Nota guardada con éxito. ID: {new_note['id']}"
+            except Exception as e:
+                return f"Error al guardar la nota: {e}"
+
         @tool
         async def get_agent_response(target_agent_id: str) -> str:
-            """Obtener la respuesta más reciente de un agente específico"""
+            """Obtener la última respuesta de un agente específico"""
             try:
                 sender_id = agent_id
                 conversation_id = f"{min(sender_id, target_agent_id)}_{max(sender_id, target_agent_id)}"
-                
+
                 if conversation_id not in message_history:
                     return "No hay conversación iniciada con ese agente."
-                
+
                 messages = message_history[conversation_id]
                 for message in reversed(messages):
                     if message.from_agent == target_agent_id:
                         agent_name = agents_store[target_agent_id].name
                         return f"{agent_name} respondió: \"{message.content}\""
-                
+
                 return await agent_manager._generate_agent_response(sender_id, target_agent_id, conversation_id)
-                
+
             except Exception as e:
                 return f"Error obteniendo respuesta: {str(e)}"
-        
+
+        @tool
+        def search_notes(query: str) -> str:
+            """Busca en todas tus notas personales."""
+            notes = _get_notes()
+            results = [
+                note for note in notes
+                if query.lower() in note["title"].lower() or query.lower() in note["content"].lower()
+            ]
+            if not results:
+                return "No se encontraron notas con ese criterio."
+
+            formatted_results = []
+            for r in results:
+                tags = ", ".join(r.get('tags', []))
+                formatted_results.append(f"- ID: {r['id']}, Título: {r['title']}, Etiquetas: {tags}")
+            return "Notas encontradas:\n" + "\n".join(formatted_results)
+
         @tool
         def get_conversation_history(target_agent_id: str) -> str:
             """Obtener el historial completo de conversación con un agente"""
             try:
                 sender_id = agent_id
                 conversation_id = f"{min(sender_id, target_agent_id)}_{max(sender_id, target_agent_id)}"
-                
+
                 if conversation_id not in message_history:
                     return "No hay historial de conversación con ese agente."
-                
+
                 history = []
                 for msg in message_history[conversation_id]:
                     sender_name = agents_store[msg.from_agent].name
                     telegram_mark = " 📱" if msg.telegram_sent else ""
                     history.append(f"{sender_name}: {msg.content}{telegram_mark}")
-                
+
                 return "Historial de conversación:\n" + "\n".join(history)
-                
+
             except Exception as e:
                 return f"Error obteniendo historial: {str(e)}"
-        
-        # Lista base de herramientas (ahora incluye comunicación inteligente)
+
+        # Lista base de herramientas (ahora incluye comunicación inteligente y notas)
         base_tools = [
-            get_connected_agents, 
-            send_message_to_agent, 
-            get_agent_response, 
+            get_connected_agents,
+            send_message_to_agent,
+            get_agent_response,
             get_conversation_history,
             send_telegram_message,
             send_telegram_notification,
@@ -621,9 +678,12 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
             get_telegram_updates,
             # Nuevas herramientas inteligentes
             send_notification_to_user,
-            ask_connected_agent
+            ask_connected_agent,
+            # Herramientas de notas
+            save_note,
+            search_notes
         ]
-        
+
         # Herramientas específicas por expertise
         if expertise == "scheduling":
             @tool
@@ -641,36 +701,36 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
                 return result
             
             base_tools.append(schedule_meeting)
-            
+
         elif expertise == "travel":
             @tool
             def book_flight(from_city: str, to_city: str, date: str, send_confirmation: bool = False) -> str:
                 """Reservar vuelo con opción de confirmación por Telegram"""
                 result = f"Vuelo reservado de {from_city} a {to_city} para {date}"
-                
+
                 if send_confirmation:
                     agent = agents_store.get(agent_id)
                     if agent and agent.telegram_chat_id:
                         telegram_msg = f"✈️ Confirmación de vuelo:\n{from_city} → {to_city}\n📅 {date}"
                         telegram_service.send_message(agent.telegram_chat_id, telegram_msg)
                         result += " (Confirmación enviada por Telegram)"
-                
+
                 return result
-            
+
             @tool
             def book_hotel(city: str, checkin: str, checkout: str) -> str:
                 return f"Hotel reservado en {city} del {checkin} al {checkout}"
-            
+
             base_tools.extend([book_flight, book_hotel])
-            
+
         elif expertise == "research":
             @tool
             def web_search(query: str) -> str:
                 return f"Resultados de búsqueda para: {query}"
             base_tools.append(web_search)
-        
+
         # Las herramientas de Google Calendar ahora vienen del MCP client
-        
+
         return base_tools
     
     
@@ -720,7 +780,9 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
     async def connect_agents(self, agent1_id: str, agent2_id: str, connection_type: str = "direct") -> AgentConnection:
         if agent1_id not in agents_store or agent2_id not in agents_store:
             raise HTTPException(status_code=404, detail="Uno o ambos agentes no encontrados")
+
         
+
         connection = AgentConnection(
             id=str(uuid.uuid4())[:8],
             agent1=agent1_id,
@@ -732,6 +794,27 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
         
         connections_store[connection.id] = connection
         return connection
+
+    def _add_capability_to_agent(self, agent: PAIAAgent, expertise: str):
+        if expertise not in agent.expertise.split(', '):
+            agent.expertise += f", {expertise}"
+            self._recreate_agent(agent)
+
+    def _recreate_agent(self, agent: PAIAAgent):
+        agent_tools = self._create_agent_tools(agent.id, agent.expertise)
+        tools_description = "\n".join([f'- {tool.name}: {tool.description}' for tool in agent_tools])
+        
+        agent.tools = agent_tools
+        agent.llm_instance = create_react_agent(
+            self.llm,
+            agent.tools,
+            state_modifier=f"""Eres {agent.name}, un asistente {agent.personality} especializado en {agent.expertise}.
+
+Estas son tus herramientas disponibles:
+{tools_description}
+
+IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Mantén el contexto de toda la conversación y responde de manera natural."""
+        )
     
     async def send_message_to_agent_api(self, from_agent_id: str, to_agent_id: str, message: str) -> str:
         """API endpoint para envío de mensajes entre agentes"""
@@ -1818,6 +1901,11 @@ async def health_check():
         "timestamp": datetime.now().isoformat()
     }
 
+
+
+
+
+
 if __name__ == "__main__":
     print("Iniciando PAIA Platform Backend con Telegram Integration...")
     print("")
@@ -1828,3 +1916,5 @@ if __name__ == "__main__":
         port=8000,
         log_level="info"
     )
+    
+    

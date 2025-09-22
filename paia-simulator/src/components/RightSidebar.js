@@ -1,4 +1,6 @@
+
 import { useTranslation } from 'react-i18next';
+
 
 export default function RightSidebar({ 
   onAddActor, 
@@ -13,6 +15,7 @@ export default function RightSidebar({
   onAddPublicAgent,
   isBackendConnected 
 }) {
+
   const { t } = useTranslation();
   return (
     <div className="sidebar right">
@@ -36,6 +39,9 @@ export default function RightSidebar({
         </button>
         <button onClick={onAddCalendar} className="discreet-button" style={{ background: '#4285f4', color: 'white' }}>
           <i className="fas fa-calendar"></i> Google Calendar
+        </button>
+        <button onClick={() => onCreateAgent({ isNotesNode: true })} className="discreet-button">
+          📒 Crear Nodo de Notas
         </button>
       </div>
 
@@ -166,6 +172,7 @@ export default function RightSidebar({
           </div>
         )}
       </div>
-    </div>
+
+      </div>
   );
 }

@@ -1,16 +1,24 @@
+
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
   const { t } = useTranslation();
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     personality: 'Analítico',
     expertise: 'general',
-    is_public: true,
+    is_capability_node: false,
     customColor: ''
   });
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData(prev => ({ ...prev, ...initialData }));
+    }
+  }, [initialData]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -28,7 +36,8 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
       description: '',
       personality: 'Analítico',
       expertise: 'general',
-      is_public: true
+      is_public: true,
+      is_capability_node: false
     });
     onClose();
   };
@@ -39,7 +48,8 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
       description: '',
       personality: 'Analítico',
       expertise: 'general',
-      is_public: true
+      is_public: true,
+      is_capability_node: false
     });
     onClose();
   };
@@ -171,14 +181,50 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
                 fontSize: '0.9em'
               }}
             >
+
               <option value="general">{t('createAgent.expertiseAreas.general')}</option>
               <option value="scheduling">{t('createAgent.expertiseAreas.scheduling')}</option>
               <option value="travel">{t('createAgent.expertiseAreas.travel')}</option>
               <option value="research">{t('createAgent.expertiseAreas.research')}</option>
               <option value="creativity">{t('createAgent.expertiseAreas.creativity')}</option>
               <option value="finance">{t('createAgent.expertiseAreas.finance')}</option>
+
             </select>
           </div>
+
+          {formData.expertise === 'notes' && (
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '0.9em',
+                fontWeight: '500',
+                color: 'var(--text-primary)',
+                cursor: 'pointer'
+              }}>
+                <input
+                  type="checkbox"
+                  checked={formData.is_capability_node}
+                  onChange={(e) => handleChange('is_capability_node', e.target.checked)}
+                  style={{
+                    width: '16px',
+                    height: '16px',
+                    cursor: 'pointer'
+                  }}
+                />
+                Nodo de Capacidades
+              </label>
+              <div style={{
+                fontSize: '0.75em',
+                color: 'var(--text-secondary)',
+                marginTop: '4px',
+                marginLeft: '24px'
+              }}>
+                Este agente actuará como un nodo de capacidades, proveyendo herramientas a otros agentes.
+              </div>
+            </div>
+          )}
           
           <div style={{ marginBottom: '20px' }}>
             <label style={{
