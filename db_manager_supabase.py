@@ -105,6 +105,19 @@ class DatabaseManager:
         result = self.client.table("agents").select("*").eq("user_id", user_id).execute()
         return [self._dict_to_agent(row) for row in result.data]
 
+    async def get_public_agents(self, exclude_user_id: str = None) -> List[DBAgent]:
+        """Obtener todos los agentes públicos, opcionalmente excluyendo un usuario"""
+        query = self.client.table("agents").select("*").eq("is_public", True)
+        if exclude_user_id:
+            query = query.neq("user_id", exclude_user_id)
+        result = query.execute()
+        return [self._dict_to_agent(row) for row in result.data]
+
+    async def get_public_agents_by_user(self, user_id: str) -> List[DBAgent]:
+        """Obtener todos los agentes públicos de un usuario específico"""
+        result = self.client.table("agents").select("*").eq("user_id", user_id).eq("is_public", True).execute()
+        return [self._dict_to_agent(row) for row in result.data]
+
     async def update_agent(self, agent_id: str, updates: Dict) -> bool:
         """Actualizar un agente"""
         updates["updated_at"] = datetime.utcnow().isoformat()
@@ -142,6 +155,98 @@ class DatabaseManager:
             f"agent1_id.eq.{agent_id},agent2_id.eq.{agent_id}"
         ).execute()
         return [self._dict_to_connection(row) for row in result.data]
+
+    async def get_user_connections(self, user_id: str, status: str = 'accepted') -> List[Dict]:
+        """Obtener las conexiones sociales de un usuario"""
+        try:
+            result = self.client.table("user_connections").select("*").or_(
+                f"user1_id.eq.{user_id},user2_id.eq.{user_id}"
+            ).eq("status", status).execute()
+
+            connections = []
+            for row in result.data:
+                # Obtener información del requester (user1) y recipient (user2)
+                requester_result = self.client.table("users").select("id, name, email, image").eq("id", row["user1_id"]).single().execute()
+                recipient_result = self.client.table("users").select("id, name, email, image").eq("id", row["user2_id"]).single().execute()
+
+                connection_data = {
+                    "connection_id": row["id"],
+                    "requester": {
+                        "id": row["user1_id"],
+                        "name": requester_result.data.get("name") if requester_result.data else "Usuario",
+                        "email": requester_result.data.get("email") if requester_result.data else "",
+                        "image": requester_result.data.get("image") if requester_result.data else None
+                    },
+                    "recipient": {
+                        "id": row["user2_id"],
+                        "name": recipient_result.data.get("name") if recipient_result.data else "Usuario",
+                        "email": recipient_result.data.get("email") if recipient_result.data else "",
+                        "image": recipient_result.data.get("image") if recipient_result.data else None
+                    },
+                    "status": row["status"],
+                    "created_at": row["created_at"]
+                }
+                connections.append(connection_data)
+
+            return connections
+        except Exception as e:
+            print(f"Error obteniendo conexiones de usuario: {e}")
+            return []
+
+    async def get_connection_by_id(self, connection_id: str) -> Optional[Dict]:
+        """Obtener una conexión social específica por ID"""
+        try:
+            result = self.client.table("user_connections").select("*").eq("id", connection_id).single().execute()
+            if result.data:
+                return {
+                    "connection_id": result.data["id"],
+                    "requester_id": result.data["user1_id"],
+                    "recipient_id": result.data["user2_id"],
+                    "status": result.data["status"],
+                    "created_at": result.data["created_at"]
+                }
+            return None
+        except Exception as e:
+            print(f"Error obteniendo conexión por ID: {e}")
+            return None
+
+    # =============== FLOW CONNECTIONS ===============
+    async def create_flow_connection(self, connection_data: Dict) -> str:
+        """Crear una conexión de flujo entre usuarios"""
+        try:
+            flow_connection_id = str(uuid.uuid4())
+            now = datetime.utcnow()
+
+            data = {
+                "id": flow_connection_id,
+                "flow_owner_id": connection_data["flow_owner_id"],
+                "target_user_id": connection_data["target_user_id"],
+                "connection_node_id": connection_data["connection_node_id"],
+                "connection_type": connection_data.get("connection_type", "user"),
+                "target_agent_id": connection_data.get("target_agent_id"),
+                "metadata": connection_data.get("metadata", {}),
+                "status": "active",
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat()
+            }
+
+            result = self.client.table("flow_connections").insert(data).execute()
+            if result.data:
+                return flow_connection_id
+            raise Exception("Failed to create flow connection")
+
+        except Exception as e:
+            print(f"Error creando conexión de flujo: {e}")
+            raise e
+
+    async def delete_flow_connection(self, connection_id: str) -> bool:
+        """Eliminar una conexión de flujo"""
+        try:
+            result = self.client.table("flow_connections").delete().eq("id", connection_id).execute()
+            return len(result.data) > 0
+        except Exception as e:
+            print(f"Error eliminando conexión de flujo: {e}")
+            return False
 
     # =============== MESSAGES ===============
     async def save_message(self, message_data: Dict) -> DBMessage:
@@ -199,20 +304,25 @@ class DatabaseManager:
             return self._dict_to_notification(result.data[0])
         raise Exception("Failed to create notification")
 
-    async def get_user_notifications(self, user_id: str, unread_only: bool = False) -> List[DBNotification]:
+    async def get_user_notifications(self, user_id: str, unread_only: bool = False, limit: int = 50) -> List[DBNotification]:
         """Obtener notificaciones de un usuario"""
         query = self.client.table("notifications").select("*").eq("user_id", user_id)
-        
+
         if unread_only:
             query = query.eq("is_read", False)
-        
-        result = query.order("created_at", desc=True).execute()
+
+        result = query.order("created_at", desc=True).limit(limit).execute()
         return [self._dict_to_notification(row) for row in result.data]
 
     # =============== FLOWS ===============
     async def get_user_flows(self, user_id: str) -> List[Dict]:
         """Obtener flujos guardados de un usuario"""
         result = self.client.table("saved_flows").select("*").eq("user_id", user_id).execute()
+        return result.data
+
+    async def get_public_flows_by_user(self, user_id: str) -> List[Dict]:
+        """Obtener flujos públicos de un usuario específico"""
+        result = self.client.table("saved_flows").select("*").eq("user_id", user_id).eq("is_public", True).execute()
         return result.data
 
     async def save_flow(self, flow_data: Dict) -> Dict:
@@ -246,9 +356,15 @@ class DatabaseManager:
         result = self.client.table("saved_flows").update(updates).eq("id", flow_id).execute()
         return len(result.data) > 0
 
-    async def delete_flow(self, flow_id: str) -> bool:
+    async def delete_flow(self, flow_id: str, user_id: str = None) -> bool:
         """Eliminar un flujo"""
-        result = self.client.table("saved_flows").delete().eq("id", flow_id).execute()
+        query = self.client.table("saved_flows").delete().eq("id", flow_id)
+
+        # Verificar que el flujo pertenece al usuario si se proporciona user_id
+        if user_id:
+            query = query.eq("user_id", user_id)
+
+        result = query.execute()
         return len(result.data) > 0
 
     # =============== INITIALIZATION ===============
@@ -257,6 +373,107 @@ class DatabaseManager:
         # This method is kept for compatibility with the original interface
         # but doesn't need to do anything as Supabase tables are created via SQL
         pass
+
+    # =============== USERS ===============
+    async def search_users(self, query: str, exclude_user_id: str = None, limit: int = 20) -> List[Dict]:
+        """Buscar usuarios por nombre o email"""
+        try:
+            # Construir query de búsqueda
+            search_query = self.client.table("users").select("id, name, email")
+
+            # Buscar por nombre o email (case insensitive)
+            search_query = search_query.or_(f"name.ilike.%{query}%,email.ilike.%{query}%")
+
+            # Excluir usuario específico si se proporciona
+            if exclude_user_id:
+                search_query = search_query.neq("id", exclude_user_id)
+
+            # Limitar resultados
+            search_query = search_query.limit(limit)
+
+            result = search_query.execute()
+            return result.data
+
+        except Exception as e:
+            print(f"Error buscando usuarios: {e}")
+            return []
+
+    # =============== USER CONNECTIONS ===============
+    async def create_user_connection_request(self, requester_id: str, recipient_id: str,
+                                           connection_type: str = "friend") -> str:
+        """Crear una solicitud de conexión entre usuarios"""
+        try:
+            connection_id = str(uuid.uuid4())
+            now = datetime.utcnow()
+
+            data = {
+                "id": connection_id,
+                "user1_id": requester_id,
+                "user2_id": recipient_id,
+                "connection_type": connection_type,
+                "status": "pending",
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat()
+            }
+
+            result = self.client.table("user_connections").insert(data).execute()
+            if result.data:
+                return connection_id
+            raise Exception("Failed to create user connection request")
+
+        except Exception as e:
+            print(f"Error creando solicitud de conexión: {e}")
+            raise e
+
+    async def accept_user_connection_request(self, connection_id: str, user_id: str) -> bool:
+        """Aceptar una solicitud de conexión"""
+        try:
+            # Verificar que el usuario sea el recipient de la conexión
+            result = self.client.table("user_connections").select("*").eq("id", connection_id).single().execute()
+
+            if not result.data:
+                return False
+
+            connection = result.data
+            if connection["user2_id"] != user_id:
+                return False
+
+            # Actualizar estado a accepted
+            update_result = self.client.table("user_connections").update({
+                "status": "accepted",
+                "updated_at": datetime.utcnow().isoformat()
+            }).eq("id", connection_id).execute()
+
+            return len(update_result.data) > 0
+
+        except Exception as e:
+            print(f"Error aceptando conexión: {e}")
+            return False
+
+    async def reject_user_connection_request(self, connection_id: str, user_id: str) -> bool:
+        """Rechazar una solicitud de conexión"""
+        try:
+            # Verificar que el usuario sea el recipient de la conexión
+            result = self.client.table("user_connections").select("*").eq("id", connection_id).single().execute()
+
+            if not result.data:
+                return False
+
+            connection = result.data
+            if connection["user2_id"] != user_id:
+                return False
+
+            # Actualizar estado a rejected
+            update_result = self.client.table("user_connections").update({
+                "status": "rejected",
+                "updated_at": datetime.utcnow().isoformat()
+            }).eq("id", connection_id).execute()
+
+            return len(update_result.data) > 0
+
+        except Exception as e:
+            print(f"Error rechazando conexión: {e}")
+            return False
 
     # =============== HELPER METHODS ===============
     def _dict_to_agent(self, data: Dict) -> DBAgent:

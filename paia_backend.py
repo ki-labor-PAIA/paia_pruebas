@@ -19,6 +19,7 @@ import httpx  # Para verificar servidor MCP
 from memory_manager import MemoryManager, Message
 from auth_manager_supabase import AuthManager
 from db_manager_supabase import DatabaseManager
+from supabase_config import supabase_client
 from dotenv import load_dotenv
 load_dotenv()
 app = FastAPI(title="PAIA Platform Backend", version="1.0.0")
@@ -177,6 +178,20 @@ class PAIAAgentManager:
         except Exception as e:
             print(f"WARNING: Error configurando MCP cliente: {e}")
             self.mcp_client = None
+
+    async def get_mcp_client_for_user(self, user_id: str):
+        """Crear cliente MCP con contexto de usuario específico"""
+        try:
+            return MultiServerMCPClient({
+                "google_calendar": {
+                    "url": "http://127.0.0.1:3000/api/mcp",
+                    "transport": "streamable_http",
+                    "headers": {"x-user-id": user_id}
+                }
+            })
+        except Exception as e:
+            print(f"WARNING: Error configurando MCP cliente para usuario {user_id}: {e}")
+            return None
     
     async def create_agent(self, agent_data: dict) -> PAIAAgent:
         # Primero guardar en BD
@@ -187,17 +202,20 @@ class PAIAAgentManager:
         
 
         # Obtener herramientas MCP si están disponibles
-        all_tools = base_tools
-        if self.mcp_client:
-            try:
-                mcp_tools = await self.mcp_client.get_tools()
-                all_tools = base_tools + mcp_tools
-                print(f"Herramientas MCP agregadas: {len(mcp_tools)}")
-            except Exception as e:
-                print(f"Error obteniendo herramientas MCP: {e}")
-        
-        # Crear instancia del agente con TODAS las herramientas
         user_id = agent_data.get('user_id', 'usuario-anonimo')
+        all_tools = base_tools
+
+        # Usar cliente MCP específico para el usuario
+        user_mcp_client = await self.get_mcp_client_for_user(user_id)
+        if user_mcp_client:
+            try:
+                mcp_tools = await user_mcp_client.get_tools()
+                all_tools = base_tools + mcp_tools
+                print(f"Herramientas MCP agregadas para usuario {user_id}: {len(mcp_tools)}")
+            except Exception as e:
+                print(f"Error obteniendo herramientas MCP para usuario {user_id}: {e}")
+
+        # Crear instancia del agente con TODAS las herramientas
 
         agent_llm = create_react_agent(
             self.llm,
@@ -209,7 +227,8 @@ IMPORTANTE: Tu user ID es: {user_id}
 🔧 HERRAMIENTAS DISPONIBLES:
 
 📅 CALENDARIO:
-- Cuando uses herramientas de Google Calendar (list-calendars, list-events, list-today-events, create-event), SIEMPRE incluye el parámetro userId con el valor: {user_id}
+- Usa las herramientas de Google Calendar directamente: list-calendars, list-events, list-today-events, create-event
+- La autenticación del usuario se maneja automáticamente
 
 🤖 COMUNICACIÓN INTELIGENTE:
 - Para enviar un mensaje a una PERSONA: usa send_notification_to_user(user_name, message, priority)
@@ -463,10 +482,33 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
                 Respuesta del agente consultado
             """
             try:
-                # Asegurar que el agente objetivo esté cargado en memoria
+                # MEJORA: Auto-activación inteligente de agentes
                 target_agent = await ensure_agent_loaded(target_agent_id)
+
                 if not target_agent:
-                    return f"⏳ El agente con ID '{target_agent_id}' no está activo o no existe."
+                    print(f"[AUTO-WAKE] Intentando activar agente {target_agent_id}...")
+
+                    # Buscar el agente en la base de datos
+                    db_agent = await db_manager.get_agent(target_agent_id)
+                    if not db_agent:
+                        return f"❌ El agente con ID '{target_agent_id}' no existe en el sistema."
+
+                    # Intentar cargar el agente con su user_id
+                    target_agent = await ensure_agent_loaded(target_agent_id, db_agent.user_id)
+
+                    if target_agent:
+                        # Marcar como activo y log de activación
+                        await db_manager.update_agent(target_agent_id, {"status": "online"})
+                        print(f"[AUTO-WAKE] ✅ Agente '{db_agent.name}' (usuario: {db_agent.user_id}) activado automáticamente")
+
+                        # Agregar un pequeño delay para asegurar que el agente esté completamente inicializado
+                        import asyncio
+                        await asyncio.sleep(0.5)
+                    else:
+                        return f"❌ No se pudo activar el agente '{target_agent_id}'. El usuario propietario podría no estar disponible."
+
+                if not target_agent:
+                    return f"⏳ El agente con ID '{target_agent_id}' no está disponible en este momento."
 
                 # Construir mensaje inteligente
                 sender_agent = agents_store.get(agent_id)
@@ -478,39 +520,58 @@ Contexto adicional: {context}
 
 Por favor responde de manera útil y directa. Si la pregunta es sobre disponibilidad o calendario, consulta el calendario de tu usuario ({target_agent.user_id}) usando las herramientas disponibles."""
 
-                # Enviar mensaje al agente objetivo
-                response = await target_agent.llm_instance.ainvoke({
-                    "messages": [HumanMessage(content=intelligent_prompt)]
-                })
+                print(f"[INTER-PAIA] 🤖 {sender_name} preguntando a {target_agent.name}: '{question[:50]}{'...' if len(question) > 50 else ''}'")
 
-                response_content = response["messages"][-1].content
+                # Enviar mensaje al agente objetivo
+                try:
+                    response = await target_agent.llm_instance.ainvoke({
+                        "messages": [HumanMessage(content=intelligent_prompt)]
+                    })
+
+                    response_content = response["messages"][-1].content
+                    print(f"[INTER-PAIA] ✅ {target_agent.name} respondió exitosamente ({len(response_content)} caracteres)")
+
+                except Exception as llm_error:
+                    print(f"[INTER-PAIA] ❌ Error en LLM del agente {target_agent.name}: {str(llm_error)}")
+                    return f"❌ Error procesando consulta en el agente {target_agent.name}. Por favor intenta más tarde."
 
                 # Guardar la conversación en BD
-                conversation_id = f"intelligent_{agent_id}_{target_agent_id}"
-                await db_manager.save_message({
-                    'conversation_id': conversation_id,
-                    'from_agent_id': agent_id,
-                    'to_agent_id': target_agent_id,
-                    'content': question,
-                    'message_type': 'intelligent_query'
-                })
+                try:
+                    conversation_id = f"intelligent_{agent_id}_{target_agent_id}"
+                    await db_manager.save_message({
+                        'conversation_id': conversation_id,
+                        'from_agent_id': agent_id,
+                        'to_agent_id': target_agent_id,
+                        'content': question,
+                        'message_type': 'intelligent_query'
+                    })
 
-                await db_manager.save_message({
-                    'conversation_id': conversation_id,
-                    'from_agent_id': target_agent_id,
-                    'to_agent_id': agent_id,
-                    'content': response_content,
-                    'message_type': 'intelligent_response'
-                })
+                    await db_manager.save_message({
+                        'conversation_id': conversation_id,
+                        'from_agent_id': target_agent_id,
+                        'to_agent_id': agent_id,
+                        'content': response_content,
+                        'message_type': 'intelligent_response'
+                    })
+                    print(f"[INTER-PAIA] 💾 Conversación guardada en BD: {conversation_id}")
+
+                except Exception as db_error:
+                    print(f"[INTER-PAIA] ⚠️ Error guardando conversación en BD: {str(db_error)}")
+                    # No fallar la función solo porque no se pudo guardar en BD
 
                 # Obtener datos del usuario del agente para un mensaje más claro
-                target_user = await auth_manager.get_user_by_id(target_agent.user_id)
-                user_name_info = f" (agente de {target_user.name})" if target_user else ""
+                try:
+                    target_user = await auth_manager.get_user_by_id(target_agent.user_id)
+                    user_name_info = f" (agente de {target_user.name})" if target_user else ""
+                except Exception:
+                    user_name_info = ""
 
+                print(f"[INTER-PAIA] 🎯 Consulta inter-PAIA completada exitosamente")
                 return f"🤖 {target_agent.name}{user_name_info} responde:\n\n{response_content}"
 
             except Exception as e:
-                return f"❌ Error consultando agente: {str(e)}"
+                print(f"[INTER-PAIA] 💥 Error general en ask_connected_agent: {str(e)}")
+                return f"❌ Error inesperado consultando agente '{target_agent_id}': {str(e)}"
 
         @tool
         async def send_message_to_agent(target_agent_id: str, message: str, notify_telegram: bool = False) -> str:
@@ -861,15 +922,71 @@ async def init_mcp_client():
 async def load_persistent_agents():
     """Cargar agentes que deben estar siempre activos"""
     try:
-        # Buscar agentes marcados como persistentes o auto_start
-        # Por ahora cargar todos los agentes activos (se puede optimizar después)
         print("[INFO] Cargando agentes persistentes...")
-        
-        # Esta función se ejecutará en el background para cargar agentes cuando se necesiten
-        print("[SUCCESS] Sistema de agentes persistentes inicializado")
-        
+
+        # Buscar agentes marcados como auto_start o persistent
+        all_users = await get_all_users_with_persistent_agents()
+
+        persistent_count = 0
+        for user_id in all_users:
+            user_agents = await db_manager.get_agents_by_user(user_id)
+            for db_agent in user_agents:
+                if db_agent.auto_start or db_agent.is_persistent:
+                    try:
+                        # Cargar agente en memoria
+                        await ensure_agent_loaded(db_agent.id, user_id)
+
+                        # Marcar como activo en BD
+                        await db_manager.update_agent(db_agent.id, {"status": "active"})
+
+                        print(f"[PERSISTENT] Agente '{db_agent.name}' (ID: {db_agent.id}) cargado y activo")
+                        persistent_count += 1
+
+                    except Exception as e:
+                        print(f"[ERROR] Error cargando agente persistente {db_agent.id}: {e}")
+
+        print(f"[SUCCESS] {persistent_count} agentes persistentes inicializados")
+
+        # Iniciar supervisor de agentes persistentes
+        asyncio.create_task(persistent_agents_supervisor())
+
     except Exception as e:
         print(f"[ERROR] Error cargando agentes persistentes: {e}")
+
+async def get_all_users_with_persistent_agents():
+    """Obtener todos los usuarios que tienen agentes persistentes"""
+    try:
+        result = supabase_client.table("agents").select("user_id").or_("auto_start.eq.true,is_persistent.eq.true").execute()
+        return list(set([row["user_id"] for row in result.data]))
+    except:
+        return []
+
+async def persistent_agents_supervisor():
+    """Supervisor que mantiene activos los agentes persistentes"""
+    print("[INFO] Iniciando supervisor de agentes persistentes...")
+
+    while True:
+        try:
+            await asyncio.sleep(30)  # Verificar cada 30 segundos
+
+            # Obtener agentes que deberían estar activos
+            result = supabase_client.table("agents").select("*").or_("auto_start.eq.true,is_persistent.eq.true").execute()
+
+            for agent_data in result.data:
+                agent_id = agent_data["id"]
+
+                # Verificar si el agente está en memoria y activo
+                if agent_id not in agents_store:
+                    try:
+                        print(f"[SUPERVISOR] Reiniciando agente persistente: {agent_data['name']}")
+                        await ensure_agent_loaded(agent_id, agent_data["user_id"])
+                        await db_manager.update_agent(agent_id, {"status": "active"})
+                    except Exception as e:
+                        print(f"[SUPERVISOR] Error reiniciando agente {agent_id}: {e}")
+
+        except Exception as e:
+            print(f"[SUPERVISOR] Error en supervisor: {e}")
+            await asyncio.sleep(60)  # Esperar más tiempo si hay error
 
 async def ensure_agent_loaded(agent_id: str, user_id: str = None):
     """Asegurar que un agente esté cargado en memoria"""
@@ -878,7 +995,7 @@ async def ensure_agent_loaded(agent_id: str, user_id: str = None):
     
     try:
         # Cargar agente desde BD
-        db_agent = await db_manager.get_agent_by_id(agent_id)
+        db_agent = await db_manager.get_agent(agent_id)
         if not db_agent:
             return None
         
@@ -897,12 +1014,15 @@ async def ensure_agent_loaded(agent_id: str, user_id: str = None):
         base_tools = agent_manager._create_agent_tools(db_agent.id, db_agent.expertise)
         all_tools = base_tools
         
-        if agent_manager.mcp_client:
+        # Usar cliente MCP específico para el usuario
+        user_mcp_client = await agent_manager.get_mcp_client_for_user(db_agent.user_id)
+        if user_mcp_client:
             try:
-                mcp_tools = await agent_manager.mcp_client.get_tools()
+                mcp_tools = await user_mcp_client.get_tools()
                 all_tools = base_tools + mcp_tools
-            except:
-                pass
+                print(f"Herramientas MCP agregadas para agente {db_agent.name} (usuario {db_agent.user_id}): {len(mcp_tools)}")
+            except Exception as e:
+                print(f"Error obteniendo herramientas MCP para agente {db_agent.name}: {e}")
         
         agent_llm = create_react_agent(
             agent_manager.llm,
@@ -914,7 +1034,8 @@ IMPORTANTE: Tu user ID es: {db_agent.user_id}
 🔧 HERRAMIENTAS DISPONIBLES:
 
 📅 CALENDARIO:
-- Cuando uses herramientas de Google Calendar, SIEMPRE incluye el parámetro userId con el valor: {db_agent.user_id}
+- Usa las herramientas de Google Calendar directamente: list-calendars, list-events, list-today-events, create-event
+- La autenticación del usuario se maneja automáticamente
 
 🤖 COMUNICACIÓN INTELIGENTE:
 - Para enviar un mensaje a una PERSONA: usa send_notification_to_user(user_name, message, priority)
@@ -951,7 +1072,7 @@ IMPORTANTE: Tu user ID es: {db_agent.user_id}
         agents_store[db_agent.id] = agent
         
         # Marcar como online en BD
-        await db_manager.update_agent_status(db_agent.id, 'online')
+        await db_manager.update_agent(db_agent.id, {"status": "online"})
         
         print(f"[INFO] Agente cargado: {db_agent.name} ({db_agent.id})")
         return agent
@@ -1086,6 +1207,67 @@ async def get_public_agents(exclude_user_id: str = None):
         }
         agents_list.append(agent_dict)
     return agents_list
+
+@app.delete("/api/agents/{agent_id}")
+async def delete_agent(agent_id: str, user_data: dict):
+    """Eliminar un agente"""
+    try:
+        user_id = user_data.get('user_id')
+        if not user_id:
+            raise HTTPException(status_code=400, detail="user_id requerido")
+
+        # Verificar que el agente pertenece al usuario
+        db_agent = await db_manager.get_agent(agent_id)
+        if not db_agent or db_agent.user_id != user_id:
+            raise HTTPException(status_code=404, detail="Agente no encontrado o no autorizado")
+
+        # Eliminar de la BD
+        success = await db_manager.delete_agent(agent_id)
+        if not success:
+            raise HTTPException(status_code=500, detail="Error eliminando agente de la BD")
+
+        # Eliminar del store en memoria si existe
+        if agent_id in agents_store:
+            del agents_store[agent_id]
+
+        return {"message": f"Agente {db_agent.name} eliminado exitosamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/agents/{agent_id}")
+async def update_agent(agent_id: str, update_data: dict):
+    """Actualizar un agente"""
+    try:
+        user_id = update_data.get('user_id')
+        if not user_id:
+            raise HTTPException(status_code=400, detail="user_id requerido")
+
+        # Verificar que el agente pertenece al usuario
+        db_agent = await db_manager.get_agent(agent_id)
+        if not db_agent or db_agent.user_id != user_id:
+            raise HTTPException(status_code=404, detail="Agente no encontrado o no autorizado")
+
+        # Extraer campos actualizables
+        updates = {}
+        if 'is_persistent' in update_data:
+            updates['is_persistent'] = update_data['is_persistent']
+        if 'auto_start' in update_data:
+            updates['auto_start'] = update_data['auto_start']
+        if 'status' in update_data:
+            updates['status'] = update_data['status']
+
+        # Actualizar en BD
+        success = await db_manager.update_agent(agent_id, updates)
+        if not success:
+            raise HTTPException(status_code=500, detail="Error actualizando agente")
+
+        return {"message": f"Agente {db_agent.name} actualizado exitosamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/connections")
 async def create_connection(connection_data: dict):
@@ -1481,6 +1663,96 @@ async def create_architecture(architecture_data: dict):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# =============== FUNCIONES AUXILIARES DE CONEXIÓN ===============
+
+async def auto_connect_friend_agents(user1_id: str, user2_id: str) -> dict:
+    """
+    Conectar automáticamente los agentes públicos entre dos amigos.
+    Se ejecuta cuando se acepta una solicitud de amistad.
+    """
+    try:
+        print(f"[AUTO-CONNECT] Iniciando auto-conexión de agentes entre {user1_id} y {user2_id}")
+
+        # Obtener agentes públicos de ambos usuarios
+        user1_public = await db_manager.get_public_agents_by_user(user1_id)
+        user2_public = await db_manager.get_public_agents_by_user(user2_id)
+
+        connections_created = 0
+        connections_failed = 0
+
+        print(f"[AUTO-CONNECT] Encontrados {len(user1_public)} agentes públicos del usuario 1, {len(user2_public)} del usuario 2")
+
+        # Crear conexiones bidireccionales automáticamente entre agentes públicos
+        for agent1 in user1_public:
+            for agent2 in user2_public:
+                try:
+                    # Verificar si la conexión ya existe
+                    existing_connections = [conn for conn in connections_store.values()
+                                          if (conn.agent1 == agent1.id and conn.agent2 == agent2.id) or
+                                             (conn.agent1 == agent2.id and conn.agent2 == agent1.id)]
+
+                    if existing_connections:
+                        print(f"[AUTO-CONNECT] ⚠️ Conexión ya existe entre {agent1.name} y {agent2.name}")
+                        continue
+
+                    # Crear la conexión
+                    connection = await agent_manager.connect_agents(agent1.id, agent2.id, "friend_auto")
+                    connections_created += 1
+
+                    print(f"[AUTO-CONNECT] ✅ Conectados '{agent1.name}' (usuario {user1_id}) ↔ '{agent2.name}' (usuario {user2_id})")
+
+                except Exception as conn_error:
+                    print(f"[AUTO-CONNECT] ❌ Error conectando {agent1.name} ↔ {agent2.name}: {conn_error}")
+                    connections_failed += 1
+
+        result = {
+            "connections_created": connections_created,
+            "connections_failed": connections_failed,
+            "user1_public_agents": len(user1_public),
+            "user2_public_agents": len(user2_public)
+        }
+
+        print(f"[AUTO-CONNECT] Completado: {connections_created} conexiones creadas, {connections_failed} fallaron")
+        return result
+
+    except Exception as e:
+        print(f"[AUTO-CONNECT] 💥 Error general en auto_connect_friend_agents: {str(e)}")
+        return {"error": str(e), "connections_created": 0}
+
+@app.post("/api/users/connect/auto-link-agents")
+async def manual_connect_friend_agents(request_data: dict):
+    """Endpoint para conectar manualmente agentes entre amigos (útil para testing)"""
+    try:
+        user1_id = request_data.get('user1_id')
+        user2_id = request_data.get('user2_id')
+
+        if not user1_id or not user2_id:
+            raise HTTPException(status_code=400, detail="user1_id y user2_id son requeridos")
+
+        # Verificar que los usuarios sean amigos
+        connections = await db_manager.get_user_connections(user1_id, 'accepted')
+        friend_ids = []
+        for conn in connections:
+            if conn['requester']['id'] == user1_id:
+                friend_ids.append(conn['recipient']['id'])
+            else:
+                friend_ids.append(conn['requester']['id'])
+
+        if user2_id not in friend_ids:
+            raise HTTPException(status_code=403, detail="Los usuarios deben ser amigos para conectar sus agentes")
+
+        result = await auto_connect_friend_agents(user1_id, user2_id)
+
+        return {
+            "message": "Auto-conexión de agentes completada",
+            **result
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # =============== ENDPOINTS DE AUTENTICACIÓN ===============
 
 @app.post("/auth/register")
@@ -1520,27 +1792,6 @@ async def login_user(request: dict):
         "name": result["name"]
     }
 
-@app.post("/auth/google-signin")
-async def google_signin(request: dict):
-    """Login/registro con Google OAuth"""
-    email = request.get("email")
-    name = request.get("name")
-    google_id = request.get("google_id")
-    image = request.get("image")
-    
-    if not email or not google_id:
-        raise HTTPException(status_code=400, detail="Email y Google ID son requeridos")
-    
-    result = await auth_manager.google_signin(email, name, google_id, image)
-    
-    if not result["success"]:
-        raise HTTPException(status_code=400, detail=result["message"])
-    
-    return {
-        "user_id": result["user_id"],
-        "email": result["email"],
-        "name": result["name"]
-    }
 
 @app.get("/auth/user/{user_id}")
 async def get_user(user_id: str):
@@ -1692,30 +1943,40 @@ async def respond_to_connection_request(response_data: dict):
     try:
         connection_id = response_data.get('connection_id')
         response = response_data.get('response')  # 'accept' o 'reject'
-        
-        if not connection_id or not response:
-            raise HTTPException(status_code=400, detail="connection_id y response son requeridos")
-        
+        user_id = response_data.get('user_id')
+
+        if not connection_id or not response or not user_id:
+            raise HTTPException(status_code=400, detail="connection_id, response y user_id son requeridos")
+
         if response not in ['accept', 'reject']:
             raise HTTPException(status_code=400, detail="response debe ser 'accept' o 'reject'")
-        
-        # Actualizar estado de la conexión
-        new_status = 'accepted' if response == 'accept' else 'rejected'
-        success = await db_manager.update_connection_status(connection_id, new_status)
-        
+
+        # Actualizar estado de la conexión usando los métodos correctos
+        if response == 'accept':
+            success = await db_manager.accept_user_connection_request(connection_id, response_data.get('user_id'))
+        else:
+            success = await db_manager.reject_user_connection_request(connection_id, response_data.get('user_id'))
+
         if not success:
             raise HTTPException(status_code=404, detail="Conexión no encontrada")
-        
+
         # Obtener información de la conexión para crear notificaciones
         connection = await db_manager.get_connection_by_id(connection_id)
         if not connection:
             raise HTTPException(status_code=404, detail="Información de conexión no encontrada")
-        
+
+        # NUEVA FUNCIONALIDAD: Auto-conectar agentes cuando se acepta la amistad
+        if response == 'accept':
+            try:
+                await auto_connect_friend_agents(connection['requester_id'], connection['recipient_id'])
+            except Exception as auto_connect_error:
+                print(f"[AUTO-CONNECT] ⚠️ Error auto-conectando agentes de amigos: {auto_connect_error}")
+
         # Crear notificación para el solicitante
         requester_notification_content = (
             f"Tu solicitud de conexión fue {'aceptada' if response == 'accept' else 'rechazada'}"
         )
-        
+
         await db_manager.create_notification({
             'user_id': connection['requester_id'],
             'title': f'Solicitud de conexión {'aceptada' if response == 'accept' else 'rechazada'}',
@@ -1723,10 +1984,10 @@ async def respond_to_connection_request(response_data: dict):
             'notification_type': 'success' if response == 'accept' else 'info',
             'priority': 'normal'
         })
-        
+
         return {
-            "success": True, 
-            "status": new_status,
+            "success": True,
+            "status": "accepted" if response == 'accept' else "rejected",
             "connection_id": connection_id,
             "message": f"Conexión {'aceptada' if response == 'accept' else 'rechazada'} correctamente"
         }
@@ -1853,16 +2114,40 @@ async def get_friends_active_flows(user_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.put("/api/flows/{flow_id}")
+async def update_flow(flow_id: str, flow_data: dict):
+    """Actualizar un flujo completo"""
+    try:
+        updates = {
+            'name': flow_data.get('name'),
+            'description': flow_data.get('description'),
+            'flow_data': json.dumps(flow_data.get('flow_data', {})),
+            'is_public': flow_data.get('is_public', False),
+            'metadata': json.dumps(flow_data.get('metadata', {}))
+        }
+
+        success = await db_manager.update_flow(flow_id, updates)
+
+        if not success:
+            raise HTTPException(status_code=404, detail="Flujo no encontrado")
+
+        return {
+            "message": "Flujo actualizado exitosamente",
+            "flow_id": flow_id
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.put("/api/flows/{flow_id}/status")
 async def update_flow_status(flow_id: str, status_data: dict):
     """Actualizar el estado de un flujo (activo/inactivo)"""
     try:
         is_active = status_data.get('is_active', False)
         success = await db_manager.update_flow_status(flow_id, is_active)
-        
+
         if not success:
             raise HTTPException(status_code=404, detail="Flujo no encontrado")
-        
+
         return {
             "message": f"Flujo {'activado' if is_active else 'desactivado'} exitosamente"
         }

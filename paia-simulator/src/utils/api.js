@@ -110,13 +110,13 @@ class PAIAApi {
     }
   }
 
-  async respondToConnectionRequest(connectionId, response) {
+  async respondToConnectionRequest(connectionId, response, userId) {
     if (!(await this.checkBackendConnection())) return null;
     try {
       const res = await fetch(`${this.baseUrl}/users/connect/respond`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection_id: connectionId, response: response }),
+        body: JSON.stringify({ connection_id: connectionId, response: response, user_id: userId }),
       });
       if (!res.ok) {
         const errorText = await res.text();
@@ -175,14 +175,23 @@ class PAIAApi {
     if (!(await this.checkBackendConnection())) return { users: [] };
     try {
       const url = `${this.baseUrl}/users/search?q=${encodeURIComponent(searchTerm)}&exclude_user_id=${excludeUserId}`;
+      console.log('Calling search URL:', url);
+
       const response = await fetch(url);
+      console.log('Response status:', response.status);
+
       if (!response.ok) {
-        throw new Error('Error buscando usuarios');
+        const errorText = await response.text();
+        console.error('Backend error response:', errorText);
+        throw new Error(`Error buscando usuarios: ${response.status} - ${errorText}`);
       }
-      return await response.json();
+
+      const result = await response.json();
+      console.log('Search result:', result);
+      return result;
     } catch (error) {
       console.error('Error searching users:', error);
-      return { users: [] };
+      throw error; // Re-throw para que llegue al componente
     }
   }
 

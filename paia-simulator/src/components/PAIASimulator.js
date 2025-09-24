@@ -63,7 +63,9 @@ export default function PAIASimulator({ initialFlow }) {
   const [nodes, setNodes] = useState(() => {
     if (initialFlow && initialFlow.flow_data) {
       try {
-        const flowData = JSON.parse(initialFlow.flow_data);
+        const flowData = typeof initialFlow.flow_data === 'string'
+          ? JSON.parse(initialFlow.flow_data)
+          : initialFlow.flow_data;
         return flowData.nodes || initialNodes;
       } catch (err) {
         console.error('Error parsing flow data:', err);
@@ -75,7 +77,9 @@ export default function PAIASimulator({ initialFlow }) {
   const [edges, setEdges] = useState(() => {
     if (initialFlow && initialFlow.flow_data) {
       try {
-        const flowData = JSON.parse(initialFlow.flow_data);
+        const flowData = typeof initialFlow.flow_data === 'string'
+          ? JSON.parse(initialFlow.flow_data)
+          : initialFlow.flow_data;
         return flowData.edges || initialEdges;
       } catch (err) {
         console.error('Error parsing flow data:', err);
@@ -88,7 +92,7 @@ export default function PAIASimulator({ initialFlow }) {
   const [scenarioDesc, setScenarioDesc] = useState(() => initialFlow?.description || '');
   const [showGuide, setShowGuide] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
-  const [useBackend, setUseBackend] = useState(false);
+  const [useBackend, setUseBackend] = useState(true);
   const [activeTelegramNodes, setActiveTelegramNodes] = useState(new Set());
   const [showConnectUserModal, setShowConnectUserModal] = useState(false);
   const [showSaveFlow, setShowSaveFlow] = useState(false);
@@ -99,6 +103,11 @@ export default function PAIASimulator({ initialFlow }) {
   // Sistema multi-usuario - usar ID de sesión de NextAuth
   const userId = session?.user?.id || 'anonymous';
   const [publicAgents, setPublicAgents] = useState([]);
+
+  // Auto-guardado de flujos
+  const [currentFlowId, setCurrentFlowId] = useState(initialFlow?.id || null);
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
+  const [lastSaved, setLastSaved] = useState(null);
   
   // Chat states
   const [showCreateAgent, setShowCreateAgent] = useState(false);
@@ -454,6 +463,68 @@ export default function PAIASimulator({ initialFlow }) {
       throw error;
     }
   }, [userId, nodes, edges, scenarioName, scenarioDesc, addLogMessage, addDecisionMessage]);
+
+  // Auto-guardado de flujos
+  const autoSaveFlow = useCallback(async () => {
+    if (!autoSaveEnabled || !userId || userId === 'anonymous') return;
+    if (nodes.length === 0) return; // No guardar flujos vacíos
+
+    try {
+      const flowData = {
+        user_id: userId,
+        name: scenarioName || `Flujo ${new Date().toLocaleDateString()}`,
+        description: scenarioDesc || 'Auto-guardado',
+        is_public: false,
+        tags: ['auto-save'],
+        flow_data: {
+          nodes: nodes,
+          edges: edges,
+          scenario: {
+            name: scenarioName,
+            description: scenarioDesc
+          }
+        },
+        metadata: {
+          node_count: nodes.length,
+          edge_count: edges.length,
+          created_from: 'simulator-auto',
+          last_modified: new Date().toISOString()
+        }
+      };
+
+      const url = currentFlowId
+        ? `${process.env.NEXT_PUBLIC_API_URL}/api/flows/${currentFlowId}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/flows/save`;
+
+      const response = await fetch(url, {
+        method: currentFlowId ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(flowData)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (!currentFlowId) {
+          setCurrentFlowId(result.flow_id);
+        }
+        setLastSaved(new Date());
+        console.log('💾 Flujo auto-guardado');
+      }
+    } catch (error) {
+      console.error('Error en auto-guardado:', error);
+    }
+  }, [userId, nodes, edges, scenarioName, scenarioDesc, currentFlowId, autoSaveEnabled]);
+
+  // Debounced auto-save (esperar 3 segundos después del último cambio)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      autoSaveFlow();
+    }, 3000);
+
+    return () => clearTimeout(timeoutId);
+  }, [nodes, edges, scenarioName, scenarioDesc, autoSaveFlow]);
 
   // Función para mostrar configuración de Calendar
   const addCalendarNode = useCallback(() => {
@@ -919,10 +990,18 @@ export default function PAIASimulator({ initialFlow }) {
   }, []);
 
   // Función para ejecutar el flujo
-  const runFlow = useCallback(async () => {
+  const runFlow = useCallback(async (options = {}) => {
+    const { mode = 'once' } = options;
+
     if (nodes.length === 0 || edges.length === 0) {
       addLogMessage('❌ Necesitas tener al menos dos actores conectados para ejecutar el flujo');
       return;
+    }
+
+    if (mode === 'persistent') {
+      addLogMessage('🔄 Activando flujo en modo persistente (siempre activo)...');
+    } else {
+      addLogMessage('▶️ Ejecutando flujo una vez...');
     }
 
     // Verificar si hay nodos de Telegram y activarlos
@@ -949,6 +1028,28 @@ export default function PAIASimulator({ initialFlow }) {
       setIsRunning(true);
       addLogMessage('🚀 Flujo ejecutándose - Telegram activo y conectado...');
       return; // No ejecutar simulación tradicional si hay Telegram
+    }
+
+    // Marcar agentes como persistentes si es necesario
+    if (mode === 'persistent') {
+      const agentNodes = nodes.filter(n => n.type === 'agent');
+      for (const agentNode of agentNodes) {
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agents/${agentNode.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user_id: session?.user?.id,
+              is_persistent: true,
+              auto_start: true,
+              status: 'active'
+            })
+          });
+          addLogMessage(`🔄 Agente "${agentNode.data.label}" marcado como persistente`);
+        } catch (error) {
+          console.error('Error marcando agente como persistente:', error);
+        }
+      }
     }
 
     // Flujo tradicional (sin Telegram)

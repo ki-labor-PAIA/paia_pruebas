@@ -1,8 +1,8 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
-export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
+export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initialData }) {
   const { t } = useTranslation();
 
   const [formData, setFormData] = useState({
@@ -138,23 +138,23 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
                 padding: '10px 12px',
                 borderRadius: '6px',
                 border: '1px solid var(--border-color)',
-                background: 'rgba(255,255,255,0.05)',
+                background: 'rgba(174, 192, 176, 0.05)',
                 color: 'var(--text-primary)',
                 fontSize: '0.9em'
               }}
             >
-              <option value="Analítico">Analítico</option>
-              <option value="Creativo">Creativo</option>
-              <option value="Empático">Empático</option>
-              <option value="Pragmático">Pragmático</option>
-              <option value="Entusiasta">Entusiasta</option>
-              <option value="Metódico">Metódico</option>
-              <option value="Innovador">Innovador</option>
-              <option value="Colaborativo">Colaborativo</option>
-              <option value="Estratégico">Estratégico</option>
-              <option value="Aventurero">Aventurero</option>
-              <option value="Reflexivo">Reflexivo</option>
-              <option value="Dinámico">Dinámico</option>
+              <option value="Analítico" style={{ backgroundColor: "#1E2E57" }}>Analítico</option>
+              <option value="Creativo" style={{ backgroundColor: "#1E2E57" }}>Creativo</option>
+              <option value="Empático" style={{ backgroundColor: "#1E2E57" }}>Empático</option>
+              <option value="Pragmático" style={{ backgroundColor: "#1E2E57" }}>Pragmático</option>
+              <option value="Entusiasta" style={{ backgroundColor: "#1E2E57" }}>Entusiasta</option>
+              <option value="Metódico" style={{ backgroundColor: "#1E2E57" }}>Metódico</option>
+              <option value="Innovador" style={{ backgroundColor: "#1E2E57" }}>Innovador</option>
+              <option value="Colaborativo" style={{ backgroundColor: "#1E2E57" }}>Colaborativo</option>
+              <option value="Estratégico" style={{ backgroundColor: "#1E2E57" }}>Estratégico</option>
+              <option value="Aventurero" style={{ backgroundColor: "#1E2E57" }}>Aventurero</option>
+              <option value="Reflexivo" style={{ backgroundColor: "#1E2E57" }}>Reflexivo</option>
+              <option value="Dinámico" style={{ backgroundColor: "#1E2E57" }}>Dinámico</option>
             </select>
           </div>
           
@@ -182,12 +182,12 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
               }}
             >
 
-              <option value="general">{t('createAgent.expertiseAreas.general')}</option>
-              <option value="scheduling">{t('createAgent.expertiseAreas.scheduling')}</option>
-              <option value="travel">{t('createAgent.expertiseAreas.travel')}</option>
-              <option value="research">{t('createAgent.expertiseAreas.research')}</option>
-              <option value="creativity">{t('createAgent.expertiseAreas.creativity')}</option>
-              <option value="finance">{t('createAgent.expertiseAreas.finance')}</option>
+              <option value="general" style={{ backgroundColor: "#1E2E57" }}>{t('createAgent.expertiseAreas.general')}</option>
+              <option value="scheduling" style={{ backgroundColor: "#1E2E57" }}>{t('createAgent.expertiseAreas.scheduling')}</option>
+              <option value="travel" style={{ backgroundColor: "#1E2E57" }}>{t('createAgent.expertiseAreas.travel')}</option>
+              <option value="research" style={{ backgroundColor: "#1E2E57" }}>{t('createAgent.expertiseAreas.research')}</option>
+              <option value="creativity" style={{ backgroundColor: "#1E2E57" }}>{t('createAgent.expertiseAreas.creativity')}</option>
+              <option value="finance" style={{ backgroundColor: "#1E2E57" }}>{t('createAgent.expertiseAreas.finance')}</option>
 
             </select>
           </div>

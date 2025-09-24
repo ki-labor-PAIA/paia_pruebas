@@ -45,7 +45,7 @@ export default function FriendsPanel({ userId, isOpen, onClose }) {
 
   const handleRespondToRequest = async (connectionId, response) => {
     try {
-      await PAIAApi.respondToConnectionRequest(connectionId, response);
+      await PAIAApi.respondToConnectionRequest(connectionId, response, userId);
       loadConnections(); // Refresh lists after responding
     } catch (err) {
       console.error(`Error responding to request: ${err}`);

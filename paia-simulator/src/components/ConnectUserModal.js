@@ -101,10 +101,13 @@ export default function ConnectUserModal({
     setSearchLoading(true);
     setError('');
     try {
+      console.log('Buscando usuarios con query:', debouncedSearchQuery, 'currentUserId:', currentUserId);
       const response = await PAIAApi.searchUsers(debouncedSearchQuery, currentUserId);
+      console.log('Respuesta de búsqueda:', response);
       setSearchResults(response.users || []);
     } catch (err) {
-      setError('Error al buscar usuarios.');
+      console.error('Error en handleSearch:', err);
+      setError(`Error al buscar usuarios: ${err.message}`);
     } finally {
       setSearchLoading(false);
     }

@@ -99,6 +99,52 @@ export default function Library() {
     }
   };
 
+  const handleDeleteAgent = async (agentId) => {
+    if (!confirm('¿Estás seguro de que quieres eliminar este agente?')) return;
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agents/${agentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ user_id: session.user.id })
+      });
+
+      if (response.ok) {
+        await loadMyAgents(); // Recargar lista
+      } else {
+        const error = await response.json();
+        alert(`Error eliminando agente: ${error.detail}`);
+      }
+    } catch (error) {
+      alert(`Error eliminando agente: ${error.message}`);
+    }
+  };
+
+  const handleDeleteFlow = async (flowId) => {
+    if (!confirm('¿Estás seguro de que quieres eliminar este flujo?')) return;
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/flows/${flowId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ user_id: session.user.id })
+      });
+
+      if (response.ok) {
+        await loadMyFlows(); // Recargar lista
+      } else {
+        const error = await response.json();
+        alert(`Error eliminando flujo: ${error.detail}`);
+      }
+    } catch (error) {
+      alert(`Error eliminando flujo: ${error.message}`);
+    }
+  };
+
   const handleFlowStatusToggle = async (flowId, currentStatus) => {
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/flows/${flowId}/status`, {
@@ -668,19 +714,42 @@ export default function Library() {
                             {agent.description}
                           </p>
                         )}
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          {agent.is_public && (
-                            <span style={{
-                              background: 'rgba(16, 185, 129, 0.1)',
-                              color: '#10B981',
-                              padding: '4px 8px',
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginTop: '16px'
+                        }}>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            {agent.is_public && (
+                              <span style={{
+                                background: 'rgba(16, 185, 129, 0.1)',
+                                color: '#10B981',
+                                padding: '4px 8px',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                fontWeight: '500'
+                              }}>
+                                Público
+                              </span>
+                            )}
+                          </div>
+
+                          <button
+                            onClick={() => handleDeleteAgent(agent.id)}
+                            style={{
+                              background: 'transparent',
+                              color: '#EF4444',
+                              border: '1px solid #EF4444',
+                              padding: '6px 12px',
                               borderRadius: '6px',
+                              cursor: 'pointer',
                               fontSize: '12px',
                               fontWeight: '500'
-                            }}>
-                              Público
-                            </span>
-                          )}
+                            }}
+                          >
+                            🗑️ Eliminar
+                          </button>
                         </div>
                       </div>
                     ))}
