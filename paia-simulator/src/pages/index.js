@@ -237,6 +237,7 @@ export default function Home() {
                 onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
                 onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
               >
+                
                 🎮 Crear Flujo
               </button>
             </div>
@@ -257,7 +258,33 @@ export default function Home() {
                 onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
                 onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
               >
+                
                 📢 Notificaciones
+              </button>
+
+              <button
+                onClick={() => { 
+                  try { 
+                    localStorage.removeItem('paia_tutorial_seen_v1'); 
+                  } catch(e) {
+                    console.error('Error removing tutorial flag:', e);
+                  }
+                  location.reload(); 
+                }}
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  color: 'white',
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  transition: 'background 0.2s'
+                }}
+                onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
+                onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
+              >
+                🎓 Mostrar Tutorial
               </button>
 
               {/* Info del usuario */}
