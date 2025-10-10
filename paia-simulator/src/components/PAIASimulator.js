@@ -245,10 +245,9 @@ export default function PAIASimulator({ initialFlow }) {
         x: x ?? (100 + actorIdRef.current * 60), 
         y: y ?? (100 + actorIdRef.current * 30) 
       },
-      data: { 
+      data: {
         label: actorName,
         actorType: type,
-        emoji: type === 'human' ? '👤' : '🤖',
         agentColor: agentColor,
         // Mensaje personalizado para nodos humanos
         customMessage: type === 'human' ? 'Hola, necesito tu ayuda con una tarea.' : undefined
@@ -321,10 +320,9 @@ export default function PAIASimulator({ initialFlow }) {
         x: 100 + actorIdRef.current * 60, 
         y: 100 + actorIdRef.current * 30 
       },
-      data: { 
+      data: {
         label: agentConfig.name,
         actorType: 'ai',
-        emoji: agentConfig.isNotesNode ? '📒' : '🤖',
         personality: agentConfig.personality,
         expertise: agentConfig.expertise,
         description: agentConfig.description,
@@ -663,10 +661,9 @@ export default function PAIASimulator({ initialFlow }) {
         x: 100 + actorIdRef.current * 60, 
         y: 100 + actorIdRef.current * 30 
       },
-      data: { 
+      data: {
         label: publicAgent.name,
         actorType: 'ai',
-        emoji: '🌐', // Emoji diferente para agentes externos
         personality: publicAgent.personality,
         expertise: publicAgent.expertise,
         description: publicAgent.description,
@@ -873,10 +870,9 @@ export default function PAIASimulator({ initialFlow }) {
         id: actor.id,
         type: 'actor',
         position: actor.position,
-        data: { 
+        data: {
           label: actor.name,
-          actorType: actor.type,
-          emoji: actor.type === 'human' ? '👤' : '🤖'
+          actorType: actor.type
         },
         className: `react-flow__node-${actor.type}`,
       };
@@ -1039,7 +1035,7 @@ export default function PAIASimulator({ initialFlow }) {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              user_id: session?.user?.id,
+              user_id: userId,
               is_persistent: true,
               auto_start: true,
               status: 'active'
@@ -1174,7 +1170,7 @@ export default function PAIASimulator({ initialFlow }) {
       setIsRunning(false);
       addLogMessage('✅ Flujo completado');
     }
-  }, [nodes, edges, useBackend, isConnected, simulateWithBackend, addLogMessage, addDecisionMessage, animateEdge, addMessageToNodeHistory, activeTelegramNodes]);
+  }, [nodes, edges, useBackend, isConnected, userId, simulateWithBackend, addLogMessage, addDecisionMessage, animateEdge, addMessageToNodeHistory, activeTelegramNodes]);
 
   // Función para detener el flujo
   const stopFlow = useCallback(() => {

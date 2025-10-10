@@ -1,4 +1,18 @@
 import { useTranslation } from 'react-i18next';
+import {
+  Settings,
+  HelpCircle,
+  Save,
+  Link2,
+  Users,
+  Search,
+  UserPlus,
+  Bell,
+  Play,
+  Infinity,
+  Square,
+  RotateCcw
+} from 'lucide-react';
 
 export default function LeftSidebar({
   scenarioName,
@@ -20,14 +34,14 @@ export default function LeftSidebar({
   return (
     <div className="sidebar left">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2>⚙️ PAIA Builder</h2>
-        <button 
-          onClick={onShowGuide} 
-          className="discreet-button" 
-          style={{ width: 'auto', padding: '6px 8px' }} 
+        <h2><Settings size={20} /> PAIA Builder</h2>
+        <button
+          onClick={onShowGuide}
+          className="discreet-button"
+          style={{ width: 'auto', padding: '8px 10px' }}
           title="Mostrar guía"
         >
-          <i className="fas fa-question"></i>
+          <HelpCircle size={18} />
         </button>
       </div>
 
@@ -49,106 +63,67 @@ export default function LeftSidebar({
 
 
       <div className="button-group">
-        <div className="button-group-title">💾 Archivo</div>
-        <button onClick={onSaveFlow} className="discreet-button" style={{ 
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+        <div className="button-group-title">Archivo</div>
+        <button onClick={onSaveFlow} className="discreet-button" style={{
+          background: 'linear-gradient(135deg, #3e6ae1 0%, #2851c7 100%)',
           color: 'white',
           fontWeight: '600',
           border: 'none'
         }}>
-          <i className="fas fa-save"></i> Guardar Flujo
+          <Save size={16} /> Guardar Flujo
         </button>
       </div>
 
 
       <div className="button-group">
-        <div className="button-group-title">🔗 Conexiones</div>
-        <button 
-          onClick={onShowFriends} 
+        <div className="button-group-title">Conexiones</div>
+        <button
+          onClick={onShowFriends}
           className="discreet-button"
-          style={{ 
-            fontSize: '0.85em', 
-            fontWeight: '500',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '8px 12px',
-            width: '100%',
-            justifyContent: 'center',
-            marginBottom: '8px'
-          }}
         >
-          <i className="fas fa-users"></i> Amigos
+          <Users size={16} /> Amigos
         </button>
-        <button 
-          onClick={onConnectUser} 
+        <button
+          onClick={onConnectUser}
           className="discreet-button"
-          style={{ 
-            fontSize: '0.85em', 
-            fontWeight: '500',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '8px 12px',
-            width: '100%',
-            justifyContent: 'center'
-          }}
         >
-          <i className="fas fa-search"></i> Buscar Usuario
+          <Search size={16} /> Buscar Usuario
         </button>
-        <button 
-          onClick={() => onAddConnectionNode && onAddConnectionNode('user')} 
+        <button
+          onClick={() => onAddConnectionNode && onAddConnectionNode('user')}
           className="discreet-button"
-          style={{ 
-            fontSize: '0.85em', 
-            fontWeight: '500',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '8px 12px'
-          }}
         >
-          👤 Añadir Nodo Conexión
+          <UserPlus size={16} /> Añadir Nodo Conexión
         </button>
-        <button 
-          onClick={() => onAddConnectionNode && onAddConnectionNode('notification')} 
+        <button
+          onClick={() => onAddConnectionNode && onAddConnectionNode('notification')}
           className="discreet-button"
-          style={{ 
-            fontSize: '0.85em', 
-            fontWeight: '500',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '8px 12px'
-          }}
         >
-          📢 Notificaciones
+          <Bell size={16} /> Notificaciones
         </button>
       </div>
 
       <div className="button-group">
-        <div className="button-group-title">▶️ Ejecutar Flujo</div>
+        <div className="button-group-title">Ejecutar Flujo</div>
         {!isRunning ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <button
               onClick={() => onRun({ mode: 'once' })}
               className="discreet-button simulation-button"
-              style={{ fontSize: '0.9em', fontWeight: '600' }}
             >
-              <i className="fas fa-play"></i>
+              <Play size={16} />
               Run Once
             </button>
             <button
               onClick={() => onRun({ mode: 'persistent' })}
               className="discreet-button simulation-button"
               style={{
-                fontSize: '0.9em',
-                fontWeight: '600',
-                backgroundColor: '#10B981',
-                color: 'white'
+                backgroundColor: '#00d26a',
+                color: 'white',
+                border: 'none'
               }}
             >
-              <i className="fas fa-infinity"></i>
+              <Infinity size={16} />
               Keep Active
             </button>
           </div>
@@ -156,14 +131,14 @@ export default function LeftSidebar({
           <button
             onClick={onStop}
             className="discreet-button simulation-button"
-            style={{ fontSize: '0.9em', fontWeight: '600', backgroundColor: '#ef4444', color: 'white' }}
+            style={{ backgroundColor: '#ff453a', color: 'white', border: 'none' }}
           >
-            <i className="fas fa-stop"></i>
+            <Square size={16} />
             Stop
           </button>
         )}
         <button onClick={onReset} className="discreet-button reset-button">
-          <i className="fas fa-redo"></i> {t('nav.reset')}
+          <RotateCcw size={16} /> {t('nav.reset')}
         </button>
       </div>
     </div>

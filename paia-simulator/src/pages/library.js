@@ -1,6 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
+import {
+  Zap,
+  Bot,
+  Globe,
+  Link2,
+  Plus,
+  Edit,
+  Pause,
+  Play,
+  Trash2,
+  Library,
+  Users,
+  Bell,
+  CheckCircle
+} from 'lucide-react';
 import UserHeader from '@/components/UserHeader';
 import FriendsPanel from '@/components/FriendsPanel';
 import NotificationPanel from '@/components/NotificationPanel';
@@ -161,24 +176,6 @@ export default function Library() {
     }
   };
 
-  const handleDeleteFlow = async (flowId) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar este flujo?')) return;
-
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/flows/${flowId}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: session.user.id })
-      });
-
-      if (response.ok) {
-        await loadMyFlows(); // Recargar flujos
-      }
-    } catch (err) {
-      setError(`Error eliminando flujo: ${err.message}`);
-    }
-  };
-
   const navigateToSimulator = (flowId = null) => {
     const url = flowId ? `/simulator?flow=${flowId}` : '/simulator';
     router.push(url);
@@ -236,7 +233,9 @@ export default function Library() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold' }}>📚 PAIA Biblioteca</h1>
+            <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Library size={28} /> PAIA Biblioteca
+            </h1>
             <button
               onClick={() => navigateToSimulator()}
               style={{
@@ -252,7 +251,7 @@ export default function Library() {
               onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
               onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
             >
-              🎮 Ir al Simulador
+              <Zap size={14} style={{ marginRight: '4px' }} /> Ir al Simulador
             </button>
           </div>
         </div>
@@ -274,7 +273,7 @@ export default function Library() {
             onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
             onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
           >
-            📢 Notificaciones
+            <Bell size={14} style={{ marginRight: '4px' }} /> Notificaciones
           </button>
 
           <button
@@ -292,7 +291,7 @@ export default function Library() {
             onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
             onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
           >
-            👥 Conectar Amigos
+            <Users size={14} style={{ marginRight: '4px' }} /> Conectar Amigos
           </button>
 
           {/* Info del usuario */}
@@ -332,11 +331,13 @@ export default function Library() {
           paddingBottom: '10px'
         }}>
           {[
-            { key: 'flows', label: '⚡ Mis Flujos', count: myFlows.length },
-            { key: 'agents', label: '🤖 Mis Agentes', count: myAgents.length },
-            { key: 'active-flows', label: '🌐 Flujos Activos de Amigos', count: friendsActiveFlows.length },
-            { key: 'public-agents', label: '🔗 Agentes Públicos', count: publicAgents.length }
-          ].map(tab => (
+            { key: 'flows', label: 'Mis Flujos', icon: Zap, count: myFlows.length },
+            { key: 'agents', label: 'Mis Agentes', icon: Bot, count: myAgents.length },
+            { key: 'active-flows', label: 'Flujos Activos de Amigos', icon: Globe, count: friendsActiveFlows.length },
+            { key: 'public-agents', label: 'Agentes Públicos', icon: Link2, count: publicAgents.length }
+          ].map(tab => {
+            const IconComponent = tab.icon;
+            return (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
@@ -355,6 +356,7 @@ export default function Library() {
                 gap: '8px'
               }}
             >
+              <IconComponent size={16} />
               {tab.label}
               {tab.count > 0 && (
                 <span style={{
@@ -369,7 +371,8 @@ export default function Library() {
                 </span>
               )}
             </button>
-          ))}
+          );
+          })}
         </div>
 
         {/* Contenido de pestañas */}
@@ -402,8 +405,8 @@ export default function Library() {
                   alignItems: 'center',
                   marginBottom: '20px'
                 }}>
-                  <h2 style={{ fontSize: '20px', fontWeight: '600', margin: 0 }}>
-                    ⚡ Mis Flujos Guardados
+                  <h2 style={{ fontSize: '20px', fontWeight: '600', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Zap size={20} /> Mis Flujos Guardados
                   </h2>
                   <button
                     onClick={() => navigateToSimulator()}
@@ -418,7 +421,7 @@ export default function Library() {
                       fontWeight: '500'
                     }}
                   >
-                    ➕ Crear Nuevo Flujo
+                    <Plus size={16} /> Crear Nuevo Flujo
                   </button>
                 </div>
 
@@ -430,7 +433,7 @@ export default function Library() {
                     borderRadius: '12px',
                     border: '1px solid var(--border-color)'
                   }}>
-                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚡</div>
+                    <div style={{ marginBottom: '16px' }}><Zap size={48} strokeWidth={1.5} /></div>
                     <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
                       No tienes flujos guardados
                     </h3>
@@ -450,7 +453,7 @@ export default function Library() {
                         fontWeight: '500'
                       }}
                     >
-                      🎮 Crear Mi Primer Flujo
+                      <Zap size={16} /> Crear Mi Primer Flujo
                     </button>
                   </div>
                 ) : (
@@ -572,7 +575,7 @@ export default function Library() {
                                 fontWeight: '500'
                               }}
                             >
-                              📝 Editar
+                              <Edit size={14} /> Editar
                             </button>
                             <button
                               onClick={() => handleFlowStatusToggle(flow.id, flow.is_active)}
@@ -587,7 +590,7 @@ export default function Library() {
                                 fontWeight: '500'
                               }}
                             >
-                              {flow.is_active ? '⏸️ Pausar' : '▶️ Activar'}
+                              {flow.is_active ? <><Pause size={14} /> Pausar</> : <><Play size={14} /> Activar</>}
                             </button>
                           </div>
                           
@@ -604,7 +607,7 @@ export default function Library() {
                               fontWeight: '500'
                             }}
                           >
-                            🗑️ Eliminar
+                            <Trash2 size={14} /> Eliminar
                           </button>
                         </div>
 
@@ -633,8 +636,8 @@ export default function Library() {
                   alignItems: 'center',
                   marginBottom: '20px'
                 }}>
-                  <h2 style={{ fontSize: '20px', fontWeight: '600', margin: 0 }}>
-                    🤖 Mis Agentes Creados
+                  <h2 style={{ fontSize: '20px', fontWeight: '600', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Bot size={20} /> Mis Agentes Creados
                   </h2>
                   <button
                     onClick={() => setShowCreateAgent(true)}
@@ -649,7 +652,7 @@ export default function Library() {
                       fontWeight: '500'
                     }}
                   >
-                    ➕ Crear Nuevo Agente
+                    <Plus size={16} /> Crear Nuevo Agente
                   </button>
                 </div>
 
@@ -661,7 +664,7 @@ export default function Library() {
                     borderRadius: '12px',
                     border: '1px solid var(--border-color)'
                   }}>
-                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>🤖</div>
+                    <div style={{ marginBottom: '16px' }}><Bot size={48} strokeWidth={1.5} /></div>
                     <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
                       No tienes agentes creados
                     </h3>
@@ -681,7 +684,7 @@ export default function Library() {
                         fontWeight: '500'
                       }}
                     >
-                      🎭 Crear Mi Primer Agente
+                      <Bot size={16} /> Crear Mi Primer Agente
                     </button>
                   </div>
                 ) : (
@@ -700,8 +703,8 @@ export default function Library() {
                           padding: '20px'
                         }}
                       >
-                        <h3 style={{ fontSize: '16px', fontWeight: '600', margin: '0 0 8px 0' }}>
-                          🤖 {agent.name}
+                        <h3 style={{ fontSize: '16px', fontWeight: '600', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Bot size={16} /> {agent.name}
                         </h3>
                         <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: '0 0 12px 0' }}>
                           <strong>Personalidad:</strong> {agent.personality}
@@ -748,7 +751,7 @@ export default function Library() {
                               fontWeight: '500'
                             }}
                           >
-                            🗑️ Eliminar
+                            <Trash2 size={14} /> Eliminar
                           </button>
                         </div>
                       </div>
@@ -761,8 +764,8 @@ export default function Library() {
             {/* Pestaña: Flujos Activos de Amigos */}
             {activeTab === 'active-flows' && (
               <div>
-                <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '20px' }}>
-                  🌐 Flujos Activos de Amigos
+                <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Globe size={20} /> Flujos Activos de Amigos
                 </h2>
 
                 {friendsActiveFlows.length === 0 ? (
@@ -773,7 +776,7 @@ export default function Library() {
                     borderRadius: '12px',
                     border: '1px solid var(--border-color)'
                   }}>
-                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>🌐</div>
+                    <div style={{ marginBottom: '16px' }}><Globe size={48} strokeWidth={1.5} /></div>
                     <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
                       No hay flujos activos de amigos
                     </h3>
@@ -845,8 +848,8 @@ export default function Library() {
             {/* Pestaña: Agentes Públicos */}
             {activeTab === 'public-agents' && (
               <div>
-                <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '20px' }}>
-                  🔗 Agentes Públicos de Amigos
+                <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Link2 size={20} /> Agentes Públicos de Amigos
                 </h2>
 
                 {publicAgents.length === 0 ? (
@@ -857,7 +860,7 @@ export default function Library() {
                     borderRadius: '12px',
                     border: '1px solid var(--border-color)'
                   }}>
-                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔗</div>
+                    <div style={{ marginBottom: '16px' }}><Link2 size={48} strokeWidth={1.5} /></div>
                     <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
                       No hay agentes públicos disponibles
                     </h3>
@@ -888,8 +891,8 @@ export default function Library() {
                           </span>
                         </div>
                         
-                        <h3 style={{ fontSize: '16px', fontWeight: '600', margin: '0 0 8px 0' }}>
-                          🌐 {agent.name}
+                        <h3 style={{ fontSize: '16px', fontWeight: '600', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Globe size={16} /> {agent.name}
                         </h3>
                         
                         <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: '0 0 8px 0' }}>
@@ -918,7 +921,7 @@ export default function Library() {
                             width: '100%'
                           }}
                         >
-                          ➕ Usar en Flujo
+                          <Plus size={14} /> Usar en Flujo
                         </button>
                       </div>
                     ))}

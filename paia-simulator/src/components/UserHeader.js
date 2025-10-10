@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import Image from 'next/image'
+import { Library, Bell, Users, Send, LogOut } from 'lucide-react'
 import TelegramPanel from './TelegramPanel'
 import NotificationPanel from './NotificationPanel'
 import FriendsPanel from './FriendsPanel'
@@ -82,12 +83,15 @@ export default function UserHeader() {
             cursor: 'pointer',
             fontSize: '14px',
             transition: 'background 0.2s',
-            marginRight: '10px'
+            marginRight: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
           }}
           onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
           onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
         >
-          📚 Biblioteca
+          <Library size={16} /> Biblioteca
         </button>
 
         <button
@@ -102,12 +106,15 @@ export default function UserHeader() {
             fontSize: '14px',
             transition: 'background 0.2s',
             marginRight: '10px',
-            position: 'relative'
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
           }}
           onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
           onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
         >
-          📢 Notificaciones
+          <Bell size={16} /> Notificaciones
           {/* Badge de notificaciones no leídas - TODO: conectar con API */}
           <span style={{
             position: 'absolute',
@@ -124,7 +131,7 @@ export default function UserHeader() {
             !
           </span>
         </button>
-        
+
         <button
           onClick={() => setShowFriends(!showFriends)}
           style={{
@@ -136,14 +143,17 @@ export default function UserHeader() {
             cursor: 'pointer',
             fontSize: '14px',
             transition: 'background 0.2s',
-            marginRight: '10px'
+            marginRight: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
           }}
           onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
           onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
         >
-          👥 Amigos
+          <Users size={16} /> Amigos
         </button>
-        
+
         <button
           onClick={() => setShowTelegramPanel(true)}
           style={{
@@ -155,14 +165,17 @@ export default function UserHeader() {
             cursor: 'pointer',
             fontSize: '14px',
             transition: 'background 0.2s',
-            marginRight: '10px'
+            marginRight: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
           }}
           onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
           onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
         >
-          📱 Telegram
+          <Send size={16} /> Telegram
         </button>
-        
+
         <button
           onClick={() => signOut()}
           style={{
@@ -173,12 +186,15 @@ export default function UserHeader() {
             borderRadius: '6px',
             cursor: 'pointer',
             fontSize: '14px',
-            transition: 'background 0.2s'
+            transition: 'background 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
           }}
           onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
           onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
         >
-          Cerrar Sesión
+          <LogOut size={16} /> Cerrar Sesión
         </button>
       </div>
       

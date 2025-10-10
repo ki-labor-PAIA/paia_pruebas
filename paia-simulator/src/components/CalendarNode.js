@@ -1,5 +1,6 @@
 import { Handle, Position } from 'reactflow';
 import { useState } from 'react';
+import { Calendar, Check } from 'lucide-react';
 
 export default function CalendarNode({ data, isConnectable }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -104,17 +105,18 @@ export default function CalendarNode({ data, isConnectable }) {
         style={{ background: '#1557b0', top: -8, borderRadius: '50%', border: '2px solid white' }}
       />
       
-      <div style={{ fontSize: '24px', marginBottom: '4px' }}>
-        📅
+      <div style={{ marginBottom: '8px', opacity: 0.9 }}>
+        <Calendar size={28} strokeWidth={2} color="white" />
       </div>
-      
-      <div style={{ 
-        fontSize: '12px', 
+
+      <div style={{
+        fontSize: '11px',
         textAlign: 'center',
         color: 'white',
         fontWeight: '500',
         maxWidth: '80px',
-        wordWrap: 'break-word'
+        wordWrap: 'break-word',
+        letterSpacing: '-0.01em'
       }}>
         {data.label}
       </div>
@@ -122,20 +124,19 @@ export default function CalendarNode({ data, isConnectable }) {
       {/* Indicador de configurado */}
       <div style={{
         position: 'absolute',
-        top: '-8px',
-        right: '-8px',
-        width: '16px',
-        height: '16px',
+        top: '-6px',
+        right: '-6px',
+        width: '18px',
+        height: '18px',
         background: '#10b981',
         borderRadius: '50%',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: '8px',
         color: 'white',
-        fontWeight: 'bold'
+        border: '2px solid var(--dark-bg)'
       }}>
-        ✓
+        <Check size={12} strokeWidth={3} />
       </div>
 
       {/* Tooltip con información */}

@@ -1,6 +1,15 @@
-
 import { useTranslation } from 'react-i18next';
-
+import {
+  User,
+  Bot,
+  Settings,
+  Send,
+  Calendar,
+  FileText,
+  RefreshCw,
+  MessageCircle,
+  Globe
+} from 'lucide-react';
 
 export default function RightSidebar({ 
   onAddActor, 
@@ -22,26 +31,26 @@ export default function RightSidebar({
       <div className="button-group">
         <div className="button-group-title">{t('rightSidebar.addActors')}</div>
         <button onClick={() => onAddActor('human')} className="discreet-button">
-          <i className="fas fa-user"></i> {t('rightSidebar.simpleHuman')}
+          <User size={16} /> {t('rightSidebar.simpleHuman')}
         </button>
         <button onClick={() => onAddActor('ai')} className="discreet-button">
-          <i className="fas fa-robot"></i> {t('rightSidebar.simpleAI')}
+          <Bot size={16} /> {t('rightSidebar.simpleAI')}
         </button>
-        <button onClick={onCreateAgent} className="discreet-button" style={{ background: 'var(--primary-color) !important', color: 'white !important' }}>
-          <i className="fas fa-cog"></i> {t('rightSidebar.createPAIAAgent')}
+        <button onClick={onCreateAgent} className="discreet-button" style={{ background: 'var(--primary-color) !important', color: 'white !important', border: 'none' }}>
+          <Settings size={16} /> {t('rightSidebar.createPAIAAgent')}
         </button>
       </div>
 
       <div className="button-group">
-        <div className="button-group-title">🔧 Herramientas</div>
-        <button onClick={onAddTelegram} className="discreet-button" style={{ background: '#0088cc', color: 'white' }}>
-          <i className="fas fa-paper-plane"></i> Telegram
+        <div className="button-group-title">Herramientas</div>
+        <button onClick={onAddTelegram} className="discreet-button" style={{ background: '#0088cc', color: 'white', border: 'none' }}>
+          <Send size={16} /> Telegram
         </button>
-        <button onClick={onAddCalendar} className="discreet-button" style={{ background: '#4285f4', color: 'white' }}>
-          <i className="fas fa-calendar"></i> Google Calendar
+        <button onClick={onAddCalendar} className="discreet-button" style={{ background: '#4285f4', color: 'white', border: 'none' }}>
+          <Calendar size={16} /> Google Calendar
         </button>
         <button onClick={() => onCreateAgent({ isNotesNode: true })} className="discreet-button">
-          📒 Crear Nodo de Notas
+          <FileText size={16} /> Crear Nodo de Notas
         </button>
       </div>
 
@@ -55,12 +64,12 @@ export default function RightSidebar({
       {isBackendConnected && (
         <div className="button-group">
           <div className="button-group-title">{t('rightSidebar.publicAgents')}</div>
-          <button 
+          <button
             onClick={onLoadPublicAgents}
             className="discreet-button"
             style={{ marginBottom: '10px' }}
           >
-            {t('rightSidebar.loadAvailableAgents')}
+            <RefreshCw size={16} /> {t('rightSidebar.loadAvailableAgents')}
           </button>
           
           {publicAgents.length > 0 && (
@@ -113,7 +122,7 @@ export default function RightSidebar({
       )}
 
       <div className="button-group">
-        <div className="button-group-title">💬 Chat</div>
+        <div className="button-group-title">Chat</div>
         <div style={{ fontSize: '0.8em', color: 'var(--text-secondary)', marginBottom: '10px' }}>
           Chatear con agentes y humanos
         </div>
@@ -124,7 +133,7 @@ export default function RightSidebar({
                 key={node.id}
                 onClick={() => onChatWithAgent(node.id)}
                 className="discreet-button"
-                style={{ 
+                style={{
                   marginBottom: '6px',
                   padding: '8px 10px !important',
                   fontSize: '0.8em',
@@ -132,18 +141,20 @@ export default function RightSidebar({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
+                  gap: '8px',
                   ...(node.data.isExternal && {
-                    border: '1px dashed #6c5ce7',
-                    background: 'rgba(108, 92, 231, 0.05)'
+                    border: '1px dashed var(--primary-color)',
+                    background: 'rgba(62, 106, 225, 0.05)'
                   }),
                   ...(node.data.actorType === 'human' && {
-                    border: '1px solid #f59e0b',
-                    background: 'rgba(245, 158, 11, 0.1)'
+                    border: '1px solid var(--warning-color)',
+                    background: 'rgba(255, 159, 10, 0.05)'
                   })
                 }}
               >
-                <span>
-                  {node.data.emoji} {node.data.label}
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {node.data.isExternal ? <Globe size={14} /> : node.data.actorType === 'human' ? <User size={14} /> : <Bot size={14} />}
+                  {node.data.label}
                 </span>
                 <span style={{ fontSize: '0.7em', color: 'var(--text-secondary)' }}>
                   {node.data.isExternal && t('rightSidebar.external')}
@@ -154,19 +165,18 @@ export default function RightSidebar({
             ))}
           </div>
         ) : (
-          <div style={{ 
-            fontSize: '0.8em', 
-            color: 'var(--text-secondary)', 
-            fontStyle: 'italic',
+          <div style={{
+            fontSize: '0.8em',
+            color: 'var(--text-secondary)',
             textAlign: 'center',
-            padding: '16px 8px',
+            padding: '24px 16px',
             background: 'rgba(255,255,255,0.02)',
             borderRadius: '6px',
             border: '1px dashed var(--border-color)'
           }}>
-            <div style={{ marginBottom: '8px', fontSize: '1.5em' }}>💬</div>
+            <MessageCircle size={24} style={{ marginBottom: '8px', opacity: 0.5 }} />
             <div>Crea agentes para comenzar a chatear</div>
-            <div style={{ fontSize: '0.7em', marginTop: '4px' }}>
+            <div style={{ fontSize: '0.7em', marginTop: '4px', opacity: 0.7 }}>
               Podrás chatear con agentes IA y humanos
             </div>
           </div>

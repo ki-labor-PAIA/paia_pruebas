@@ -1,5 +1,6 @@
 import { Handle, Position } from 'reactflow';
 import { useState } from 'react';
+import { User, Bot, Check, MessageSquare } from 'lucide-react';
 
 export default function ActorNode({ data, isConnectable }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -72,40 +73,46 @@ export default function ActorNode({ data, isConnectable }) {
   }
 
   return (
-    <div 
+    <div
       onDoubleClick={handleDoubleClick}
       style={{
-        padding: '15px',
+        padding: '16px',
         background: data.agentColor || 'inherit',
-        borderRadius: '12px',
-        minWidth: '80px',
-        minHeight: '80px',
+        borderRadius: '8px',
+        minWidth: '90px',
+        minHeight: '90px',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         cursor: 'pointer',
-        position: 'relative'
+        position: 'relative',
+        transition: 'all 0.2s ease'
       }}
     >
       <Handle
         type="target"
         position={Position.Top}
         isConnectable={isConnectable}
-        style={{ background: '#555' }}
+        style={{ background: 'var(--text-secondary)', width: '8px', height: '8px' }}
       />
-      
-      <div style={{ fontSize: '24px', marginBottom: '4px' }}>
-        {data.emoji}
+
+      <div style={{ marginBottom: '8px', opacity: 0.9 }}>
+        {data.actorType === 'human' ? (
+          <User size={28} strokeWidth={2} />
+        ) : (
+          <Bot size={28} strokeWidth={2} />
+        )}
       </div>
-      
-      <div style={{ 
-        fontSize: '12px', 
+
+      <div style={{
+        fontSize: '11px',
         textAlign: 'center',
         color: 'white',
         fontWeight: '500',
-        maxWidth: '70px',
-        wordWrap: 'break-word'
+        maxWidth: '80px',
+        wordWrap: 'break-word',
+        letterSpacing: '-0.01em'
       }}>
         {data.label}
       </div>
@@ -114,20 +121,19 @@ export default function ActorNode({ data, isConnectable }) {
       {(data.personality || data.expertise) && (
         <div style={{
           position: 'absolute',
-          top: '-8px',
-          right: '-8px',
-          width: '16px',
-          height: '16px',
+          top: '-6px',
+          right: '-6px',
+          width: '18px',
+          height: '18px',
           background: 'var(--success-color)',
           borderRadius: '50%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '8px',
           color: 'white',
-          fontWeight: 'bold'
+          border: '2px solid var(--dark-bg)'
         }}>
-          ✓
+          <Check size={12} strokeWidth={3} />
         </div>
       )}
 
@@ -135,20 +141,19 @@ export default function ActorNode({ data, isConnectable }) {
       {data.actorType === 'human' && data.customMessage && (
         <div style={{
           position: 'absolute',
-          top: '-8px',
-          left: '-8px',
-          width: '16px',
-          height: '16px',
+          top: '-6px',
+          left: '-6px',
+          width: '18px',
+          height: '18px',
           background: 'var(--warning-color)',
           borderRadius: '50%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '8px',
           color: 'white',
-          fontWeight: 'bold'
+          border: '2px solid var(--dark-bg)'
         }}>
-          💬
+          <MessageSquare size={10} strokeWidth={2.5} />
         </div>
       )}
 
@@ -184,7 +189,14 @@ export default function ActorNode({ data, isConnectable }) {
         position={Position.Bottom}
         id="actor-output"
         isConnectable={isConnectable}
-        style={{ background: '#555', bottom: -8, borderRadius: '50%', border: '2px solid white' }}
+        style={{
+          background: 'var(--text-secondary)',
+          bottom: -8,
+          borderRadius: '50%',
+          border: '2px solid var(--dark-bg)',
+          width: '8px',
+          height: '8px'
+        }}
       />
     </div>
   );
