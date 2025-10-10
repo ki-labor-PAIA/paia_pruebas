@@ -9,9 +9,10 @@ export default function LeftSidebar({
   onPresetChange,
   onImport,
   onExport,
-  onSimulate,
+  onRun,
+  onStop,
   onReset,
-  isSimulating,
+  isRunning,
   onShowGuide,
   useBackend,
   setUseBackend,
@@ -207,16 +208,26 @@ export default function LeftSidebar({
       </div>
 
       <div className="button-group">
-        <div className="button-group-title">▶️ {t('nav.simulate')}</div>
-        <button 
-          onClick={onSimulate} 
-          className="discreet-button simulation-button"
-          disabled={isSimulating}
-          style={{ fontSize: '0.9em', fontWeight: '600' }}
-        >
-          <i className={`fas ${isSimulating ? 'fa-spinner fa-spin' : 'fa-play'}`}></i> 
-          {isSimulating ? t('status.simulating') : t('nav.simulate')}
-        </button>
+        <div className="button-group-title">▶️ Ejecutar Flujo</div>
+        {!isRunning ? (
+          <button 
+            onClick={onRun} 
+            className="discreet-button simulation-button"
+            style={{ fontSize: '0.9em', fontWeight: '600' }}
+          >
+            <i className="fas fa-play"></i> 
+            Run
+          </button>
+        ) : (
+          <button 
+            onClick={onStop} 
+            className="discreet-button simulation-button"
+            style={{ fontSize: '0.9em', fontWeight: '600', backgroundColor: '#ef4444', color: 'white' }}
+          >
+            <i className="fas fa-stop"></i> 
+            Stop
+          </button>
+        )}
         <button onClick={onReset} className="discreet-button reset-button">
           <i className="fas fa-redo"></i> {t('nav.reset')}
         </button>
