@@ -6,6 +6,7 @@ import { Library, Bell, Users, Send, LogOut } from 'lucide-react'
 import TelegramPanel from './TelegramPanel'
 import NotificationPanel from './NotificationPanel'
 import FriendsPanel from './FriendsPanel'
+import LanguageSelector from './LanguageSelector'
 
 export default function UserHeader() {
   const { data: session } = useSession()
@@ -175,6 +176,8 @@ export default function UserHeader() {
         >
           <Send size={16} /> Telegram
         </button>
+
+        <LanguageSelector />
 
         <button
           onClick={() => signOut()}

@@ -6,6 +6,7 @@ import AuthGuard from '@/components/AuthGuard';
 import NotificationPanel from '@/components/NotificationPanel';
 import ConnectUserModal from '@/components/ConnectUserModal';
 import CreateAgentModal from '@/components/CreateAgentModal';
+import LanguageSelector from '@/components/LanguageSelector';
 
 export default function Home() {
   const { data: session, status } = useSession();
@@ -259,6 +260,8 @@ export default function Home() {
               >
                 📢 Notificaciones
               </button>
+
+              <LanguageSelector />
 
               {/* Info del usuario */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

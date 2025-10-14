@@ -224,27 +224,27 @@ class PAIAAgentManager:
 
 IMPORTANTE: Tu user ID es: {user_id}
 
-🔧 HERRAMIENTAS DISPONIBLES:
+ HERRAMIENTAS DISPONIBLES:
 
-📅 CALENDARIO:
+ CALENDARIO:
 - Usa las herramientas de Google Calendar directamente: list-calendars, list-events, list-today-events, create-event
 - La autenticación del usuario se maneja automáticamente
 
-🤖 COMUNICACIÓN INTELIGENTE:
+ COMUNICACIÓN INTELIGENTE:
 - Para enviar un mensaje a una PERSONA: usa send_notification_to_user(user_name, message, priority)
 - Para hacer PREGUNTAS INTELIGENTES a otro agente: usa ask_connected_agent(target_agent_id, question, context)
 
-📢 EJEMPLOS DE USO:
+ EJEMPLOS DE USO:
 - "Dile a Mari que la espero mañana a las 7" → send_notification_to_user("Mari", "Te espero mañana a las 7", "normal")
 - "Pregúntale al agente 'agent-xyz' si su usuario está libre mañana a las 7" → ask_connected_agent("agent-xyz", "¿Estás disponible mañana a las 7pm?", "Para una reunión de trabajo")
 
-🎯 COMPORTAMIENTO:
+ COMPORTAMIENTO:
 - Sé PROACTIVO: Si mencionan calendario o disponibilidad, usa las herramientas automáticamente
 - Para consultas de disponibilidad, siempre usa ask_connected_agent() - el otro agente consultará su calendario
 - Para mensajes simples, usa send_notification_to_user()
 - Siempre confirma qué acción realizaste
 
-📝 NOTAS PERSONALES:
+ NOTAS PERSONALES:
 - Para guardar información importante: usa save_note(title, content, tags)
 - Para buscar en tus notas: usa search_notes(query)
 
@@ -296,7 +296,7 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
                 target_chat_id = chat_id or (agent.telegram_chat_id if agent else TELEGRAM_DEFAULT_CHAT_ID)
                 
                 if not target_chat_id or target_chat_id == "TU_CHAT_ID_AQUI":
-                    return "❌ Error: Chat ID de Telegram no configurado. Usa set_telegram_chat_id() primero."
+                    return " Error: Chat ID de Telegram no configurado. Usa set_telegram_chat_id() primero."
                 
                 # Agregar contexto del agente al mensaje
                 agent_name = agent.name if agent else "Agente PAIA"
@@ -305,12 +305,12 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
                 result = telegram_service.send_message(target_chat_id, formatted_message)
                 
                 if result['success']:
-                    return f"✅ Mensaje enviado exitosamente por Telegram al chat {target_chat_id}"
+                    return f" Mensaje enviado exitosamente por Telegram al chat {target_chat_id}"
                 else:
-                    return f"❌ Error enviando por Telegram: {result['message']}"
+                    return f" Error enviando por Telegram: {result['message']}"
                     
             except Exception as e:
-                return f"❌ Error en Telegram: {str(e)}"
+                return f" Error en Telegram: {str(e)}"
         
         @tool
         def send_telegram_notification(title: str, content: str, priority: str = "normal") -> str:
@@ -330,7 +330,7 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
                 chat_id = agent.telegram_chat_id if agent else TELEGRAM_DEFAULT_CHAT_ID
                 
                 if not chat_id or chat_id == "TU_CHAT_ID_AQUI":
-                    return "❌ Error: Chat ID de Telegram no configurado"
+                    return " Error: Chat ID de Telegram no configurado"
                 
                 # Formatear según prioridad
                 priority_emojis = {
@@ -348,12 +348,12 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
                 result = telegram_service.send_message(chat_id, formatted_message, parse_mode="HTML")
                 
                 if result['success']:
-                    return f"✅ Notificación enviada por Telegram (Prioridad: {priority})"
+                    return f" Notificación enviada por Telegram (Prioridad: {priority})"
                 else:
-                    return f"❌ Error: {result['message']}"
+                    return f" Error: {result['message']}"
                     
             except Exception as e:
-                return f"❌ Error enviando notificación: {str(e)}"
+                return f" Error enviando notificación: {str(e)}"
         
         @tool
         def set_telegram_chat_id(chat_id: str) -> str:
@@ -370,11 +370,11 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
                 agent = agents_store.get(agent_id)
                 if agent:
                     agent.telegram_chat_id = chat_id
-                    return f"✅ Chat ID de Telegram configurado: {chat_id}"
+                    return f" Chat ID de Telegram configurado: {chat_id}"
                 else:
-                    return "❌ Error: Agente no encontrado"
+                    return " Error: Agente no encontrado"
             except Exception as e:
-                return f"❌ Error configurando Chat ID: {str(e)}"
+                return f" Error configurando Chat ID: {str(e)}"
         
         @tool
         def get_telegram_updates() -> str:
@@ -404,7 +404,7 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
                 return "Últimos mensajes de Telegram:\n" + "\n".join(messages_info)
                 
             except Exception as e:
-                return f"❌ Error obteniendo updates: {str(e)}"
+                return f" Error obteniendo updates: {str(e)}"
         
         # =============== HERRAMIENTAS EXISTENTES DE COMUNICACIÓN ===============
         @tool
@@ -442,7 +442,7 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
                 users = await db_manager.search_users(user_name, exclude_user_id=agent_id, limit=5)
 
                 if not users:
-                    return f"❌ No se encontró usuario '{user_name}'"
+                    return f" No se encontró usuario '{user_name}'"
 
                 target_user = users[0]  # Tomar el primer resultado
 
@@ -459,13 +459,13 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
                 # También enviar por Telegram si está configurado
                 sender_agent = agents_store.get(agent_id)
                 if sender_agent and sender_agent.telegram_chat_id:
-                    telegram_msg = f"📧 Mensaje enviado a {target_user['name']}:\n\n{message}"
+                    telegram_msg = f" Mensaje enviado a {target_user['name']}:\n\n{message}"
                     telegram_service.send_message(sender_agent.telegram_chat_id, telegram_msg)
 
-                return f"✅ Notificación enviada a {target_user['name']} ({target_user['email']})"
+                return f" Notificación enviada a {target_user['name']} ({target_user['email']})"
 
             except Exception as e:
-                return f"❌ Error enviando notificación: {str(e)}"
+                return f" Error enviando notificación: {str(e)}"
 
         @tool
         async def ask_connected_agent(target_agent_id: str, question: str, context: str = "") -> str:
@@ -491,7 +491,7 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
                     # Buscar el agente en la base de datos
                     db_agent = await db_manager.get_agent(target_agent_id)
                     if not db_agent:
-                        return f"❌ El agente con ID '{target_agent_id}' no existe en el sistema."
+                        return f" El agente con ID '{target_agent_id}' no existe en el sistema."
 
                     # Intentar cargar el agente con su user_id
                     target_agent = await ensure_agent_loaded(target_agent_id, db_agent.user_id)
@@ -499,16 +499,16 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
                     if target_agent:
                         # Marcar como activo y log de activación
                         await db_manager.update_agent(target_agent_id, {"status": "online"})
-                        print(f"[AUTO-WAKE] ✅ Agente '{db_agent.name}' (usuario: {db_agent.user_id}) activado automáticamente")
+                        print(f"[AUTO-WAKE]  Agente '{db_agent.name}' (usuario: {db_agent.user_id}) activado automáticamente")
 
                         # Agregar un pequeño delay para asegurar que el agente esté completamente inicializado
                         import asyncio
                         await asyncio.sleep(0.5)
                     else:
-                        return f"❌ No se pudo activar el agente '{target_agent_id}'. El usuario propietario podría no estar disponible."
+                        return f" No se pudo activar el agente '{target_agent_id}'. El usuario propietario podría no estar disponible."
 
                 if not target_agent:
-                    return f"⏳ El agente con ID '{target_agent_id}' no está disponible en este momento."
+                    return f" El agente con ID '{target_agent_id}' no está disponible en este momento."
 
                 # Construir mensaje inteligente
                 sender_agent = agents_store.get(agent_id)
@@ -520,7 +520,7 @@ Contexto adicional: {context}
 
 Por favor responde de manera útil y directa. Si la pregunta es sobre disponibilidad o calendario, consulta el calendario de tu usuario ({target_agent.user_id}) usando las herramientas disponibles."""
 
-                print(f"[INTER-PAIA] 🤖 {sender_name} preguntando a {target_agent.name}: '{question[:50]}{'...' if len(question) > 50 else ''}'")
+                print(f"[INTER-PAIA]  {sender_name} preguntando a {target_agent.name}: '{question[:50]}{'...' if len(question) > 50 else ''}'")
 
                 # Enviar mensaje al agente objetivo
                 try:
@@ -529,11 +529,11 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
                     })
 
                     response_content = response["messages"][-1].content
-                    print(f"[INTER-PAIA] ✅ {target_agent.name} respondió exitosamente ({len(response_content)} caracteres)")
+                    print(f"[INTER-PAIA]  {target_agent.name} respondió exitosamente ({len(response_content)} caracteres)")
 
                 except Exception as llm_error:
-                    print(f"[INTER-PAIA] ❌ Error en LLM del agente {target_agent.name}: {str(llm_error)}")
-                    return f"❌ Error procesando consulta en el agente {target_agent.name}. Por favor intenta más tarde."
+                    print(f"[INTER-PAIA]  Error en LLM del agente {target_agent.name}: {str(llm_error)}")
+                    return f" Error procesando consulta en el agente {target_agent.name}. Por favor intenta más tarde."
 
                 # Guardar la conversación en BD
                 try:
@@ -553,10 +553,10 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
                         'content': response_content,
                         'message_type': 'intelligent_response'
                     })
-                    print(f"[INTER-PAIA] 💾 Conversación guardada en BD: {conversation_id}")
+                    print(f"[INTER-PAIA]  Conversación guardada en BD: {conversation_id}")
 
                 except Exception as db_error:
-                    print(f"[INTER-PAIA] ⚠️ Error guardando conversación en BD: {str(db_error)}")
+                    print(f"[INTER-PAIA]  Error guardando conversación en BD: {str(db_error)}")
                     # No fallar la función solo porque no se pudo guardar en BD
 
                 # Obtener datos del usuario del agente para un mensaje más claro
@@ -566,12 +566,12 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
                 except Exception:
                     user_name_info = ""
 
-                print(f"[INTER-PAIA] 🎯 Consulta inter-PAIA completada exitosamente")
-                return f"🤖 {target_agent.name}{user_name_info} responde:\n\n{response_content}"
+                print(f"[INTER-PAIA]  Consulta inter-PAIA completada exitosamente")
+                return f" {target_agent.name}{user_name_info} responde:\n\n{response_content}"
 
             except Exception as e:
-                print(f"[INTER-PAIA] 💥 Error general en ask_connected_agent: {str(e)}")
-                return f"❌ Error inesperado consultando agente '{target_agent_id}': {str(e)}"
+                print(f"[INTER-PAIA]  Error general en ask_connected_agent: {str(e)}")
+                return f" Error inesperado consultando agente '{target_agent_id}': {str(e)}"
 
         @tool
         async def send_message_to_agent(target_agent_id: str, message: str, notify_telegram: bool = False) -> str:
@@ -624,13 +624,13 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
                 # Si se pidió notificar por Telegram
                 if notify_telegram:
                     sender_agent = agents_store.get(sender_id)
-                    telegram_msg = f"💬 Conversación entre agentes:\n\n{sender_agent.name} → {target_agent_name}:\n{message}\n\n{response}"
+                    telegram_msg = f" Conversación entre agentes:\n\n{sender_agent.name} → {target_agent_name}:\n{message}\n\n{response}"
                     telegram_service.send_message(
                         sender_agent.telegram_chat_id if sender_agent else TELEGRAM_DEFAULT_CHAT_ID,
                         telegram_msg
                     )
                 
-                return f"✓ Mensaje enviado a {target_agent_name}.\n🤖 {response}"
+                return f"✓ Mensaje enviado a {target_agent_name}.\n {response}"
                 
             except Exception as e:
                 return f"Error enviando mensaje: {str(e)}"
@@ -755,7 +755,7 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
                 if telegram_reminder:
                     agent = agents_store.get(agent_id)
                     if agent and agent.telegram_chat_id:
-                        telegram_msg = f"📅 Recordatorio de reunión:\n{title}\n📆 {date}\n👥 {', '.join(participants)}"
+                        telegram_msg = f" Recordatorio de reunión:\n{title}\n📆 {date}\n👥 {', '.join(participants)}"
                         telegram_service.send_message(agent.telegram_chat_id, telegram_msg)
                         result += " (Recordatorio enviado por Telegram)"
                 
@@ -772,7 +772,7 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
                 if send_confirmation:
                     agent = agents_store.get(agent_id)
                     if agent and agent.telegram_chat_id:
-                        telegram_msg = f"✈️ Confirmación de vuelo:\n{from_city} → {to_city}\n📅 {date}"
+                        telegram_msg = f" Confirmación de vuelo:\n{from_city} → {to_city}\n {date}"
                         telegram_service.send_message(agent.telegram_chat_id, telegram_msg)
                         result += " (Confirmación enviada por Telegram)"
 
@@ -1031,17 +1031,17 @@ async def ensure_agent_loaded(agent_id: str, user_id: str = None):
 
 IMPORTANTE: Tu user ID es: {db_agent.user_id}
 
-🔧 HERRAMIENTAS DISPONIBLES:
+ HERRAMIENTAS DISPONIBLES:
 
-📅 CALENDARIO:
+ CALENDARIO:
 - Usa las herramientas de Google Calendar directamente: list-calendars, list-events, list-today-events, create-event
 - La autenticación del usuario se maneja automáticamente
 
-🤖 COMUNICACIÓN INTELIGENTE:
+ COMUNICACIÓN INTELIGENTE:
 - Para enviar un mensaje a una PERSONA: usa send_notification_to_user(user_name, message, priority)
 - Para hacer PREGUNTAS INTELIGENTES a otro agente: usa ask_connected_agent(target_agent_id, question, context)
 
-🎯 COMPORTAMIENTO:
+ COMPORTAMIENTO:
 - Sé PROACTIVO: Si mencionan calendario o disponibilidad, usa las herramientas automáticamente
 - Para consultas de disponibilidad, siempre usa ask_connected_agent()
 - Para mensajes simples, usa send_notification_to_user()
@@ -1444,7 +1444,7 @@ async def configure_agent_telegram(agent_id: str, config_data: dict):
         if agent.telegram_chat_id:
             telegram_service.send_message(
                 agent.telegram_chat_id,
-                f"✅ {agent.name} configurado exitosamente para este chat de Telegram"
+                f" {agent.name} configurado exitosamente para este chat de Telegram"
             )
         
         return {
@@ -1470,7 +1470,7 @@ async def send_message_between_agents_endpoint(from_agent_id: str, to_agent_id: 
         if message_data.get('notify_telegram', False):
             from_agent = agents_store[from_agent_id]
             to_agent = agents_store[to_agent_id]
-            telegram_msg = f"💬 {from_agent.name} → {to_agent.name}:\n{message_data['message']}\n\n{response}"
+            telegram_msg = f" {from_agent.name} → {to_agent.name}:\n{message_data['message']}\n\n{response}"
             telegram_service.send_message(
                 from_agent.telegram_chat_id or TELEGRAM_DEFAULT_CHAT_ID,
                 telegram_msg
@@ -1571,7 +1571,7 @@ async def websocket_endpoint(websocket: WebSocket, agent_id: str):
                     long_term = memory_manager.get_long_term_memories(agent_id)
                     if long_term:
                         resumen = ", ".join([f"{k}: {v}" for k, v in long_term.items()])
-                        context.insert(0, HumanMessage(content=f"🧠 Preferencias del usuario: {resumen}"))
+                        context.insert(0, HumanMessage(content=f" Preferencias del usuario: {resumen}"))
 
                     response = await agent.llm_instance.ainvoke({"messages": context})
                     response_content = response["messages"][-1].content
@@ -1692,17 +1692,17 @@ async def auto_connect_friend_agents(user1_id: str, user2_id: str) -> dict:
                                              (conn.agent1 == agent2.id and conn.agent2 == agent1.id)]
 
                     if existing_connections:
-                        print(f"[AUTO-CONNECT] ⚠️ Conexión ya existe entre {agent1.name} y {agent2.name}")
+                        print(f"[AUTO-CONNECT]  Conexión ya existe entre {agent1.name} y {agent2.name}")
                         continue
 
                     # Crear la conexión
                     connection = await agent_manager.connect_agents(agent1.id, agent2.id, "friend_auto")
                     connections_created += 1
 
-                    print(f"[AUTO-CONNECT] ✅ Conectados '{agent1.name}' (usuario {user1_id}) ↔ '{agent2.name}' (usuario {user2_id})")
+                    print(f"[AUTO-CONNECT]  Conectados '{agent1.name}' (usuario {user1_id}) ↔ '{agent2.name}' (usuario {user2_id})")
 
                 except Exception as conn_error:
-                    print(f"[AUTO-CONNECT] ❌ Error conectando {agent1.name} ↔ {agent2.name}: {conn_error}")
+                    print(f"[AUTO-CONNECT]  Error conectando {agent1.name} ↔ {agent2.name}: {conn_error}")
                     connections_failed += 1
 
         result = {
@@ -1716,7 +1716,7 @@ async def auto_connect_friend_agents(user1_id: str, user2_id: str) -> dict:
         return result
 
     except Exception as e:
-        print(f"[AUTO-CONNECT] 💥 Error general en auto_connect_friend_agents: {str(e)}")
+        print(f"[AUTO-CONNECT]  Error general en auto_connect_friend_agents: {str(e)}")
         return {"error": str(e), "connections_created": 0}
 
 @app.post("/api/users/connect/auto-link-agents")
@@ -1970,7 +1970,7 @@ async def respond_to_connection_request(response_data: dict):
             try:
                 await auto_connect_friend_agents(connection['requester_id'], connection['recipient_id'])
             except Exception as auto_connect_error:
-                print(f"[AUTO-CONNECT] ⚠️ Error auto-conectando agentes de amigos: {auto_connect_error}")
+                print(f"[AUTO-CONNECT]  Error auto-conectando agentes de amigos: {auto_connect_error}")
 
         # Crear notificación para el solicitante
         requester_notification_content = (
@@ -2192,7 +2192,7 @@ async def health_check():
 
 
 if __name__ == "__main__":
-    print("Iniciando PAIA Platform Backend con Telegram Integration...")
+    print("Iniciando PAIA Platform Backend...")
     print("")
     
     uvicorn.run(
@@ -2201,5 +2201,3 @@ if __name__ == "__main__":
         port=8000,
         log_level="info"
     )
-    
-    

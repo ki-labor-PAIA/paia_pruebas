@@ -9,12 +9,17 @@ i18n
   .use(initReactI18next)
   .init({
     debug: false,
-    fallbackLng: 'en',
+    fallbackLng: 'es',
+    supportedLngs: ['en', 'es', 'fr'],
+    load: 'languageOnly',
     interpolation: {
-      escapeValue: false, // not needed for react as it escapes by default
+      escapeValue: false,
     },
     backend: {
       loadPath: '/locales/{{lng}}.json',
+    },
+    react: {
+      useSuspense: false, // Disable suspense to avoid hydration issues
     },
   });
 
