@@ -39,7 +39,7 @@ export default function LeftSidebar({
           onClick={onShowGuide}
           className="discreet-button"
           style={{ width: 'auto', padding: '8px 10px' }}
-          title="Mostrar guía"
+          title={t('leftSidebar.showGuide')}
         >
           <HelpCircle size={18} />
         </button>
@@ -63,48 +63,48 @@ export default function LeftSidebar({
 
 
       <div className="button-group">
-        <div className="button-group-title">Archivo</div>
+        <div className="button-group-title">{t('leftSidebar.file')}</div>
         <button onClick={onSaveFlow} className="discreet-button" style={{
           background: 'linear-gradient(135deg, #3e6ae1 0%, #2851c7 100%)',
           color: 'white',
           fontWeight: '600',
           border: 'none'
         }}>
-          <Save size={16} /> Guardar Flujo
+          <Save size={16} /> {t('nav.saveFlow')}
         </button>
       </div>
 
 
       <div className="button-group">
-        <div className="button-group-title">Conexiones</div>
+        <div className="button-group-title">{t('leftSidebar.connections')}</div>
         <button
           onClick={onShowFriends}
           className="discreet-button"
         >
-          <Users size={16} /> Amigos
+          <Users size={16} /> {t('leftSidebar.friends')}
         </button>
         <button
           onClick={onConnectUser}
           className="discreet-button"
         >
-          <Search size={16} /> Buscar Usuario
+          <Search size={16} /> {t('leftSidebar.searchUser')}
         </button>
         <button
           onClick={() => onAddConnectionNode && onAddConnectionNode('user')}
           className="discreet-button"
         >
-          <UserPlus size={16} /> Añadir Nodo Conexión
+          <UserPlus size={16} /> {t('leftSidebar.addConnectionNode')}
         </button>
         <button
           onClick={() => onAddConnectionNode && onAddConnectionNode('notification')}
           className="discreet-button"
         >
-          <Bell size={16} /> Notificaciones
+          <Bell size={16} /> {t('leftSidebar.notifications')}
         </button>
       </div>
 
       <div className="button-group">
-        <div className="button-group-title">Ejecutar Flujo</div>
+        <div className="button-group-title">{t('leftSidebar.runFlow')}</div>
         {!isRunning ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <button
@@ -112,7 +112,7 @@ export default function LeftSidebar({
               className="discreet-button simulation-button"
             >
               <Play size={16} />
-              Run Once
+              {t('leftSidebar.runOnce')}
             </button>
             <button
               onClick={() => onRun({ mode: 'persistent' })}
@@ -124,7 +124,7 @@ export default function LeftSidebar({
               }}
             >
               <Infinity size={16} />
-              Keep Active
+              {t('leftSidebar.keepActive')}
             </button>
           </div>
         ) : (
@@ -134,7 +134,7 @@ export default function LeftSidebar({
             style={{ backgroundColor: '#ff453a', color: 'white', border: 'none' }}
           >
             <Square size={16} />
-            Stop
+            {t('nav.stop')}
           </button>
         )}
         <button onClick={onReset} className="discreet-button reset-button">
