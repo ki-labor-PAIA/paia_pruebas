@@ -4,11 +4,17 @@
     "description": "Interfaz Profesional de Constructor PAIA"
   },
   "nav": {
-    "simulate": "Simular", 
+    "simulate": "Simular",
     "reset": "Reiniciar",
     "export": "Exportar",
     "import": "Importar",
-    "guide": "Mostrar Guía"
+    "guide": "Mostrar Guía",
+    "run": "Ejecutar",
+    "stop": "Detener",
+    "runPersistent": "Ejecutar Persistente",
+    "saveFlow": "Guardar Flujo",
+    "connectUser": "Conectar Usuario",
+    "showFriends": "Mostrar Amigos"
   },
   "scenarios": {
     "choose": "Elegir escenario...",
@@ -31,11 +37,40 @@
       "scenarioDescription": "Descripción del escenario..."
     }
   },
+  "leftSidebar": {
+    "title": "Panel de Control",
+    "scenario": "Escenario",
+    "scenarioName": "Nombre",
+    "scenarioDescription": "Descripción",
+    "loadPreset": "Cargar Predefinido",
+    "actions": "Acciones",
+    "backend": "Backend",
+    "useBackend": "Usar PAIA Backend",
+    "backendConnected": "Backend conectado",
+    "backendDisconnected": "Backend desconectado",
+    "checkConnection": "Verificar Conexión",
+    "social": "Social",
+    "autoSave": "Auto-guardado activado",
+    "lastSaved": "Último guardado",
+    "file": "Archivo",
+    "connections": "Conexiones",
+    "friends": "Amigos",
+    "searchUser": "Buscar Usuario",
+    "addConnectionNode": "Añadir Nodo Conexión",
+    "notifications": "Notificaciones",
+    "runFlow": "Ejecutar Flujo",
+    "runOnce": "Ejecutar Una Vez",
+    "keepActive": "Mantener Activo",
+    "showGuide": "Mostrar Guía"
+  },
   "rightSidebar": {
     "addActors": "Agregar Actores",
     "simpleHuman": "Humano Simple",
     "simpleAI": "IA Simple",
     "createPAIAAgent": "Crear Agente PAIA",
+    "addTelegram": "Agregar Telegram",
+    "addCalendar": "Agregar Calendario",
+    "addConnection": "Agregar Conexión",
     "connections": "Conexiones",
     "dragToConnect": "Arrastra desde un nodo a otro para conectarlos",
     "publicAgents": "Agentes Públicos",
@@ -46,7 +81,9 @@
     "external": "(externo)",
     "you": "(tú)",
     "ai": "(IA)",
-    "loadAgentsToConnect": "Carga agentes para conectar con otros usuarios"
+    "human": "(humano)",
+    "loadAgentsToConnect": "Carga agentes para conectar con otros usuarios",
+    "noAgentsAvailable": "No hay agentes públicos disponibles"
   },
   "stats": {
     "title": "📊 Estadísticas",
@@ -59,12 +96,23 @@
     "system": "Sistema",
     "paiaOf": "PAIA de {{name}}"
   },
+  "log": {
+    "title": "📝 Registro",
+    "clear": "Limpiar",
+    "noMessages": "No hay mensajes aún"
+  },
   "language": {
-    "english": "Idioma"
+    "selector": "Idioma",
+    "english": "Inglés",
+    "spanish": "Español",
+    "french": "Francés"
   },
   "status": {
     "simulating": "Simulando...",
-    "waiting": "En espera..."
+    "waiting": "En espera...",
+    "running": "Ejecutando...",
+    "stopped": "Detenido",
+    "ready": "Listo para simular"
   },
   "createAgent": {
     "title": "Crear Nuevo Agente PAIA",
@@ -79,11 +127,21 @@
     "cancel": "Cancelar",
     "create": "Crear Agente",
     "nameRequired": "El nombre del agente es requerido",
+    "isNotesNode": "Nodo de Notas",
+    "notesNodeDescription": "Este agente tendrá acceso a tu sistema de notas",
     "personalities": {
-      "friendly": "Amigable",
-      "professional": "Profesional",
-      "creative": "Creativo",
-      "analytical": "Analítico"
+      "Analítico": "Analítico",
+      "Creativo": "Creativo",
+      "Empático": "Empático",
+      "Pragmático": "Pragmático",
+      "Entusiasta": "Entusiasta",
+      "Metódico": "Metódico",
+      "Innovador": "Innovador",
+      "Colaborativo": "Colaborativo",
+      "Estratégico": "Estratégico",
+      "Aventurero": "Aventurero",
+      "Reflexivo": "Reflexivo",
+      "Dinámico": "Dinámico"
     },
     "expertiseAreas": {
       "general": "Asistente General",
@@ -91,7 +149,120 @@
       "travel": "Viajes y Reservas",
       "research": "Investigación",
       "creativity": "Creatividad y Diseño",
-      "finance": "Finanzas"
+      "finance": "Finanzas",
+      "notes": "Gestión de Notas"
     }
+  },
+  "chat": {
+    "title": "Chat con Agente",
+    "placeholder": "Escribe tu mensaje...",
+    "send": "Enviar",
+    "typing": "El agente está escribiendo...",
+    "humanConfig": "Configurando {{name}}. Escribe el mensaje que este humano enviará durante la simulación.",
+    "humanConfigured": "Mensaje configurado para {{name}}. Durante la simulación, este humano dirá: \"{{message}}\"",
+    "currentMessage": "Mensaje actual: \"{{message}}\"",
+    "noMessage": "Sin mensaje configurado"
+  },
+  "guide": {
+    "title": "¡Bienvenido al Simulador PAIA!",
+    "close": "Cerrar",
+    "step1": {
+      "title": "1. Crear Actores",
+      "description": "Usa la barra lateral derecha para agregar humanos y agentes IA a tu simulación."
+    },
+    "step2": {
+      "title": "2. Conectarlos",
+      "description": "Arrastra desde un nodo a otro para crear conexiones y definir interacciones."
+    },
+    "step3": {
+      "title": "3. Configurar",
+      "description": "Haz clic en los agentes IA para configurar su personalidad, experiencia y comportamiento."
+    },
+    "step4": {
+      "title": "4. Ejecutar Simulación",
+      "description": "Usa el panel de control a la izquierda para ejecutar tu simulación y observar las interacciones."
+    },
+    "step5": {
+      "title": "5. Monitorear",
+      "description": "Revisa los paneles de registro y decisiones para ver qué está sucediendo en tiempo real."
+    }
+  },
+  "calendar": {
+    "title": "Configurar Google Calendar",
+    "name": "Nombre del Calendario",
+    "namePlaceholder": "Ej: Mi Calendario de Trabajo",
+    "authenticate": "Autenticar con Google",
+    "cancel": "Cancelar",
+    "save": "Agregar Calendario",
+    "authenticated": "Autenticado",
+    "notAuthenticated": "No Autenticado"
+  },
+  "connectUser": {
+    "title": "Conectar con Usuario",
+    "searchPlaceholder": "Buscar usuarios por email...",
+    "search": "Buscar",
+    "noUsers": "No se encontraron usuarios",
+    "connect": "Conectar",
+    "mode": {
+      "social": "Conexión Social",
+      "flow": "Conexión de Flujo"
+    }
+  },
+  "saveFlow": {
+    "title": "Guardar Flujo",
+    "name": "Nombre del Flujo *",
+    "namePlaceholder": "Ej: Mi Flujo de Servicio al Cliente",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Describe qué hace este flujo...",
+    "tags": "Etiquetas (separadas por comas)",
+    "tagsPlaceholder": "Ej: servicio-cliente, automatización",
+    "public": "Flujo Público",
+    "publicDescription": "Otros usuarios podrán ver y usar este flujo",
+    "cancel": "Cancelar",
+    "save": "Guardar Flujo",
+    "nameRequired": "El nombre del flujo es requerido"
+  },
+  "friends": {
+    "title": "Amigos y Conexiones",
+    "pending": "Solicitudes Pendientes",
+    "accepted": "Conexiones Aceptadas",
+    "noRequests": "No hay solicitudes pendientes",
+    "noConnections": "No hay conexiones aún",
+    "accept": "Aceptar",
+    "reject": "Rechazar"
+  },
+  "nodes": {
+    "human": "Humano",
+    "ai": "Agente IA",
+    "telegram": "Telegram",
+    "calendar": "Calendario",
+    "connection": "Conexión",
+    "flowConnection": "Conexión de Flujo",
+    "notification": "Notificación"
+  },
+  "messages": {
+    "systemReady": "Listo para simular",
+    "systemReset": "Sistema reiniciado",
+    "backendConnected": "🟢 Backend PAIA conectado",
+    "backendDisconnected": "🔴 Backend PAIA desconectado",
+    "agentCreated": "🤖 Agente {{name}} creado en el backend",
+    "agentCreatedLocal": "⚠️ Agente {{name}} creado solo localmente",
+    "connectionCreated": "🔗 Conexión creada en backend: {{source}} → {{target}}",
+    "flowRunning": "🚀 Ejecutando flujo...",
+    "flowCompleted": "✅ Flujo completado",
+    "flowStopped": "🛑 Flujo detenido - Telegram desconectado",
+    "telegramActive": "📱 Nodo Telegram agregado",
+    "calendarAdded": "📅 Nodo {{name}} agregado y configurado",
+    "connectionNodeAdded": "🔗 Nodo de {{type}} agregado",
+    "searchingUsers": "👥 Buscando usuarios para conexión social...",
+    "flowConnectionEstablished": "⚡ Conexión de flujo establecida con el agente {{name}}",
+    "requestSent": "✅ Solicitud enviada a {{name}} ({{email}})",
+    "agentsLoaded": "📡 Cargados {{count}} agentes públicos disponibles",
+    "externalAgentAdded": "🌐 Agente externo agregado: {{name}} (creado por {{userId}})",
+    "agentAlreadyInCanvas": "⚠️ El agente {{name}} ya está en el canvas",
+    "messageUpdated": "📝 Mensaje actualizado para {{name}}: \"{{message}}\"",
+    "humanSays": "👤→🤖 {{name}}: \"{{message}}\"",
+    "aiSays": "🤖→{{target}} {{name}}: \"{{message}}\"",
+    "needActors": "❌ Necesitas tener al menos dos actores conectados para ejecutar el flujo"
   }
 }

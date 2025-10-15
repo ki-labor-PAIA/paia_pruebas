@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Globe } from 'lucide-react';
 
-const Translator = ({ children }) => {
+export default function LanguageSelector() {
   const { i18n, t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -19,49 +20,46 @@ const Translator = ({ children }) => {
   const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[1];
 
   return (
-    <>
-      <div style={{
-        position: 'fixed',
-        top: '80px',
-        right: '20px',
-        zIndex: 10000,
-      }}>
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            background: 'rgba(255, 255, 255, 0.95)',
-            padding: '10px 16px',
-            borderRadius: '8px',
-            border: '1px solid rgba(0, 0, 0, 0.1)',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '500',
-            color: '#333',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
-          }}
-        >
-          <span style={{ fontSize: '18px' }}>{currentLanguage.flag}</span>
-          <span>{currentLanguage.label}</span>
-          <span style={{
-            fontSize: '12px',
-            transition: 'transform 0.2s ease',
-            transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-          }}>
-            ▼
-          </span>
-        </button>
+    <div style={{ position: 'relative' }}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          background: 'rgba(255,255,255,0.2)',
+          border: '1px solid rgba(255,255,255,0.3)',
+          color: 'white',
+          padding: '8px 16px',
+          borderRadius: '6px',
+          cursor: 'pointer',
+          fontSize: '14px',
+          transition: 'background 0.2s',
+          marginRight: '10px',
+        }}
+        onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
+        onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+      >
+        <Globe size={16} />
+        <span style={{ fontSize: '16px' }}>{currentLanguage.flag}</span>
+        <span>{currentLanguage.code.toUpperCase()}</span>
+      </button>
 
-        {isOpen && (
+      {isOpen && (
+        <>
+          {/* Overlay para cerrar cuando se hace click fuera */}
+          <div
+            onClick={() => setIsOpen(false)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 999,
+            }}
+          />
+
           <div style={{
             position: 'absolute',
             top: '100%',
@@ -73,6 +71,7 @@ const Translator = ({ children }) => {
             border: '1px solid rgba(0, 0, 0, 0.1)',
             overflow: 'hidden',
             minWidth: '160px',
+            zIndex: 1000,
           }}>
             {languages.map((lang) => (
               <button
@@ -114,11 +113,8 @@ const Translator = ({ children }) => {
               </button>
             ))}
           </div>
-        )}
-      </div>
-      {children}
-    </>
+        </>
+      )}
+    </div>
   );
-};
-
-export default Translator;
+}
