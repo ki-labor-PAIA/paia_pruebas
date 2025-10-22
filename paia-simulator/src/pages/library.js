@@ -11,7 +11,7 @@ import {
   Pause,
   Play,
   Trash2,
-  Library,
+  Library as LibraryIcon,
   Users,
   Bell,
   CheckCircle
@@ -234,7 +234,7 @@ export default function Library() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
             <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Library size={28} /> PAIA Biblioteca
+              <LibraryIcon size={28} /> PAIA Biblioteca
             </h1>
             <button
               onClick={() => navigateToSimulator()}

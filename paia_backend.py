@@ -107,7 +107,7 @@ async def on_startup():
     await load_persistent_agents()
 
 # Configuración
-os.environ["GOOGLE_API_KEY"] = "AIzaSyDrciW_INkcadba7Qu3VjaiSKsInO1VBCQ"
+os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY")
 
 app.add_middleware(
     CORSMiddleware,
