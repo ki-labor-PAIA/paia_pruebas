@@ -13,6 +13,7 @@ import RightSidebar from './RightSidebar';
 import StatsPanel from './StatsPanel';
 import DecisionsPanel from './DecisionsPanel';
 import LogPanel from './LogPanel';
+import NotesPanel from './NotesPanel';
 import GuideModal from './GuideModal';
 import ActorNode from './ActorNode';
 import TelegramNode from './TelegramNode';
@@ -102,9 +103,36 @@ export default function PAIASimulator({ initialFlow }) {
   
   // Chat states
   const [showCreateAgent, setShowCreateAgent] = useState(false);
+  const [initialAgentConfig, setInitialAgentConfig] = useState(null);
+
+  const handleAddNotesNode = () => {
+    setInitialAgentConfig({
+      name: 'Nodo de Notas',
+      expertise: 'notes',
+      is_capability_node: true,
+    });
+    setShowCreateAgent(true);
+  };
   const [showConfigureCalendar, setShowConfigureCalendar] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [activeChatAgent, setActiveChatAgent] = useState(null);
+  const [showNotesPanel, setShowNotesPanel] = useState(false);
+  const [activeNoteNode, setActiveNoteNode] = useState(null);
+
+  const addLogMessage = useCallback((message) => {
+    setLogMessages(prev => [...prev, message]);
+  }, []);
+
+  const openNotesPanel = useCallback((nodeId) => {
+    setActiveNoteNode(nodeId);
+    setShowNotesPanel(true);
+    addLogMessage(`📝 Abriendo panel de notas para el nodo ${nodeId}`);
+  }, [addLogMessage]);
+
+  const closeNotesPanel = useCallback(() => {
+    setShowNotesPanel(false);
+    setActiveNoteNode(null);
+  }, []);
   const [chatMessages, setChatMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
   
@@ -158,10 +186,6 @@ export default function PAIASimulator({ initialFlow }) {
     (changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
     []
   );
-
-  const addLogMessage = useCallback((message) => {
-    setLogMessages(prev => [...prev, message]);
-  }, []);
 
   const addDecisionMessage = useCallback((sender, message, isSystem = false) => {
     setDecisions(prev => [
@@ -1109,7 +1133,7 @@ export default function PAIASimulator({ initialFlow }) {
 
   // Definir nodeTypes con props
   const nodeTypes = useMemo(() => ({
-    actor: ActorNode,
+    actor: (props) => <ActorNode {...props} onOpenNotes={openNotesPanel} />,
     telegram: TelegramNode,
     calendar: (props) => <CalendarNode {...props} onRequestAuth={handleCalendarAuthRequest} />,
     connection: (props) => <ConnectionNode {...props} onConnectionClick={handleConnectionNodeClick} />,
@@ -1160,8 +1184,12 @@ export default function PAIASimulator({ initialFlow }) {
         onAddActor={addActor}
         onAddTelegram={addTelegramNode}
         onAddCalendar={addCalendarNode}
+        onAddNotesNode={handleAddNotesNode}
         onConnect={() => {}} // Connect functionality handled by ReactFlow
-        onCreateAgent={() => setShowCreateAgent(true)}
+        onCreateAgent={() => {
+          setInitialAgentConfig(null); // Asegurarse de que no hay config inicial
+          setShowCreateAgent(true);
+        }}
         onChatWithAgent={startChat}
         nodes={nodes}
         publicAgents={publicAgents}
@@ -1183,6 +1211,7 @@ export default function PAIASimulator({ initialFlow }) {
           isOpen={showCreateAgent}
           onClose={() => setShowCreateAgent(false)}
           onCreateAgent={createConfiguredAgent}
+          initialData={initialAgentConfig}
         />
       )}
 
@@ -1234,6 +1263,13 @@ export default function PAIASimulator({ initialFlow }) {
           isOpen={showFriendsPanel} 
           onClose={() => setShowFriendsPanel(false)} 
           userId={userId} 
+        />
+      )}
+
+      {showNotesPanel && (
+        <NotesPanel 
+          onClose={closeNotesPanel} 
+          activeNode={activeNoteNode} 
         />
       )}
       </div>

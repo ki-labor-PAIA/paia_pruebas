@@ -6,6 +6,7 @@ export default function RightSidebar({
   onAddActor, 
   onAddTelegram,
   onAddCalendar,
+  onAddNotesNode,
   onConnect, 
   onCreateAgent, 
   onChatWithAgent, 
@@ -40,7 +41,7 @@ export default function RightSidebar({
         <button onClick={onAddCalendar} className="discreet-button" style={{ background: '#4285f4', color: 'white' }}>
           <i className="fas fa-calendar"></i> Google Calendar
         </button>
-        <button onClick={() => onCreateAgent({ isNotesNode: true })} className="discreet-button">
+        <button onClick={onAddNotesNode} className="discreet-button">
           📒 Crear Nodo de Notas
         </button>
       </div>

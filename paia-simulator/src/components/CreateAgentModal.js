@@ -1,8 +1,8 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
-export default function CreateAgentModal({ isOpen, onClose, onCreateAgent }) {
+export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initialData }) {
   const { t } = useTranslation();
 
   const [formData, setFormData] = useState({

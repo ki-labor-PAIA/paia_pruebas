@@ -61,6 +61,16 @@ class DBNotification:
     read_at: Optional[datetime]
     dismissed_at: Optional[datetime]
 
+@dataclass
+class DBNote:
+    id: str
+    agent_id: str
+    title: str
+    content: str
+    tags: List[str]
+    created_at: datetime
+    updated_at: datetime
+
 class DatabaseManager:
     def __init__(self):
         self.client = supabase_client
@@ -76,8 +86,8 @@ class DatabaseManager:
             "user_id": agent_data["user_id"],
             "name": agent_data["name"],
             "description": agent_data.get("description", ""),
-            "personality": agent_data["personality"],
-            "expertise": agent_data["expertise"],
+            "personality": agent_data.get("personality", ""),
+            "expertise": agent_data.get("expertise", ""),
             "status": agent_data.get("status", "inactive"),
             "mcp_endpoint": agent_data.get("mcp_endpoint", ""),
             "is_public": agent_data.get("is_public", False),
@@ -320,4 +330,67 @@ class DatabaseManager:
             created_at=datetime.fromisoformat(data["created_at"].replace('Z', '+00:00')),
             read_at=datetime.fromisoformat(data["read_at"].replace('Z', '+00:00')) if data["read_at"] else None,
             dismissed_at=datetime.fromisoformat(data["dismissed_at"].replace('Z', '+00:00')) if data["dismissed_at"] else None
+        )
+
+    # =============== NOTES ===============
+    async def create_note(self, note_data: Dict) -> DBNote:
+        """Crear una nueva nota"""
+        note_id = str(uuid.uuid4())
+        now = datetime.utcnow()
+        
+        data = {
+            "id": note_id,
+            "agent_id": note_data["agent_id"],
+            "title": note_data["title"],
+            "content": note_data["content"],
+            "tags": note_data.get("tags", []),
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat()
+        }
+        
+        result = self.client.table("notes").insert(data).execute()
+        if result.data:
+            return self._dict_to_note(result.data[0])
+        raise Exception("Failed to create note")
+
+    async def get_note(self, note_id: str) -> Optional[DBNote]:
+        """Obtener una nota por ID"""
+        result = self.client.table("notes").select("*").eq("id", note_id).execute()
+        if result.data:
+            return self._dict_to_note(result.data[0])
+        return None
+
+    async def update_note(self, note_id: str, updates: Dict) -> bool:
+        """Actualizar una nota"""
+        updates["updated_at"] = datetime.utcnow().isoformat()
+        result = self.client.table("notes").update(updates).eq("id", note_id).execute()
+        return len(result.data) > 0
+
+    async def delete_note(self, note_id: str) -> bool:
+        """Eliminar una nota"""
+        result = self.client.table("notes").delete().eq("id", note_id).execute()
+        return len(result.data) > 0
+
+    async def list_notes(self, agent_id: str, query: Optional[str] = None) -> List[DBNote]:
+        """Listar notas de un agente, opcionalmente filtradas por query"""
+        base_query = self.client.table("notes").select("*").eq("agent_id", agent_id)
+        
+        if query:
+            # Supabase doesn't have a direct 'ILIKE' for arrays, so we'll do a simpler text search
+            # For more complex search, a full-text search solution would be needed
+            base_query = base_query.ilike("title", f"%{query}%").ilike("content", f"%{query}%")
+            
+        result = base_query.order("created_at", desc=True).execute()
+        return [self._dict_to_note(row) for row in result.data]
+
+    def _dict_to_note(self, data: Dict) -> DBNote:
+        """Convertir diccionario a DBNote"""
+        return DBNote(
+            id=data["id"],
+            agent_id=data["agent_id"],
+            title=data["title"],
+            content=data["content"],
+            tags=data["tags"],
+            created_at=datetime.fromisoformat(data["created_at"].replace('Z', '+00:00')),
+            updated_at=datetime.fromisoformat(data["updated_at"].replace('Z', '+00:00'))
         )

@@ -223,6 +223,7 @@ IMPORTANTE: Tu user ID es: {user_id}
 - Sé PROACTIVO: Si mencionan calendario o disponibilidad, usa las herramientas automáticamente
 - Para consultas de disponibilidad, siempre usa ask_connected_agent() - el otro agente consultará su calendario
 - Para mensajes simples, usa send_notification_to_user()
+- ANTES DE RESPONDER que no sabes algo, SIEMPRE busca en tus notas personales con la herramienta `search_notes` para ver si tienes información guardada sobre el tema.
 - Siempre confirma qué acción realizaste
 
 📝 NOTAS PERSONALES:
@@ -575,37 +576,78 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
                 return f"Error enviando mensaje: {str(e)}"
 
         # --- Herramientas de Notas Integradas ---
-        NOTES_FILE = "./mcp-notes/data/notes.jsonl"
-
-        def _get_notes():
-            if not os.path.exists(NOTES_FILE):
-                os.makedirs(os.path.dirname(NOTES_FILE), exist_ok=True)
-                return []
-            with open(NOTES_FILE, "r", encoding="utf-8") as f:
-                return [json.loads(line) for line in f if line.strip()]
-
-        def _save_notes(notes):
-            with open(NOTES_FILE, "w", encoding="utf-8") as f:
-                for note in notes:
-                    f.write(json.dumps(note) + "\n")
 
         @tool
-        def save_note(title: str, content: str, tags: List[str] = None) -> str:
+        async def save_note(title: str, content: str, tags: List[str] = None) -> str:
             """Guarda una nueva nota personal. Útil para recordar información."""
             try:
-                notes = _get_notes()
-                new_note = {
-                    "id": str(uuid.uuid4())[:8],
+                new_note = await db_manager.create_note({
+                    "agent_id": agent_id,
                     "title": title,
                     "content": content,
                     "tags": tags or [],
-                    "created_at": datetime.now().isoformat(),
-                }
-                notes.append(new_note)
-                _save_notes(notes)
-                return f"Nota guardada con éxito. ID: {new_note['id']}"
+                })
+                return f"Nota guardada con éxito. ID: {new_note.id}"
             except Exception as e:
                 return f"Error al guardar la nota: {e}"
+
+        @tool
+        async def get_note(note_id: str) -> str:
+            """Obtiene una nota personal por su ID."""
+            try:
+                note = await db_manager.get_note(note_id)
+                if note:
+                    tags = ", ".join(note.tags)
+                    return f"ID: {note.id}, Título: {note.title}, Contenido: {note.content}, Etiquetas: {tags}, Creada: {note.created_at.isoformat()}"
+                return "Nota no encontrada."
+            except Exception as e:
+                return f"Error al obtener la nota: {e}"
+
+        @tool
+        async def update_note(note_id: str, title: Optional[str] = None, content: Optional[str] = None, tags: Optional[List[str]] = None) -> str:
+            """Actualiza una nota personal existente por su ID."""
+            try:
+                updates = {}
+                if title: updates["title"] = title
+                if content: updates["content"] = content
+                if tags is not None: updates["tags"] = tags
+
+                if not updates:
+                    return "No se proporcionaron campos para actualizar."
+
+                success = await db_manager.update_note(note_id, updates)
+                if success:
+                    return f"Nota {note_id} actualizada con éxito."
+                return "Nota no encontrada o no se pudo actualizar."
+            except Exception as e:
+                return f"Error al actualizar la nota: {e}"
+
+        @tool
+        async def delete_note(note_id: str) -> str:
+            """Elimina una nota personal por su ID."""
+            try:
+                success = await db_manager.delete_note(note_id)
+                if success:
+                    return f"Nota {note_id} eliminada con éxito."
+                return "Nota no encontrada o no se pudo eliminar."
+            except Exception as e:
+                return f"Error al eliminar la nota: {e}"
+
+        @tool
+        async def list_notes(query: Optional[str] = None) -> str:
+            """Lista todas las notas personales de un agente, opcionalmente filtradas por una query."""
+            try:
+                notes = await db_manager.list_notes(agent_id, query)
+                if not notes:
+                    return "No se encontraron notas."
+                
+                formatted_notes = []
+                for note in notes:
+                    tags = ", ".join(note.tags)
+                    formatted_notes.append(f"- ID: {note.id}, Título: {note.title}, Etiquetas: {tags}")
+                return "Notas encontradas:\n" + "\n".join(formatted_notes)
+            except Exception as e:
+                return f"Error al listar notas: {e}"
 
         @tool
         async def get_agent_response(target_agent_id: str) -> str:
@@ -629,21 +671,20 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
                 return f"Error obteniendo respuesta: {str(e)}"
 
         @tool
-        def search_notes(query: str) -> str:
+        async def search_notes(query: str) -> str:
             """Busca en todas tus notas personales."""
-            notes = _get_notes()
-            results = [
-                note for note in notes
-                if query.lower() in note["title"].lower() or query.lower() in note["content"].lower()
-            ]
-            if not results:
-                return "No se encontraron notas con ese criterio."
+            try:
+                notes = await db_manager.list_notes(agent_id, query)
+                if not notes:
+                    return "No se encontraron notas con ese criterio."
 
-            formatted_results = []
-            for r in results:
-                tags = ", ".join(r.get('tags', []))
-                formatted_results.append(f"- ID: {r['id']}, Título: {r['title']}, Etiquetas: {tags}")
-            return "Notas encontradas:\n" + "\n".join(formatted_results)
+                formatted_results = []
+                for r in notes:
+                    tags = ", ".join(r.tags)
+                    formatted_results.append(f"- ID: {r.id}, Título: {r.title}, Etiquetas: {tags}")
+                return "Notas encontradas:\n" + "\n".join(formatted_results)
+            except Exception as e:
+                return f"Error al buscar notas: {e}"
 
         @tool
         def get_conversation_history(target_agent_id: str) -> str:
@@ -681,6 +722,10 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
             ask_connected_agent,
             # Herramientas de notas
             save_note,
+            get_note,
+            update_note,
+            delete_note,
+            list_notes,
             search_notes
         ]
 

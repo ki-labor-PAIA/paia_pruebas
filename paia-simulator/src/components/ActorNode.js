@@ -1,9 +1,15 @@
 import { Handle, Position } from 'reactflow';
 import { useState } from 'react';
 
-export default function ActorNode({ data, isConnectable }) {
+export default function ActorNode({ id, data, isConnectable, onOpenNotes }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(data.label);
+
+  const handleNodeClick = () => {
+    if (data.expertise === 'notes') {
+      onOpenNotes(id);
+    }
+  };
 
   const handleDoubleClick = () => {
     setIsEditing(true);
@@ -73,6 +79,7 @@ export default function ActorNode({ data, isConnectable }) {
 
   return (
     <div 
+      onClick={handleNodeClick}
       onDoubleClick={handleDoubleClick}
       style={{
         padding: '15px',

@@ -80,6 +80,66 @@ async function saveUserTokens(userId: string, tokens: any) {
   }
 }
 
+// --- Funciones para la Herramienta de Notas (con Supabase) ---
+
+async function createNote(userId: string, title: string, content: string, tags: string[] = []) {
+  const supabase = createServiceSupabase();
+  const { data, error } = await supabase
+    .from('notes')
+    .insert({ user_id: userId, title, content, tags })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+async function getNoteById(noteId: number, userId: string) {
+  const supabase = createServiceSupabase();
+  const { data, error } = await supabase
+    .from('notes')
+    .select('*')
+    .eq('id', noteId)
+    .eq('user_id', userId)
+    .single();
+  if (error && error.code !== 'PGRST116') throw error; // PGRST116: no rows found
+  return data;
+}
+
+async function listNotesForUser(userId: string) {
+  const supabase = createServiceSupabase();
+  const { data, error } = await supabase
+    .from('notes')
+    .select('id, title, tags, created_at')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+async function updateNote(noteId: number, userId: string, updates: { title?: string; content?: string; tags?: string[] }) {
+  const supabase = createServiceSupabase();
+  const { data, error } = await supabase
+    .from('notes')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', noteId)
+    .eq('user_id', userId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+async function deleteNote(noteId: number, userId: string) {
+  const supabase = createServiceSupabase();
+  const { error, count } = await supabase
+    .from('notes')
+    .delete({ count: 'exact' })
+    .eq('id', noteId)
+    .eq('user_id', userId);
+  if (error) throw error;
+  return count > 0;
+}
+
 // Obtener servicio de Google Calendar
 async function getCalendarService(userId: string) {
   const tokens = await getUserTokens(userId);
@@ -741,6 +801,121 @@ function getServer(): McpServer {
           }],
           isError: true
         };
+      }
+    }
+  );
+
+  // --- Herramientas de Notas (con Supabase) ---
+
+  server.registerTool(
+    "create-note",
+    {
+      title: "Crear Nota",
+      description: "Crear una nueva nota personal",
+      inputSchema: {
+        userId: z.string().describe("ID del usuario que crea la nota"),
+        title: z.string().describe("Título de la nota"),
+        content: z.string().describe("Contenido de la nota"),
+        tags: z.array(z.string()).optional().describe("Lista de etiquetas para la nota")
+      }
+    },
+    async ({ userId, title, content, tags }) => {
+      try {
+        const note = await createNote(userId, title, content, tags);
+        return { content: [{ type: "text", text: `Nota creada con ID: ${note.id}` }] };
+      } catch (error) {
+        return { content: [{ type: "text", text: `Error al crear la nota: ${error.message}` }], isError: true };
+      }
+    }
+  );
+
+  server.registerTool(
+    "list-notes",
+    {
+      title: "Listar Notas",
+      description: "Listar todas las notas del usuario",
+      inputSchema: {
+        userId: z.string().describe("ID del usuario cuyas notas se listarán")
+      }
+    },
+    async ({ userId }) => {
+      try {
+        const notes = await listNotesForUser(userId);
+        const noteList = notes.map(n => `ID: ${n.id}, Título: ${n.title}`).join('\n');
+        return { content: [{ type: "text", text: `Tus notas:\n${noteList}` }] };
+      } catch (error) {
+        return { content: [{ type: "text", text: `Error al listar las notas: ${error.message}` }], isError: true };
+      }
+    }
+  );
+
+  server.registerTool(
+    "get-note",
+    {
+      title: "Obtener Nota",
+      description: "Obtener el contenido completo de una nota específica por su ID",
+      inputSchema: {
+        userId: z.string().describe("ID del usuario propietario de la nota"),
+        noteId: z.number().describe("ID de la nota a obtener")
+      }
+    },
+    async ({ userId, noteId }) => {
+      try {
+        const note = await getNoteById(noteId, userId);
+        if (!note) {
+          return { content: [{ type: "text", text: `No se encontró la nota con ID: ${noteId}` }], isError: true };
+        }
+        const noteDetails = `ID: ${note.id}\nTítulo: ${note.title}\nContenido: ${note.content}\nEtiquetas: ${note.tags.join(', ')}`;
+        return { content: [{ type: "text", text: noteDetails }] };
+      } catch (error) {
+        return { content: [{ type: "text", text: `Error al obtener la nota: ${error.message}` }], isError: true };
+      }
+    }
+  );
+
+  server.registerTool(
+    "update-note",
+    {
+      title: "Actualizar Nota",
+      description: "Actualizar el título, contenido o etiquetas de una nota existente",
+      inputSchema: {
+        userId: z.string().describe("ID del usuario propietario de la nota"),
+        noteId: z.number().describe("ID de la nota a actualizar"),
+        title: z.string().optional().describe("Nuevo título de la nota"),
+        content: z.string().optional().describe("Nuevo contenido de la nota"),
+        tags: z.array(z.string()).optional().describe("Nueva lista de etiquetas para la nota")
+      }
+    },
+    async ({ userId, noteId, title, content, tags }) => {
+      try {
+        const updatedNote = await updateNote(noteId, userId, { title, content, tags });
+        return { content: [{ type: "text", text: `Nota con ID: ${updatedNote.id} actualizada correctamente` }] };
+      } catch (error) {
+        return { content: [{ type: "text", text: `Error al actualizar la nota: ${error.message}` }], isError: true };
+      }
+    }
+  );
+
+  server.registerTool(
+    "delete-note",
+    {
+      title: "Eliminar Nota",
+      description: "Eliminar una nota por su ID",
+      inputSchema: {
+        userId: z.string().describe("ID del usuario propietario de la nota"),
+        noteId: z.number().describe("ID de la nota a eliminar")
+      }
+    },
+    async ({ userId, noteId }) => {
+      try {
+        const success = await deleteNote(noteId, userId);
+        if (success) {
+          return { content: [{ type: "text", text: `Nota con ID: ${noteId} eliminada correctamente` }] };
+        } else {
+          return { content: [{ type: "text", text: `No se pudo eliminar la nota con ID: ${noteId}. Es posible que no exista o no te pertenezca.` }], isError: true };
+        }
+      } catch (error) {
+        return { content: [{ type: "text", text: `Error al eliminar la nota: ${error.message}` }], isError: true };
       }
     }
   );
