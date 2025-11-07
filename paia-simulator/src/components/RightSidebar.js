@@ -21,13 +21,13 @@ export default function RightSidebar({
     <div className="sidebar right">
       <div className="button-group">
         <div className="button-group-title">{t('rightSidebar.addActors')}</div>
-        <button onClick={() => onAddActor('human')} className="discreet-button">
+        <button data-tour="add-actors" onClick={() => onAddActor('human')} className="discreet-button">
           <i className="fas fa-user"></i> {t('rightSidebar.simpleHuman')}
         </button>
         <button onClick={() => onAddActor('ai')} className="discreet-button">
           <i className="fas fa-robot"></i> {t('rightSidebar.simpleAI')}
         </button>
-        <button onClick={onCreateAgent} className="discreet-button" style={{ background: 'var(--primary-color) !important', color: 'white !important' }}>
+        <button data-tour="create-paia-agent" onClick={onCreateAgent} className="discreet-button" style={{ background: 'var(--primary-color) !important', color: 'white !important' }}>
           <i className="fas fa-cog"></i> {t('rightSidebar.createPAIAAgent')}
         </button>
       </div>
@@ -45,7 +45,7 @@ export default function RightSidebar({
         </button>
       </div>
 
-      <div className="button-group">
+      <div className="button-group" data-tour="connect-actors">
         <div className="button-group-title">{t('rightSidebar.connections')}</div>
         <div style={{ fontSize: '0.8em', color: 'var(--text-secondary)', marginBottom: '10px' }}>
           {t('rightSidebar.dragToConnect')}

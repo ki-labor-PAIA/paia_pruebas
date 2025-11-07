@@ -50,8 +50,8 @@ export default function LeftSidebar({
 
       <div className="button-group">
         <div className="button-group-title">💾 Archivo</div>
-        <button onClick={onSaveFlow} className="discreet-button" style={{ 
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+        <button data-tour="save-flow" onClick={onSaveFlow} className="discreet-button" style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           color: 'white',
           fontWeight: '600',
           border: 'none'
@@ -131,6 +131,7 @@ export default function LeftSidebar({
         {!isRunning ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <button
+              data-tour="start-simulation"
               onClick={() => onRun({ mode: 'once' })}
               className="discreet-button simulation-button"
               style={{ fontSize: '0.9em', fontWeight: '600' }}

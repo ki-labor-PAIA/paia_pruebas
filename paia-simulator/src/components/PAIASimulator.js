@@ -92,7 +92,7 @@ export default function PAIASimulator({ initialFlow }) {
   const [scenarioDesc, setScenarioDesc] = useState(() => initialFlow?.description || '');
   const [showGuide, setShowGuide] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
-  const [useBackend, setUseBackend] = useState(true);
+  const [useBackend, setUseBackend] = useState(false); // Cambiado a false para modo offline
   const [activeTelegramNodes, setActiveTelegramNodes] = useState(new Set());
   const [showConnectUserModal, setShowConnectUserModal] = useState(false);
   const [showSaveFlow, setShowSaveFlow] = useState(false);
@@ -143,20 +143,22 @@ export default function PAIASimulator({ initialFlow }) {
     createBackendAgent
   } = usePAIABackend();
 
-  useEffect(() => {
-    setTimeout(() => setShowGuide(true), 1000);
-  }, []);
+  // Comentado para no mostrar la guía automáticamente
+  // useEffect(() => {
+  //   setTimeout(() => setShowGuide(true), 1000);
+  // }, []);
 
-  useEffect(() => {
-    const connectionStatus = isConnected ? 
-      '🟢 Backend PAIA conectado' : 
-      '🔴 Backend PAIA desconectado';
-    
-    setDecisions(prev => [
-      { id: Date.now(), sender: 'Sistema', message: connectionStatus, isSystem: true },
-      ...prev.slice(0, 9)
-    ]);
-  }, [isConnected]);
+  // Comentado temporalmente para trabajar sin backend
+  // useEffect(() => {
+  //   const connectionStatus = isConnected ?
+  //     '🟢 Backend PAIA conectado' :
+  //     '🔴 Backend PAIA desconectado';
+  //
+  //   setDecisions(prev => [
+  //     { id: Date.now(), sender: 'Sistema', message: connectionStatus, isSystem: true },
+  //     ...prev.slice(0, 9)
+  //   ]);
+  // }, [isConnected]);
 
   const onNodesChange = useCallback(
     (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),

@@ -5,6 +5,7 @@ import Image from 'next/image'
 import TelegramPanel from './TelegramPanel'
 import NotificationPanel from './NotificationPanel'
 import FriendsPanel from './FriendsPanel'
+import TutorialModal from './tutorial/TutorialModal'
 
 export default function UserHeader() {
   const { data: session } = useSession()
@@ -12,6 +13,7 @@ export default function UserHeader() {
   const [showTelegramPanel, setShowTelegramPanel] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showFriends, setShowFriends] = useState(false)
+  const [showTutorial, setShowTutorial] = useState(false)
 
   if (!session) return null
 
@@ -71,6 +73,25 @@ export default function UserHeader() {
           </div>
         </div>
         
+        <button
+          onClick={() => setShowTutorial(true)}
+          style={{
+            background: 'rgba(255,255,255,0.2)',
+            border: '1px solid rgba(255,255,255,0.3)',
+            color: 'white',
+            padding: '8px 16px',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            transition: 'background 0.2s',
+            marginRight: '10px'
+          }}
+          onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
+          onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
+        >
+          🎓 Tutorial
+        </button>
+
         <button
           onClick={() => router.push('/')}
           style={{
@@ -192,11 +213,40 @@ export default function UserHeader() {
         onClose={() => setShowNotifications(false)}
       />
       
-      <FriendsPanel 
+      <FriendsPanel
         userId={session?.user?.id}
         isOpen={showFriends}
         onClose={() => setShowFriends(false)}
       />
+
+      {showTutorial && (
+        <TutorialModal
+          steps={[
+            {
+              title: 'Bienvenido a PAIA',
+              description: 'PAIA es tu plataforma para crear y gestionar agentes de IA personalizados. Aquí puedes diseñar flujos de trabajo, conectar con amigos y compartir agentes.',
+              image: null
+            },
+            {
+              title: 'Crear Flujos',
+              description: 'Los flujos te permiten conectar múltiples agentes y servicios para automatizar tareas complejas. Navega a la Biblioteca para crear tu primer flujo.',
+              image: null
+            },
+            {
+              title: 'Gestionar Agentes',
+              description: 'Crea agentes personalizados con diferentes personalidades y áreas de expertise. Puedes hacerlos públicos para compartirlos con la comunidad.',
+              image: null
+            },
+            {
+              title: '¡Explora PAIA!',
+              description: 'Ahora estás listo para explorar todas las funcionalidades de PAIA. ¡Comienza a crear!',
+              image: null
+            }
+          ]}
+          forceOpen={true}
+          onClose={() => setShowTutorial(false)}
+        />
+      )}
     </div>
   )
 }
