@@ -19,7 +19,11 @@
       "mcp__context7__resolve-library-id",
       "WebSearch",
       "Bash(docker exec:*)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(timeout 3 cmd //c \"echo Waiting...\")",
+      "Bash(conda info:*)",
+      "Bash(nul)",
+      "Bash(timeout:*)"
     ],
     "deny": []
   }

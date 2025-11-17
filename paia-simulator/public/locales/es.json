@@ -151,7 +151,20 @@
       "creativity": "Creatividad y Diseño",
       "finance": "Finanzas",
       "notes": "Gestión de Notas"
-    }
+    },
+    "whatsappConfig": "Configuración de WhatsApp (Opcional)",
+    "whatsappPhone": "Número de WhatsApp",
+    "whatsappPhonePlaceholder": "Ej: 524425498784",
+    "phoneRequired": "Por favor ingresa un número de teléfono",
+    "phoneInvalid": "El número debe tener al menos 10 dígitos",
+    "sendTemplate": "Enviar Plantilla de Inicio",
+    "sending": "Enviando...",
+    "templateSent": "Plantilla Enviada",
+    "testMessage": "Mensaje de Prueba",
+    "testMessagePlaceholder": "Hola! Soy tu asistente personal...",
+    "messageRequired": "Por favor escribe un mensaje",
+    "sendTestMessage": "Enviar Mensaje de Prueba",
+    "whatsappWarning": "Para enviar mensajes normales, el contacto debe responder primero a la plantilla en WhatsApp"
   },
   "chat": {
     "title": "Chat con Agente",

@@ -87,10 +87,59 @@ class AuthManager:
         user = await self.get_user_by_email(email)
         if not user or not user.password_hash:
             return None
-        
+
         if bcrypt.checkpw(password.encode('utf-8'), user.password_hash.encode('utf-8')):
             return user
         return None
+
+    async def login_user(self, email: str, password: str) -> Dict:
+        """Login con email y contraseña, retorna resultado con información del usuario"""
+        user = await self.verify_password(email, password)
+
+        if not user:
+            return {
+                "success": False,
+                "message": "Credenciales inválidas"
+            }
+
+        if not user.is_active:
+            return {
+                "success": False,
+                "message": "Usuario desactivado"
+            }
+
+        return {
+            "success": True,
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "image": user.image
+        }
+
+    async def register_user(self, email: str, password: str, name: Optional[str] = None) -> Dict:
+        """Registrar nuevo usuario"""
+        try:
+            # Verificar si el usuario ya existe
+            existing_user = await self.get_user_by_email(email)
+            if existing_user:
+                return {
+                    "success": False,
+                    "message": "El email ya está registrado"
+                }
+
+            # Crear nuevo usuario
+            user = await self.create_user(email=email, password=password, name=name)
+
+            return {
+                "success": True,
+                "message": "Usuario registrado exitosamente",
+                "user_id": user.id
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"Error al registrar usuario: {str(e)}"
+            }
 
     async def update_user(self, user_id: str, updates: Dict) -> bool:
         """Actualizar usuario"""

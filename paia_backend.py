@@ -20,6 +20,7 @@ from memory_manager import MemoryManager, Message
 from auth_manager_supabase import AuthManager
 from db_manager_supabase import DatabaseManager
 from supabase_config import supabase_client
+from whatsapp_service import WhatsAppService
 from dotenv import load_dotenv
 load_dotenv()
 app = FastAPI(title="PAIA Platform Backend", version="1.0.0")
@@ -96,6 +97,15 @@ class TelegramService:
 
 # Instancia global del servicio de Telegram
 telegram_service = TelegramService(TELEGRAM_BOT_TOKEN)
+
+# =============== CONFIGURACIÓN DE WHATSAPP ===============
+# Instancia global del servicio de WhatsApp
+try:
+    whatsapp_service = WhatsAppService()
+    print("[OK] WhatsApp Service inicializado correctamente")
+except Exception as e:
+    print(f"[WARNING] WhatsApp Service no configurado: {e}")
+    whatsapp_service = None
 
 # Inicializa tablas al arrancar FastAPI (no crea la base, solo las tablas)
 @app.on_event("startup")
@@ -380,16 +390,16 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
         def get_telegram_updates() -> str:
             """
             Obtener los últimos mensajes recibidos en Telegram para ver Chat IDs.
-            
+
             Returns:
                 Lista de mensajes recientes con sus Chat IDs
             """
             try:
                 updates = telegram_service.get_updates()
-                
+
                 if not updates:
                     return "No hay mensajes nuevos en Telegram"
-                
+
                 messages_info = []
                 for update in updates[-5:]:  # Últimos 5 mensajes
                     if 'message' in update:
@@ -397,14 +407,90 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
                         chat = msg.get('chat', {})
                         from_user = msg.get('from', {})
                         text = msg.get('text', 'Sin texto')
-                        
+
                         info = f"Chat ID: {chat.get('id')} | Usuario: {from_user.get('username', 'Desconocido')} | Texto: {text[:50]}"
                         messages_info.append(info)
-                
+
                 return "Últimos mensajes de Telegram:\n" + "\n".join(messages_info)
-                
+
             except Exception as e:
                 return f" Error obteniendo updates: {str(e)}"
+
+        # =============== HERRAMIENTAS DE WHATSAPP ===============
+        @tool
+        def send_whatsapp_template(phone_number: str, template_name: str = "hello_world", language_code: str = "en_US") -> str:
+            """
+            Enviar un mensaje usando una plantilla predefinida de WhatsApp.
+
+            Args:
+                phone_number: Número de teléfono destino en formato internacional (ej: 524425498784)
+                template_name: Nombre de la plantilla aprobada (default: "hello_world")
+                language_code: Código de idioma de la plantilla (default: "en_US")
+
+            Returns:
+                Confirmación del envío
+            """
+            try:
+                if not whatsapp_service:
+                    return "❌ Error: WhatsApp Service no está configurado. Verifica las variables WHATSAPP_API_TOKEN y WHATSAPP_PHONE_NUMBER_ID en .env"
+
+                result = whatsapp_service.send_template_message(phone_number, template_name, language_code)
+
+                if result['success']:
+                    return f"✅ {result['message']}"
+                else:
+                    return f"❌ {result['message']}"
+
+            except Exception as e:
+                return f"❌ Error enviando WhatsApp template: {str(e)}"
+
+        @tool
+        def send_whatsapp_message(phone_number: str, message: str) -> str:
+            """
+            Enviar un mensaje de texto por WhatsApp (requiere conversación activa en últimas 24h).
+
+            Args:
+                phone_number: Número de teléfono destino en formato internacional (ej: 524425498784)
+                message: Texto del mensaje a enviar
+
+            Returns:
+                Confirmación del envío
+            """
+            try:
+                if not whatsapp_service:
+                    return "❌ Error: WhatsApp Service no está configurado"
+
+                result = whatsapp_service.send_text_message(phone_number, message)
+
+                if result['success']:
+                    return f"✅ {result['message']}"
+                else:
+                    return f"❌ {result['message']}"
+
+            except Exception as e:
+                return f"❌ Error enviando mensaje por WhatsApp: {str(e)}"
+
+        @tool
+        def validate_whatsapp_config() -> str:
+            """
+            Verificar si WhatsApp está correctamente configurado.
+
+            Returns:
+                Estado de la configuración de WhatsApp
+            """
+            try:
+                if not whatsapp_service:
+                    return "❌ WhatsApp no configurado. Faltan variables de entorno."
+
+                config = whatsapp_service.validate_config()
+
+                if config['configured']:
+                    return f"✅ WhatsApp configurado correctamente\n   API Token: {'✓' if config['api_token_set'] else '✗'}\n   Phone ID: {'✓' if config['phone_number_id_set'] else '✗'}\n   Versión API: {config['api_version']}"
+                else:
+                    return "❌ WhatsApp no está completamente configurado"
+
+            except Exception as e:
+                return f"❌ Error verificando configuración: {str(e)}"
         
         # =============== HERRAMIENTAS EXISTENTES DE COMUNICACIÓN ===============
         @tool
@@ -737,6 +823,10 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
             send_telegram_notification,
             set_telegram_chat_id,
             get_telegram_updates,
+            # Herramientas de WhatsApp
+            send_whatsapp_template,
+            send_whatsapp_message,
+            validate_whatsapp_config,
             # Nuevas herramientas inteligentes
             send_notification_to_user,
             ask_connected_agent,
@@ -1100,9 +1190,14 @@ async def create_agent(agent_data: dict):
         # Agregar telegram_chat_id si viene en los datos
         if 'telegram_chat_id' not in agent_data:
             agent_data['telegram_chat_id'] = TELEGRAM_DEFAULT_CHAT_ID
-            
+
         agent = await agent_manager.create_agent(agent_data)
-        
+
+        # Log cuando se guarda número de WhatsApp
+        whatsapp_phone = agent_data.get('whatsapp_phone_number')
+        if whatsapp_phone and whatsapp_phone.strip():
+            print(f"[WhatsApp] ✅ Número guardado en Supabase para agente '{agent.name}': {whatsapp_phone}")
+
         agent_dict = asdict(agent)
         agent_dict.pop('llm_instance', None)
         agent_dict.pop('tools', None)
@@ -1368,6 +1463,28 @@ async def send_message_to_agent(agent_id: str, message_data: dict):
         except Exception as e:
             print(f"[ERROR] Al guardar respuesta en memoria/historial: {e}")
 
+        # NUEVO: Enviar respuesta automáticamente por WhatsApp si está configurado
+        try:
+            # Obtener el número de WhatsApp desde Supabase (a través del objeto agent)
+            if whatsapp_service and hasattr(agent, 'whatsapp_phone_number') and agent.whatsapp_phone_number:
+                phone_number = agent.whatsapp_phone_number
+
+                print(f"[WhatsApp] 📤 Enviando respuesta automática a {phone_number}...")
+
+                result = whatsapp_service.send_text_message(
+                    to_phone=phone_number,
+                    message=response_content
+                )
+
+                if result['success']:
+                    print(f"[WhatsApp] ✅ Mensaje enviado exitosamente (agente: {agent.name})")
+                else:
+                    print(f"[WhatsApp] ❌ Error al enviar: {result['message']}")
+
+        except Exception as whatsapp_error:
+            print(f"[WhatsApp] ⚠️ Error en envío automático: {whatsapp_error}")
+            # No fallar la petición si WhatsApp falla
+
         return {
             "agent_id": agent_id,
             "agent_name": agent.name,
@@ -1461,11 +1578,11 @@ async def configure_agent_telegram(agent_id: str, config_data: dict):
 async def send_message_between_agents_endpoint(from_agent_id: str, to_agent_id: str, message_data: dict):
     try:
         response = await agent_manager.send_message_to_agent_api(
-            from_agent_id, 
-            to_agent_id, 
+            from_agent_id,
+            to_agent_id,
             message_data['message']
         )
-        
+
         # Opción de enviar por Telegram
         if message_data.get('notify_telegram', False):
             from_agent = agents_store[from_agent_id]
@@ -1475,7 +1592,7 @@ async def send_message_between_agents_endpoint(from_agent_id: str, to_agent_id: 
                 from_agent.telegram_chat_id or TELEGRAM_DEFAULT_CHAT_ID,
                 telegram_msg
             )
-        
+
         return {
             "from_agent": agents_store[from_agent_id].name,
             "to_agent": agents_store[to_agent_id].name,
@@ -1483,6 +1600,76 @@ async def send_message_between_agents_endpoint(from_agent_id: str, to_agent_id: 
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# =============== NUEVOS ENDPOINTS DE WHATSAPP ===============
+
+@app.post("/api/whatsapp/send-template")
+async def send_whatsapp_template_endpoint(message_data: dict):
+    """Endpoint para enviar plantilla de WhatsApp"""
+    try:
+        if not whatsapp_service:
+            raise HTTPException(status_code=503, detail="WhatsApp Service no está configurado")
+
+        phone_number = message_data.get('phone_number', '')
+        template_name = message_data.get('template_name', 'hello_world')
+        language_code = message_data.get('language_code', 'en_US')
+
+        if not phone_number:
+            raise HTTPException(status_code=400, detail="phone_number es requerido")
+
+        result = whatsapp_service.send_template_message(phone_number, template_name, language_code)
+
+        if result['success']:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result['message'])
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/whatsapp/send")
+async def send_whatsapp_message_endpoint(message_data: dict):
+    """Endpoint para enviar mensaje de texto por WhatsApp"""
+    try:
+        if not whatsapp_service:
+            raise HTTPException(status_code=503, detail="WhatsApp Service no está configurado")
+
+        phone_number = message_data.get('phone_number', '')
+        message = message_data.get('message', '')
+
+        if not phone_number or not message:
+            raise HTTPException(status_code=400, detail="phone_number y message son requeridos")
+
+        result = whatsapp_service.send_text_message(phone_number, message)
+
+        if result['success']:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result['message'])
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/whatsapp/config")
+async def get_whatsapp_config():
+    """Obtener estado de configuración de WhatsApp"""
+    try:
+        if not whatsapp_service:
+            return {
+                "configured": False,
+                "message": "WhatsApp Service no está configurado"
+            }
+
+        config = whatsapp_service.validate_config()
+        return config
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/agents/{agent_id}/connected")
 async def get_agent_connections(agent_id: str):
@@ -2174,7 +2361,8 @@ async def delete_flow(flow_id: str, user_data: dict):
 @app.get("/api/health")
 async def health_check():
     telegram_status = "configured" if TELEGRAM_BOT_TOKEN != "TU_TOKEN_AQUI" else "not_configured"
-    
+    whatsapp_status = "configured" if whatsapp_service and whatsapp_service.validate_config()['configured'] else "not_configured"
+
     return {
         "status": "healthy",
         "agents_count": len(agents_store),
@@ -2182,6 +2370,7 @@ async def health_check():
         "active_websockets": len(active_websockets),
         "conversations_count": len(message_history),
         "telegram_status": telegram_status,
+        "whatsapp_status": whatsapp_status,
         "database_connected": True,
         "timestamp": datetime.now().isoformat()
     }
