@@ -18,6 +18,7 @@ class DBAgent:
     mcp_endpoint: str
     is_public: bool
     telegram_chat_id: Optional[str]
+    whatsapp_phone_number: Optional[str]
     is_persistent: bool
     auto_start: bool
     created_at: datetime
@@ -82,6 +83,7 @@ class DatabaseManager:
             "mcp_endpoint": agent_data.get("mcp_endpoint", ""),
             "is_public": agent_data.get("is_public", False),
             "telegram_chat_id": agent_data.get("telegram_chat_id"),
+            "whatsapp_phone_number": agent_data.get("whatsapp_phone_number"),
             "is_persistent": agent_data.get("is_persistent", False),
             "auto_start": agent_data.get("auto_start", False),
             "created_at": now.isoformat(),
@@ -488,7 +490,8 @@ class DatabaseManager:
             status=data["status"],
             mcp_endpoint=data["mcp_endpoint"],
             is_public=data["is_public"],
-            telegram_chat_id=data["telegram_chat_id"],
+            telegram_chat_id=data.get("telegram_chat_id"),
+            whatsapp_phone_number=data.get("whatsapp_phone_number"),
             is_persistent=data["is_persistent"],
             auto_start=data["auto_start"],
             created_at=datetime.fromisoformat(data["created_at"].replace('Z', '+00:00')),

@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0",
+  "mappings": {
+    "322e7be9-58c6-4efa-bf33-342567a8483d": {
+      "phone_number": "524425498784",
+      "agent_name": "ASdasd",
+      "enabled": true,
+      "created_at": "2025-11-06T13:07:54.583936",
+      "messages_sent": 0,
+      "last_message_at": null,
+      "last_error": null
+    },
+    "482d294e-7cc6-499a-9ca4-1711c02d85a0": {
+      "phone_number": "524425498784",
+      "agent_name": "Jose",
+      "enabled": true,
+      "created_at": "2025-11-06T13:12:50.062505",
+      "messages_sent": 0,
+      "last_message_at": null,
+      "last_error": null
+    },
+    "fec047d5-dcea-4a21-b876-8ee8322352de": {
+      "phone_number": "524425498784",
+      "agent_name": "Mariano",
+      "enabled": true,
+      "created_at": "2025-11-06T13:15:16.405399",
+      "messages_sent": 1,
+      "last_message_at": "2025-11-06T13:15:28.580244",
+      "last_error": null
+    },
+    "f488bcc4-8f7d-4902-96d0-5becf07726a5": {
+      "phone_number": "524425498784",
+      "agent_name": "Jose",
+      "enabled": true,
+      "created_at": "2025-11-07T11:38:01.248780",
+      "messages_sent": 1,
+      "last_message_at": "2025-11-07T11:38:19.200804",
+      "last_error": null
+    },
+    "9c0cfc6b-f893-4a44-a087-f284718d16fe": {
+      "phone_number": "524425498784",
+      "agent_name": "Mario Hugo",
+      "enabled": true,
+      "created_at": "2025-11-14T11:52:02.344487",
+      "messages_sent": 0,
+      "last_message_at": null,
+      "last_error": null
+    }
+  },
+  "last_updated": "2025-11-14T11:52:02.344487"
+}
