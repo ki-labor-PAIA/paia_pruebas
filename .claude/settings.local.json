@@ -23,7 +23,8 @@
       "Bash(timeout 3 cmd //c \"echo Waiting...\")",
       "Bash(conda info:*)",
       "Bash(nul)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(curl:*)"
     ],
     "deny": []
   }

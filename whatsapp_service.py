@@ -5,6 +5,8 @@ Módulo para enviar mensajes a través de WhatsApp Cloud API (Facebook Graph API
 
 import os
 import requests
+import hmac
+import hashlib
 from typing import Dict, Optional
 from dotenv import load_dotenv
 
@@ -176,6 +178,101 @@ class WhatsAppService:
             'api_version': self.api_version,
             'base_url': self.base_url
         }
+
+    # =============== WEBHOOK METHODS ===============
+
+    def verify_webhook_signature(self, request_body: bytes, signature_header: str) -> bool:
+        """
+        Verifica la firma del webhook para asegurar que viene de WhatsApp
+
+        Args:
+            request_body: El cuerpo de la petición en bytes (sin parsear)
+            signature_header: El valor del header X-Hub-Signature-256
+
+        Returns:
+            bool: True si la firma es válida, False en caso contrario
+        """
+        app_secret = os.getenv("WHATSAPP_APP_SECRET")
+        if not app_secret:
+            print("[WARNING] WHATSAPP_APP_SECRET no configurado, no se puede verificar firma")
+            return True  # En desarrollo, permitir sin verificación
+
+        try:
+            # Calcular la firma esperada
+            expected_signature = hmac.new(
+                app_secret.encode('utf-8'),
+                request_body,
+                hashlib.sha256
+            ).hexdigest()
+
+            # Extraer la firma recibida (formato: "sha256=<hash>")
+            received_signature = signature_header.replace('sha256=', '') if signature_header else ''
+
+            # Comparación segura
+            return hmac.compare_digest(expected_signature, received_signature)
+        except Exception as e:
+            print(f"[ERROR] Error verificando firma del webhook: {e}")
+            return False
+
+    def parse_webhook_payload(self, payload: Dict) -> Optional[Dict]:
+        """
+        Extrae la información relevante del payload del webhook
+
+        Args:
+            payload: El payload JSON recibido del webhook
+
+        Returns:
+            Dict con: customer_phone, message_text, message_id, timestamp
+            None si el payload no contiene un mensaje válido
+        """
+        try:
+            # Verificar estructura básica
+            if payload.get("object") != "whatsapp_business_account":
+                return None
+
+            entry = payload.get("entry", [])
+            if not entry:
+                return None
+
+            changes = entry[0].get("changes", [])
+            if not changes:
+                return None
+
+            value = changes[0].get("value", {})
+            messages = value.get("messages", [])
+
+            if not messages:
+                # Puede ser una notificación de estado, no un mensaje
+                return None
+
+            message = messages[0]
+            message_type = message.get("type")
+
+            # Solo procesamos mensajes de texto por ahora
+            if message_type != "text":
+                print(f"[WhatsApp Webhook] Tipo de mensaje no soportado: {message_type}")
+                return None
+
+            # Extraer datos del mensaje
+            customer_phone = message.get("from")
+            message_text = message.get("text", {}).get("body")
+            message_id = message.get("id")
+            timestamp = message.get("timestamp")
+
+            if not customer_phone or not message_text:
+                return None
+
+            return {
+                "customer_phone": customer_phone,
+                "message_text": message_text,
+                "message_id": message_id,
+                "timestamp": timestamp,
+                "metadata": value.get("metadata", {})
+            }
+
+        except Exception as e:
+            print(f"[ERROR] Error parseando payload del webhook: {e}")
+            return None
 
 
 # Instancia global para uso directo si se necesita

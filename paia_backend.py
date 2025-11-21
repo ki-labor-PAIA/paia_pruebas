@@ -4,8 +4,9 @@ import uuid
 from datetime import datetime
 from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
-from fastapi import FastAPI, HTTPException, WebSocket
+from fastapi import FastAPI, HTTPException, WebSocket, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
 from langchain_mcp_adapters.client import MultiServerMCPClient, load_mcp_tools 
 from langgraph.prebuilt import create_react_agent
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -130,7 +131,7 @@ app.add_middleware(
 # Modelos de datos
 @dataclass
 class PAIAAgent:
-    id: str   
+    id: str
     name: str
     description: str
     personality: str
@@ -141,6 +142,7 @@ class PAIAAgent:
     user_id: Optional[str] = None  # ID del usuario que creó el agente
     is_public: bool = True  # Si otros usuarios pueden conectarse
     telegram_chat_id: Optional[str] = None  # Chat ID específico del agente
+    whatsapp_phone_number: Optional[str] = None  # Número de WhatsApp del cliente
     llm_instance: Optional[object] = None
     tools: List = None
     conversation_history: List = None
@@ -1097,7 +1099,8 @@ async def ensure_agent_loaded(agent_id: str, user_id: str = None):
             'expertise': db_agent.expertise,
             'user_id': db_agent.user_id,
             'is_public': db_agent.is_public,
-            'telegram_chat_id': db_agent.telegram_chat_id
+            'telegram_chat_id': db_agent.telegram_chat_id,
+            'whatsapp_phone_number': db_agent.whatsapp_phone_number
         }
         
         # Usar el create_agent pero sin guardar en BD (ya existe)
@@ -1150,6 +1153,7 @@ IMPORTANTE: Tu user ID es: {db_agent.user_id}
             user_id=db_agent.user_id,
             is_public=db_agent.is_public,
             telegram_chat_id=db_agent.telegram_chat_id or TELEGRAM_DEFAULT_CHAT_ID,
+            whatsapp_phone_number=db_agent.whatsapp_phone_number,
             llm_instance=agent_llm,
             tools=all_tools,
             conversation_history=[]
@@ -1670,6 +1674,188 @@ async def get_whatsapp_config():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# =============== WEBHOOK ENDPOINTS ===============
+
+@app.get("/api/webhooks/whatsapp")
+async def verify_whatsapp_webhook(
+    request: Request,
+    hub_mode: str = Query(alias="hub.mode", default=None),
+    hub_verify_token: str = Query(alias="hub.verify_token", default=None),
+    hub_challenge: str = Query(alias="hub.challenge", default=None)
+):
+    """
+    Endpoint de verificación del webhook de WhatsApp
+    WhatsApp llama a este endpoint durante la configuración del webhook
+    """
+    print(f"[WhatsApp Webhook] Solicitud de verificación recibida")
+    print(f"  - Mode: {hub_mode}")
+    print(f"  - Verify Token: {hub_verify_token}")
+
+    # Obtener el token de verificación configurado
+    verify_token = os.getenv("WHATSAPP_VERIFY_TOKEN")
+
+    if not verify_token:
+        print("[WhatsApp Webhook] ERROR: WHATSAPP_VERIFY_TOKEN no está configurado")
+        raise HTTPException(status_code=500, detail="WHATSAPP_VERIFY_TOKEN no configurado")
+
+    # Verificar que sea una solicitud de suscripción con el token correcto
+    if hub_mode == "subscribe" and hub_verify_token == verify_token:
+        print(f"[WhatsApp Webhook] [OK] Verificacion exitosa, retornando challenge")
+        return PlainTextResponse(content=hub_challenge, status_code=200)
+    else:
+        print(f"[WhatsApp Webhook] [ERROR] Verificacion fallida")
+        raise HTTPException(status_code=403, detail="Verificación fallida")
+
+@app.post("/api/webhooks/whatsapp")
+async def receive_whatsapp_webhook(request: Request):
+    """
+    Endpoint para recibir mensajes entrantes de WhatsApp
+    Procesa el mensaje y lo envía al agente correspondiente
+    """
+    try:
+        # Leer el cuerpo de la petición
+        body = await request.body()
+        signature = request.headers.get("X-Hub-Signature-256", "")
+
+        # Verificar firma de seguridad
+        if whatsapp_service:
+            is_valid = whatsapp_service.verify_webhook_signature(body, signature)
+            if not is_valid:
+                print("[WhatsApp Webhook] Firma inválida")
+                raise HTTPException(status_code=403, detail="Firma inválida")
+
+        # Parsear el JSON
+        payload = await request.json()
+
+        # Extraer información del mensaje
+        message_data = whatsapp_service.parse_webhook_payload(payload) if whatsapp_service else None
+
+        if not message_data:
+            # No es un mensaje de texto o no hay datos válidos
+            print("[WhatsApp Webhook] Payload sin mensaje de texto válido, ignorando")
+            return {"status": "ok"}
+
+        customer_phone = message_data["customer_phone"]
+        message_text = message_data["message_text"]
+        message_id = message_data["message_id"]
+
+        print(f"[WhatsApp Webhook] Mensaje recibido:")
+        print(f"  - De: {customer_phone}")
+        print(f"  - Mensaje: {message_text}")
+        print(f"  - ID: {message_id}")
+
+        # Buscar el agente que tiene este número de WhatsApp
+        # Intentar primero con el número exacto
+        db_agent = await db_manager.get_agent_by_whatsapp_phone(customer_phone)
+
+        # Si no encuentra y es número mexicano con 1 (521...), intentar sin el 1 (52...)
+        if not db_agent and customer_phone.startswith("521") and len(customer_phone) >= 12:
+            alternative_phone = "52" + customer_phone[3:]
+            print(f"[WhatsApp Webhook] Intentando con formato alternativo (sin 1): {alternative_phone}")
+            db_agent = await db_manager.get_agent_by_whatsapp_phone(alternative_phone)
+
+        # Si no encuentra y es número mexicano sin 1 (52...), intentar con el 1 (521...)
+        if not db_agent and customer_phone.startswith("52") and len(customer_phone) >= 12 and not customer_phone.startswith("521"):
+            alternative_phone = "521" + customer_phone[2:]
+            print(f"[WhatsApp Webhook] Intentando con formato alternativo (con 1): {alternative_phone}")
+            db_agent = await db_manager.get_agent_by_whatsapp_phone(alternative_phone)
+
+        if not db_agent:
+            print(f"[WhatsApp Webhook] No se encontro agente para {customer_phone} (probadas todas las variantes)")
+            return {"status": "ok", "message": "No agent found for this number"}
+
+        print(f"[WhatsApp Webhook] Agente encontrado: {db_agent.name} (ID: {db_agent.id})")
+
+        # Asegurar que el agente esté cargado en memoria
+        agent = await ensure_agent_loaded(db_agent.id, db_agent.user_id)
+
+        if not agent:
+            print(f"[WhatsApp Webhook] Error: No se pudo cargar el agente {db_agent.id}")
+            return {"status": "error", "message": "Could not load agent"}
+
+        # Inicializar historial de conversación si no existe
+        if agent.conversation_history is None:
+            agent.conversation_history = []
+
+        # Agregar mensaje a memoria corta
+        try:
+            memory_manager.add_to_short_term(db_agent.id, role="user", content=message_text)
+        except Exception as e:
+            print(f"[WhatsApp Webhook] [WARNING] Error agregando a memoria corta: {e}")
+
+        # Agregar al historial del agente
+        agent.conversation_history.append({
+            "role": "user",
+            "content": message_text,
+            "timestamp": datetime.now().isoformat()
+        })
+
+        # Crear contexto con historial reciente (últimos 10 mensajes)
+        conversation_context = []
+        for msg in agent.conversation_history[-10:]:
+            if msg["role"] == "user":
+                conversation_context.append(HumanMessage(content=msg["content"]))
+            else:
+                conversation_context.append(AIMessage(content=msg["content"]))
+
+        # Agregar memoria a largo plazo si existe
+        try:
+            long_term = await memory_manager.get_long_term_memory(db_agent.id)
+            if long_term:
+                resumen = ", ".join([f"{k}: {v}" for k, v in long_term.items()])
+                conversation_context.insert(0, HumanMessage(content=f"Preferencias del usuario: {resumen}"))
+        except Exception as e:
+            print(f"[WhatsApp Webhook] [WARNING] Error obteniendo memoria a largo plazo: {e}")
+
+        # Asegurar que hay contexto
+        if not conversation_context:
+            conversation_context.append(HumanMessage(content=message_text))
+
+        # Invocar el agente
+        print(f"[WhatsApp Webhook] Invocando agente {db_agent.name}...")
+        response = await agent.llm_instance.ainvoke({"messages": conversation_context})
+
+        # Extraer respuesta
+        response_content = response["messages"][-1].content
+
+        # Guardar respuesta en memoria corta e historial
+        try:
+            memory_manager.add_to_short_term(db_agent.id, role="assistant", content=response_content)
+            agent.conversation_history.append({
+                "role": "assistant",
+                "content": response_content,
+                "timestamp": datetime.now().isoformat()
+            })
+        except Exception as e:
+            print(f"[WhatsApp Webhook] [ERROR] Al guardar respuesta en memoria/historial: {e}")
+
+        print(f"[WhatsApp Webhook] Respuesta generada: {response_content[:100]}...")
+
+        # Enviar respuesta por WhatsApp usando el número guardado en la BD
+        if whatsapp_service and db_agent.whatsapp_phone_number:
+            # Usar el número guardado en la BD (sin el 1), no el que envía WhatsApp
+            phone_to_send = db_agent.whatsapp_phone_number
+            print(f"[WhatsApp Webhook] Enviando respuesta al número guardado: {phone_to_send}")
+
+            result = whatsapp_service.send_text_message(
+                to_phone=phone_to_send,
+                message=response_content
+            )
+
+            if result['success']:
+                print(f"[WhatsApp Webhook] [OK] Respuesta enviada exitosamente a {phone_to_send}")
+            else:
+                print(f"[WhatsApp Webhook] [ERROR] Error al enviar respuesta: {result['message']}")
+
+        # Retornar 200 OK a WhatsApp
+        return {"status": "ok"}
+
+    except Exception as e:
+        print(f"[WhatsApp Webhook] ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        # Siempre retornar 200 para que WhatsApp no reintente
+        return {"status": "error", "message": str(e)}
 
 @app.get("/api/agents/{agent_id}/connected")
 async def get_agent_connections(agent_id: str):
