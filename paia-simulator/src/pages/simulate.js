@@ -1,12 +1,8 @@
-import SpotlightTour from '@/components/tutorial/SpotlightTour';
-import tutorialSteps from '@/components/tutorial/steps';
-
 export default function SimulatePage(props) {
-  // tu componente actual...
+  // Página de simulación - redirigir a /create
   return (
     <>
-      {/* tu UI */}
-      <SpotlightTour steps={tutorialSteps} />
+      {/* TODO: Implementar o redirigir a /create */}
     </>
   );
 }

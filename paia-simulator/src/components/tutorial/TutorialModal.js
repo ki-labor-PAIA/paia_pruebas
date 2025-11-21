@@ -27,10 +27,9 @@ function StepView({ step }) {
 }
 
 export default function TutorialModal({ steps = [], initialOpen = false, onClose, forceOpen = false }) {
-  // Si forceOpen es true, deshabilitamos la apertura automática del hook
-  const t = useTutorial(steps, forceOpen);
+  const t = useTutorial(steps);
 
-  // abrir si el padre lo pide (ignorando el estado de localStorage si forceOpen es true)
+  // abrir si el padre lo pide
   useEffect(() => {
     if (initialOpen || forceOpen) {
       t.setOpen(true);

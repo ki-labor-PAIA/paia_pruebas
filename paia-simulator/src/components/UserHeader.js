@@ -5,7 +5,8 @@ import Image from 'next/image'
 import TelegramPanel from './TelegramPanel'
 import NotificationPanel from './NotificationPanel'
 import FriendsPanel from './FriendsPanel'
-import TutorialModal from './tutorial/TutorialModal'
+import SpotlightTour from './tutorial/SpotlightTour'
+import tutorialSteps from './tutorial/steps'
 
 export default function UserHeader() {
   const { data: session } = useSession()
@@ -220,29 +221,8 @@ export default function UserHeader() {
       />
 
       {showTutorial && (
-        <TutorialModal
-          steps={[
-            {
-              title: 'Bienvenido a PAIA',
-              description: 'PAIA es tu plataforma para crear y gestionar agentes de IA personalizados. Aquí puedes diseñar flujos de trabajo, conectar con amigos y compartir agentes.',
-              image: null
-            },
-            {
-              title: 'Crear Flujos',
-              description: 'Los flujos te permiten conectar múltiples agentes y servicios para automatizar tareas complejas. Navega a la Biblioteca para crear tu primer flujo.',
-              image: null
-            },
-            {
-              title: 'Gestionar Agentes',
-              description: 'Crea agentes personalizados con diferentes personalidades y áreas de expertise. Puedes hacerlos públicos para compartirlos con la comunidad.',
-              image: null
-            },
-            {
-              title: '¡Explora PAIA!',
-              description: 'Ahora estás listo para explorar todas las funcionalidades de PAIA. ¡Comienza a crear!',
-              image: null
-            }
-          ]}
+        <SpotlightTour
+          steps={tutorialSteps}
           forceOpen={true}
           onClose={() => setShowTutorial(false)}
         />

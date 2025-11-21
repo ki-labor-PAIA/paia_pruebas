@@ -6,7 +6,6 @@ import AuthGuard from '@/components/AuthGuard';
 import NotificationPanel from '@/components/NotificationPanel';
 import ConnectUserModal from '@/components/ConnectUserModal';
 import CreateAgentModal from '@/components/CreateAgentModal';
-import TutorialModal from '@/components/tutorial/TutorialModal';
 
 export default function Home() {
   const { data: session, status } = useSession();
@@ -18,8 +17,6 @@ const router = useRouter();
       ? (router?.asPath || router?.pathname || window.location.pathname || '')
       : (router?.asPath || router?.pathname || '');
 
-  // Mostrar siempre el botón del tutorial
-  const showTutorialBtn = true;
   // Estados principales
   const [activeTab, setActiveTab] = useState('flows');
   const [myFlows, setMyFlows] = useState([]);
@@ -34,7 +31,6 @@ const router = useRouter();
   const [showConnectUser, setShowConnectUser] = useState(false);
   const [showCreateAgent, setShowCreateAgent] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showTutorial, setShowTutorial] = useState(false);
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -310,27 +306,6 @@ const router = useRouter();
                 
                 📢 Notificaciones
               </button>
-
-                { showTutorialBtn && (
-  <button
-    data-tour="show-tutorial"
-    onClick={() => setShowTutorial(true)}
-    style={{
-      background: 'rgba(255,255,255,0.2)',
-      border: '1px solid rgba(255,255,255,0.3)',
-      color: 'white',
-      padding: '8px 16px',
-      borderRadius: '6px',
-      cursor: 'pointer',
-      fontSize: '14px',
-      transition: 'background 0.2s'
-    }}
-    onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
-    onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
-  >
-                🎓 Mostrar Tutorial
-              </button>
-                )}
 
               {/* Info del usuario */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1289,39 +1264,6 @@ const router = useRouter();
             />
           )}
 
-          {showTutorial && (
-            <TutorialModal
-              steps={[
-                {
-                  title: 'Bienvenido a PAIA',
-                  description: 'PAIA es tu plataforma para crear y gestionar agentes de IA personalizados. Aquí puedes diseñar flujos de trabajo, conectar con amigos y compartir agentes.',
-                  image: null
-                },
-                {
-                  title: 'Mis Flujos',
-                  description: 'En esta sección puedes ver, crear y gestionar tus flujos de trabajo. Los flujos te permiten conectar múltiples agentes y servicios para automatizar tareas complejas.',
-                  image: null
-                },
-                {
-                  title: 'Mis Agentes',
-                  description: 'Crea agentes personalizados con diferentes personalidades y áreas de expertise. Puedes hacerlos públicos para compartirlos con la comunidad.',
-                  image: null
-                },
-                {
-                  title: 'Conecta con Amigos',
-                  description: 'Agrega amigos para compartir flujos y agentes. Colabora en proyectos y accede a los recursos compartidos por tu red.',
-                  image: null
-                },
-                {
-                  title: '¡Comienza a Crear!',
-                  description: 'Ahora estás listo para crear tu primer flujo o agente. Haz clic en "Crear Flujo" o navega a la pestaña de Agentes para comenzar.',
-                  image: null
-                }
-              ]}
-              forceOpen={true}
-              onClose={() => setShowTutorial(false)}
-            />
-          )}
         </div>
       </AuthGuard>
     </>

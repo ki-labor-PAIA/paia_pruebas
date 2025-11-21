@@ -118,15 +118,29 @@ function placeTooltip(rect, placement = 'bottom', gap = 16) {
   return t;
 }
 
-export default function SpotlightTour({ steps = [] }) {
-  const t = useTutorial(steps);
+export default function SpotlightTour({ steps = [], forceOpen = false, onClose }) {
+  // Estado local en lugar de usar el hook cuando forceOpen está activo
+  const [open, setOpen] = useState(forceOpen);
+  const [index, setIndex] = useState(0);
   const [rect, setRect] = useState(null);
   const targetRef = useRef(null);
 
+  const step = steps[index];
+
+  const next = () => setIndex(i => Math.min(i + 1, steps.length - 1));
+  const prev = () => setIndex(i => Math.max(i - 1, 0));
+  const goTo = (i) => setIndex(Math.max(0, Math.min(i, steps.length - 1)));
+
+  const finish = () => {
+    setOpen(false);
+    setIndex(0);
+    if (onClose) onClose();
+  };
+
   // 🧭 Buscar el elemento a resaltar
   useLayoutEffect(() => {
-    if (!t.open) return;
-    const sel = t.step?.selector;
+    if (!open) return;
+    const sel = step?.selector;
     const el = sel ? document.querySelector(sel) : null;
     targetRef.current = el || null;
 
@@ -146,23 +160,23 @@ export default function SpotlightTour({ steps = [] }) {
     } else {
       setRect(null);
     }
-  }, [t.open, t.index, t.step]);
+  }, [open, index, step]);
 
   // ⌨️ Navegación con teclado
   useEffect(() => {
-    if (!t.open) return;
+    if (!open) return;
     const onKey = (e) => {
-      if (e.key === 'Escape') t.finish();
-      if (e.key === 'ArrowRight') t.next();
-      if (e.key === 'ArrowLeft') t.prev();
+      if (e.key === 'Escape') finish();
+      if (e.key === 'ArrowRight') next();
+      if (e.key === 'ArrowLeft') prev();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [t]);
+  }, [open]);
 
-  if (!t.open) return null;
+  if (!open) return null;
 
-  const noTarget = !t.step?.selector || !rect;
+  const noTarget = !step?.selector || !rect;
   const r = rect;
 
   // ✂️ Hueco alrededor del objetivo
@@ -182,14 +196,14 @@ export default function SpotlightTour({ steps = [] }) {
         Z
       ')`;
 
-  const tip = placeTooltip(rect, t.step?.placement || 'bottom');
+  const tip = placeTooltip(rect, step?.placement || 'bottom');
 
   return (
     <>
       {/* 🔲 Capa oscura */}
       <div
         style={{ ...overlayS, WebkitClipPath: clip, clipPath: clip }}
-        onClick={() => t.finish()}
+        onClick={() => finish()}
       />
 
       {/* 🔵 Halo alrededor del elemento */}
@@ -239,30 +253,30 @@ export default function SpotlightTour({ steps = [] }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <span style={{ fontSize: 24 }}>🎓</span>
-          <div style={{ fontWeight: 700, fontSize: 18 }}>{t.step?.title}</div>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>{step?.title}</div>
         </div>
-        <div style={{ marginBottom: 4, opacity: 0.95 }}>{t.step?.description}</div>
+        <div style={{ marginBottom: 4, opacity: 0.95 }}>{step?.description}</div>
         <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 12 }}>
-          Paso {t.index + 1} de {steps.length}
+          Paso {index + 1} de {steps.length}
         </div>
 
         <div style={btnRow}>
           <button
-            onClick={t.prev}
-            disabled={t.index === 0}
+            onClick={prev}
+            disabled={index === 0}
             style={{
               ...btnStyle,
-              opacity: t.index === 0 ? 0.5 : 1,
-              cursor: t.index === 0 ? 'not-allowed' : 'pointer'
+              opacity: index === 0 ? 0.5 : 1,
+              cursor: index === 0 ? 'not-allowed' : 'pointer'
             }}
-            onMouseEnter={(e) => { if (t.index !== 0) e.target.style.background = 'rgba(255,255,255,0.3)' }}
-            onMouseLeave={(e) => { if (t.index !== 0) e.target.style.background = 'rgba(255,255,255,0.2)' }}
+            onMouseEnter={(e) => { if (index !== 0) e.target.style.background = 'rgba(255,255,255,0.3)' }}
+            onMouseLeave={(e) => { if (index !== 0) e.target.style.background = 'rgba(255,255,255,0.2)' }}
           >
             ← Anterior
           </button>
-          {t.index < steps.length - 1 ? (
+          {index < steps.length - 1 ? (
             <button
-              onClick={t.next}
+              onClick={next}
               style={btnPrimaryStyle}
               onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
               onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
@@ -271,7 +285,7 @@ export default function SpotlightTour({ steps = [] }) {
             </button>
           ) : (
             <button
-              onClick={t.finish}
+              onClick={finish}
               style={btnPrimaryStyle}
               onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
               onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
@@ -280,7 +294,7 @@ export default function SpotlightTour({ steps = [] }) {
             </button>
           )}
           <button
-            onClick={t.finish}
+            onClick={finish}
             style={{ ...btnStyle, marginLeft: 'auto', padding: '10px 14px' }}
             onMouseEnter={(e) => e.target.style.background = 'rgba(239, 68, 68, 0.3)'}
             onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
@@ -295,12 +309,12 @@ export default function SpotlightTour({ steps = [] }) {
         {steps.map((_, i) => (
           <button
             key={i}
-            onClick={() => t.goTo(i)}
+            onClick={() => goTo(i)}
             style={{
-              width: i === t.index ? 24 : 10,
+              width: i === index ? 24 : 10,
               height: 10,
               borderRadius: 5,
-              background: i === t.index
+              background: i === index
                 ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                 : 'rgba(255,255,255,0.4)',
               border: 'none',
@@ -309,10 +323,10 @@ export default function SpotlightTour({ steps = [] }) {
               padding: 0
             }}
             onMouseEnter={(e) => {
-              if (i !== t.index) e.target.style.background = 'rgba(255,255,255,0.6)';
+              if (i !== index) e.target.style.background = 'rgba(255,255,255,0.6)';
             }}
             onMouseLeave={(e) => {
-              if (i !== t.index) e.target.style.background = 'rgba(255,255,255,0.4)';
+              if (i !== index) e.target.style.background = 'rgba(255,255,255,0.4)';
             }}
           />
         ))}
