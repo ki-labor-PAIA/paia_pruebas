@@ -120,6 +120,13 @@ class DatabaseManager:
         result = self.client.table("agents").select("*").eq("user_id", user_id).eq("is_public", True).execute()
         return [self._dict_to_agent(row) for row in result.data]
 
+    async def get_agent_by_whatsapp_phone(self, phone_number: str) -> Optional[DBAgent]:
+        """Obtener un agente por su número de WhatsApp asociado"""
+        result = self.client.table("agents").select("*").eq("whatsapp_phone_number", phone_number).execute()
+        if result.data:
+            return self._dict_to_agent(result.data[0])
+        return None
+
     async def update_agent(self, agent_id: str, updates: Dict) -> bool:
         """Actualizar un agente"""
         updates["updated_at"] = datetime.utcnow().isoformat()
