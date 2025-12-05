@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import Image from 'next/image'
-import { Library, Bell, Users, Send, LogOut } from 'lucide-react'
 import TelegramPanel from './TelegramPanel'
 import NotificationPanel from './NotificationPanel'
 import FriendsPanel from './FriendsPanel'
-import LanguageSelector from './LanguageSelector'
+import SpotlightTour from './tutorial/SpotlightTour'
+import tutorialSteps from './tutorial/steps'
 
 export default function UserHeader() {
   const { data: session } = useSession()
@@ -14,6 +14,7 @@ export default function UserHeader() {
   const [showTelegramPanel, setShowTelegramPanel] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showFriends, setShowFriends] = useState(false)
+  const [showTutorial, setShowTutorial] = useState(false)
 
   if (!session) return null
 
@@ -74,6 +75,25 @@ export default function UserHeader() {
         </div>
         
         <button
+          onClick={() => setShowTutorial(true)}
+          style={{
+            background: 'rgba(255,255,255,0.2)',
+            border: '1px solid rgba(255,255,255,0.3)',
+            color: 'white',
+            padding: '8px 16px',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            transition: 'background 0.2s',
+            marginRight: '10px'
+          }}
+          onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
+          onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
+        >
+          🎓 Tutorial
+        </button>
+
+        <button
           onClick={() => router.push('/')}
           style={{
             background: 'rgba(255,255,255,0.2)',
@@ -84,15 +104,12 @@ export default function UserHeader() {
             cursor: 'pointer',
             fontSize: '14px',
             transition: 'background 0.2s',
-            marginRight: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
+            marginRight: '10px'
           }}
           onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
           onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
         >
-          <Library size={16} /> Biblioteca
+          📚 Biblioteca
         </button>
 
         <button
@@ -107,15 +124,12 @@ export default function UserHeader() {
             fontSize: '14px',
             transition: 'background 0.2s',
             marginRight: '10px',
-            position: 'relative',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
+            position: 'relative'
           }}
           onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
           onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
         >
-          <Bell size={16} /> Notificaciones
+          📢 Notificaciones
           {/* Badge de notificaciones no leídas - TODO: conectar con API */}
           <span style={{
             position: 'absolute',
@@ -132,7 +146,7 @@ export default function UserHeader() {
             !
           </span>
         </button>
-
+        
         <button
           onClick={() => setShowFriends(!showFriends)}
           style={{
@@ -144,17 +158,14 @@ export default function UserHeader() {
             cursor: 'pointer',
             fontSize: '14px',
             transition: 'background 0.2s',
-            marginRight: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
+            marginRight: '10px'
           }}
           onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
           onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
         >
-          <Users size={16} /> Amigos
+          👥 Amigos
         </button>
-
+        
         <button
           onClick={() => setShowTelegramPanel(true)}
           style={{
@@ -166,19 +177,14 @@ export default function UserHeader() {
             cursor: 'pointer',
             fontSize: '14px',
             transition: 'background 0.2s',
-            marginRight: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
+            marginRight: '10px'
           }}
           onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
           onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
         >
-          <Send size={16} /> Telegram
+          📱 Telegram
         </button>
-
-        <LanguageSelector />
-
+        
         <button
           onClick={() => signOut()}
           style={{
@@ -189,15 +195,12 @@ export default function UserHeader() {
             borderRadius: '6px',
             cursor: 'pointer',
             fontSize: '14px',
-            transition: 'background 0.2s',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
+            transition: 'background 0.2s'
           }}
           onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
           onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
         >
-          <LogOut size={16} /> Cerrar Sesión
+          Cerrar Sesión
         </button>
       </div>
       
@@ -211,11 +214,19 @@ export default function UserHeader() {
         onClose={() => setShowNotifications(false)}
       />
       
-      <FriendsPanel 
+      <FriendsPanel
         userId={session?.user?.id}
         isOpen={showFriends}
         onClose={() => setShowFriends(false)}
       />
+
+      {showTutorial && (
+        <SpotlightTour
+          steps={tutorialSteps}
+          forceOpen={true}
+          onClose={() => setShowTutorial(false)}
+        />
+      )}
     </div>
   )
 }

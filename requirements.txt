@@ -1,14 +1,31 @@
+# === Core Framework ===
 fastapi
 uvicorn
+python-multipart
+websockets
+
+# === LangChain & AI ===
 langchain-google-genai
 langchain-mcp-adapters
 langgraph
 langchain-core
-python-multipart
-websockets
+
+# === Authentication & Security ===
 bcrypt
 python-jose[cryptography]
+
+# === Database ===
 supabase
-python-dotenv
+
+# === HTTP & Network ===
 requests
 httpx
+aiohttp>=3.9.0
+
+# === Utils ===
+python-dotenv
+python-dateutil>=2.8.2
+
+# === PAIA Protocol Dependencies ===
+pydantic>=2.5.0
+jsonschema>=4.20.0

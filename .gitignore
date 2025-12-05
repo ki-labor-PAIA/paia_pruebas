@@ -1,7 +1,55 @@
+# Environment variables
 .env
+.env.local
+
+# Tokens
 .tokens/
 .tokens/*.json
-_pycache_/
+
+# Python
+__pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Claude
 .claude/
+
+# Documentation (private)
 GEMINI.md
+NGROK_WHATSAPP_SETUP.md
+WHATSAPP_README.md
+*.md
+!README.md
+
+# SQL migrations
+*.sql
+migration-*.sql
+
+# Test files
+test_*.py
+*_test.py
+prueba.txt
+
+# Package manager errors
+=*
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
