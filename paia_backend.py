@@ -1195,6 +1195,27 @@ async def create_agent(agent_data: dict):
         if 'telegram_chat_id' not in agent_data:
             agent_data['telegram_chat_id'] = TELEGRAM_DEFAULT_CHAT_ID
 
+        # Validar que el número de WhatsApp no esté duplicado
+        whatsapp_phone = agent_data.get('whatsapp_phone_number')
+        if whatsapp_phone and whatsapp_phone.strip():
+            # Verificar con el número exacto
+            existing_agent = await db_manager.get_agent_by_whatsapp_phone(whatsapp_phone)
+
+            # Probar variantes de números mexicanos (521 vs 52)
+            if not existing_agent and whatsapp_phone.startswith("521") and len(whatsapp_phone) >= 12:
+                alt_phone = "52" + whatsapp_phone[3:]
+                existing_agent = await db_manager.get_agent_by_whatsapp_phone(alt_phone)
+            elif not existing_agent and whatsapp_phone.startswith("52") and len(whatsapp_phone) >= 12 and not whatsapp_phone.startswith("521"):
+                alt_phone = "521" + whatsapp_phone[2:]
+                existing_agent = await db_manager.get_agent_by_whatsapp_phone(alt_phone)
+
+            if existing_agent:
+                print(f"[Create Agent] Error: WhatsApp {whatsapp_phone} ya asignado a '{existing_agent.name}'")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"El número de WhatsApp {whatsapp_phone} ya está asignado al agente '{existing_agent.name}'"
+                )
+
         agent = await agent_manager.create_agent(agent_data)
 
         # Log cuando se guarda número de WhatsApp
@@ -1272,7 +1293,7 @@ async def get_agents(user_id: str = None):
                 'auto_start': db_agent.auto_start
             }
             agents_list.append(agent_dict)
-        return agents_list
+        return {"agents": agents_list, "count": len(agents_list)}
     else:
         # Retornar agentes en memoria (para compatibilidad)
         agents_list = []
@@ -1281,12 +1302,14 @@ async def get_agents(user_id: str = None):
             agent_dict.pop('llm_instance', None)
             agent_dict.pop('tools', None)
             agents_list.append(agent_dict)
-        return agents_list
+        return {"agents": agents_list, "count": len(agents_list)}
 
 @app.get("/api/agents/public")
 async def get_public_agents(exclude_user_id: str = None):
     """Obtener todos los agentes públicos desde BD"""
-    db_agents = await db_manager.get_public_agents(exclude_user_id)
+    # Validar exclude_user_id - si es 'anonymous' o inválido, no excluir nada
+    valid_exclude_id = exclude_user_id if exclude_user_id and exclude_user_id != 'anonymous' else None
+    db_agents = await db_manager.get_public_agents(valid_exclude_id)
     agents_list = []
     for db_agent in db_agents:
         agent_dict = {
@@ -1305,7 +1328,7 @@ async def get_public_agents(exclude_user_id: str = None):
             'auto_start': db_agent.auto_start
         }
         agents_list.append(agent_dict)
-    return agents_list
+    return {"agents": agents_list, "count": len(agents_list)}
 
 @app.delete("/api/agents/{agent_id}")
 async def delete_agent(agent_id: str, user_data: dict):
@@ -1672,6 +1695,43 @@ async def get_whatsapp_config():
         return config
 
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/agents/check-whatsapp/{phone_number}")
+async def check_whatsapp_available(phone_number: str):
+    """Verificar si un número de WhatsApp está disponible para asignar a un agente"""
+    try:
+        if not phone_number or not phone_number.strip():
+            return {"available": True}
+
+        # Intentar con el número exacto
+        existing = await db_manager.get_agent_by_whatsapp_phone(phone_number)
+
+        # Si no encuentra y es número mexicano con 1 (521...), probar sin el 1
+        if not existing and phone_number.startswith("521") and len(phone_number) >= 12:
+            alt_phone = "52" + phone_number[3:]
+            print(f"[Check WhatsApp] Intentando variante sin 1: {alt_phone}")
+            existing = await db_manager.get_agent_by_whatsapp_phone(alt_phone)
+
+        # Si no encuentra y es número mexicano sin 1 (52...), probar con el 1
+        if not existing and phone_number.startswith("52") and len(phone_number) >= 12 and not phone_number.startswith("521"):
+            alt_phone = "521" + phone_number[2:]
+            print(f"[Check WhatsApp] Intentando variante con 1: {alt_phone}")
+            existing = await db_manager.get_agent_by_whatsapp_phone(alt_phone)
+
+        if existing:
+            print(f"[Check WhatsApp] Numero {phone_number} ya en uso por agente: {existing.name}")
+            return {
+                "available": False,
+                "agent_name": existing.name,
+                "agent_id": existing.id
+            }
+
+        print(f"[Check WhatsApp] Numero {phone_number} disponible")
+        return {"available": True}
+
+    except Exception as e:
+        print(f"[Check WhatsApp] Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # =============== WEBHOOK ENDPOINTS ===============

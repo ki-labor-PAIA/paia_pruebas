@@ -86,6 +86,31 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initi
       return;
     }
 
+    // Verificar si el número ya está en uso
+    try {
+      const checkResponse = await fetch(`http://localhost:8000/api/agents/check-whatsapp/${encodeURIComponent(phone)}`);
+      const checkResult = await checkResponse.json();
+
+      if (!checkResult.available) {
+        const errorMsg = `Este número ya está en uso por el agente "${checkResult.agent_name}"`;
+        setWhatsappState(prev => ({
+          ...prev,
+          template_error: errorMsg
+        }));
+        alert(`❌ ${errorMsg}`);
+        return;
+      }
+    } catch (error) {
+      console.error('Error verificando disponibilidad del número:', error);
+      const errorMsg = 'Error al verificar disponibilidad del número';
+      setWhatsappState(prev => ({
+        ...prev,
+        template_error: errorMsg
+      }));
+      alert(`❌ ${errorMsg}`);
+      return;
+    }
+
     setWhatsappState(prev => ({
       ...prev,
       sending_template: true,

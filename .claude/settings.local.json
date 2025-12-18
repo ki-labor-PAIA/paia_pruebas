@@ -24,7 +24,9 @@
       "Bash(conda info:*)",
       "Bash(nul)",
       "Bash(timeout:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(git checkout:*)",
+      "Bash(cat:*)"
     ],
     "deny": []
   }
