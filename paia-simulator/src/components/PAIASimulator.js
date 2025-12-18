@@ -638,14 +638,40 @@ export default function PAIASimulator({ initialFlow }) {
   // Función para cargar agentes públicos de otros usuarios
   const loadPublicAgents = useCallback(async () => {
     if (!isConnected) return;
-    
+
     try {
-      const agents = await PAIAApi.getPublicAgents(userId);
+      // Validar userId - si es 'anonymous' o inválido, pasar null para no excluir
+      const validUserId = (userId && userId !== 'anonymous') ? userId : null;
+      const agents = await PAIAApi.getPublicAgents(validUserId);
       setPublicAgents(agents);
       addLogMessage(`📡 Cargados ${agents.length} agentes públicos disponibles`);
     } catch (error) {
       console.error('Error loading public agents:', error);
       addLogMessage(`❌ Error cargando agentes públicos: ${error.message}`);
+    }
+  }, [isConnected, userId, addLogMessage]);
+
+  // Función para cargar los agentes del usuario actual
+  const loadMyAgents = useCallback(async () => {
+    if (!isConnected) {
+      addLogMessage('❌ Backend no conectado');
+      return;
+    }
+
+    if (!userId || userId === 'anonymous') {
+      addLogMessage('❌ Debes estar autenticado para cargar tus agentes');
+      return;
+    }
+
+    try {
+      const response = await PAIAApi.getAgents(userId);
+      // Manejar tanto {agents: [...]} como [...]
+      const agents = response.agents || response || [];
+      setPublicAgents(agents); // Reutilizar el mismo estado
+      addLogMessage(`📂 Cargados ${agents.length} de tus agentes`);
+    } catch (error) {
+      console.error('Error loading my agents:', error);
+      addLogMessage(`❌ Error cargando tus agentes: ${error.message}`);
     }
   }, [isConnected, userId, addLogMessage]);
 
@@ -1270,6 +1296,7 @@ export default function PAIASimulator({ initialFlow }) {
         nodes={nodes}
         publicAgents={publicAgents}
         onLoadPublicAgents={loadPublicAgents}
+        onLoadMyAgents={loadMyAgents}
         onAddPublicAgent={addPublicAgentToCanvas}
         isBackendConnected={isConnected}
       />

@@ -60,7 +60,9 @@ class PAIAApi {
         : `${this.baseUrl}/agents/public`;
       const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      return await response.json();
+      const data = await response.json();
+      // Manejar tanto {agents: [...]} como [...]
+      return data.agents || data || [];
     } catch (error) {
       console.error('Error fetching public agents:', error);
       return [];
