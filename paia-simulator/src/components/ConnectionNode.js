@@ -4,6 +4,11 @@ import { useState } from 'react';
 export default function ConnectionNode({ data, isConnectable, id }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Extraer datos de comunicación
+  const isActivelyCommunicating = data.isActivelyCommunicating || false;
+  const pendingMessages = data.pendingMessages || 0;
+  const lastMessageTime = data.lastMessageTime || null;
+
   const handleClick = () => {
     if (data.onConnectionClick) {
       data.onConnectionClick(data, id);
@@ -41,8 +46,24 @@ export default function ConnectionNode({ data, isConnectable, id }) {
   };
 
   const getStatusIndicator = () => {
+    // Indicador de comunicación activa (prioridad más alta)
+    if (isActivelyCommunicating) {
+      return <div style={{
+        position: 'absolute',
+        top: '8px',
+        right: '8px',
+        width: '10px',
+        height: '10px',
+        background: '#10B981',
+        borderRadius: '50%',
+        border: '2px solid white',
+        animation: 'pulse 2s infinite',
+        boxShadow: '0 0 8px rgba(16, 185, 129, 0.6)'
+      }} />;
+    }
+
     if (!data.status) return null;
-    
+
     switch (data.status) {
       case 'online':
         return <div style={{
@@ -83,7 +104,7 @@ export default function ConnectionNode({ data, isConnectable, id }) {
   };
 
   return (
-    <div 
+    <div
       onClick={handleClick}
       onMouseEnter={() => setIsExpanded(true)}
       onMouseLeave={() => setIsExpanded(false)}
@@ -111,15 +132,15 @@ export default function ConnectionNode({ data, isConnectable, id }) {
         isConnectable={isConnectable}
         style={{ background: '#555' }}
       />
-      
+
       {getStatusIndicator()}
-      
+
       <div style={{ fontSize: '28px', marginBottom: '6px' }}>
         {getConnectionTypeIcon()}
       </div>
-      
-      <div style={{ 
-        fontSize: '12px', 
+
+      <div style={{
+        fontSize: '12px',
         textAlign: 'center',
         color: 'white',
         fontWeight: '600',
@@ -213,9 +234,33 @@ export default function ConnectionNode({ data, isConnectable, id }) {
         </div>
       )}
 
+      {/* Contador de mensajes pendientes (nueva funcionalidad) */}
+      {pendingMessages > 0 && (
+        <div style={{
+          position: 'absolute',
+          bottom: '-8px',
+          right: '-8px',
+          minWidth: '20px',
+          height: '20px',
+          background: '#8B5CF6',
+          borderRadius: '10px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '10px',
+          color: 'white',
+          fontWeight: 'bold',
+          border: '2px solid white',
+          padding: '0 5px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+        }}>
+          💬 {pendingMessages}
+        </div>
+      )}
+
       {/* Tooltip expandido */}
-      {isExpanded && (data.description || data.expertise || data.userEmail) && (
-        <div 
+      {isExpanded && (data.description || data.expertise || data.userEmail || lastMessageTime) && (
+        <div
           style={{
             position: 'absolute',
             bottom: '-80px',
@@ -247,6 +292,11 @@ export default function ConnectionNode({ data, isConnectable, id }) {
               {data.userEmail}
             </div>
           )}
+          {lastMessageTime && (
+            <div style={{ color: '#A78BFA', fontSize: '10px', marginTop: '4px' }}>
+              Último mensaje: {new Date(lastMessageTime).toLocaleTimeString()}
+            </div>
+          )}
           {data.connectionType === 'workflow' && data.workflowInfo && (
             <div style={{ color: '#D1D5DB', fontSize: '10px', marginTop: '4px' }}>
               {data.workflowInfo.agents} agentes • {data.workflowInfo.connections} conexiones
@@ -260,13 +310,27 @@ export default function ConnectionNode({ data, isConnectable, id }) {
         position={Position.Bottom}
         id="connection-output"
         isConnectable={isConnectable}
-        style={{ 
-          background: '#555', 
-          bottom: -8, 
-          borderRadius: '50%', 
-          border: '2px solid white' 
+        style={{
+          background: '#555',
+          bottom: -8,
+          borderRadius: '50%',
+          border: '2px solid white'
         }}
       />
+
+      {/* Agregar keyframes para animación de pulso */}
+      <style jsx>{`
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.7;
+            transform: scale(1.1);
+          }
+        }
+      `}</style>
     </div>
   );
 }

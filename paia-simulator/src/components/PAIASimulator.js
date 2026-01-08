@@ -27,9 +27,17 @@ import SaveFlowModal from './SaveFlowModal';
 import FriendsPanel from './FriendsPanel';
 import { useSession } from 'next-auth/react';
 import usePAIABackend from '@/hooks/usePAIABackend';
+import useFlowSave from '@/hooks/useFlowSave';
 import { generateMockResponse } from '@/utils/mockResponses';
 import PAIAApi from '@/utils/api';
 import { t } from 'i18next';
+import AgentConversationModal from './AgentConversationModal';
+import {
+  generateMeetingConversation,
+  detectAgentCommunicationRequest,
+  simulateConversation,
+  getAgentColorFromId
+} from '@/utils/agentConversationDemo';
 
 // Los node types se definirán dentro del componente para pasar props
 
@@ -100,16 +108,11 @@ export default function PAIASimulator({ initialFlow }) {
   const [showFriendsPanel, setShowFriendsPanel] = useState(false);
   const [connectionMode, setConnectionMode] = useState('social'); // 'social' o 'flow'
   const [activeConnectionNodeId, setActiveConnectionNodeId] = useState(null);
-  
+
   // Sistema multi-usuario - usar ID de sesión de NextAuth
   const userId = session?.user?.id || 'anonymous';
   const [publicAgents, setPublicAgents] = useState([]);
 
-  // Auto-guardado de flujos
-  const [currentFlowId, setCurrentFlowId] = useState(initialFlow?.id || null);
-  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
-  const [lastSaved, setLastSaved] = useState(null);
-  
   // Chat states
   const [showCreateAgent, setShowCreateAgent] = useState(false);
   const [showConfigureCalendar, setShowConfigureCalendar] = useState(false);
@@ -117,10 +120,10 @@ export default function PAIASimulator({ initialFlow }) {
   const [activeChatAgent, setActiveChatAgent] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
-  
+
   // Historial de mensajes por nodo (nodeId -> mensajes[])
   const [nodeMessageHistory, setNodeMessageHistory] = useState({});
-  
+
   const [logMessages, setLogMessages] = useState([]);
   const [stats, setStats] = useState({
     responseTime: 0,
@@ -131,18 +134,55 @@ export default function PAIASimulator({ initialFlow }) {
     { id: 1, sender: 'Sistema', message: 'Listo para simular', isSystem: true }
   ]);
 
+  // Estados para conversación entre agentes
+  const [showAgentConversation, setShowAgentConversation] = useState(false);
+  const [agentConversationMessages, setAgentConversationMessages] = useState([]);
+  const [conversationSourceAgent, setConversationSourceAgent] = useState(null);
+  const [conversationTargetAgent, setConversationTargetAgent] = useState(null);
+  const [isConversationActive, setIsConversationActive] = useState(false);
+
   const actorIdRef = useRef(1);
   const simulationRef = useRef(null);
 
   // Backend integration
-  const { 
-    isConnected, 
-    loading, 
-    simulateWithBackend, 
+  const {
+    isConnected,
+    loading,
+    simulateWithBackend,
     clearBackendData,
     checkBackendConnection,
     createBackendAgent
   } = usePAIABackend();
+
+  // Definir callbacks antes de usarlos en hooks
+  const addLogMessage = useCallback((message) => {
+    setLogMessages(prev => [...prev, message]);
+  }, []);
+
+  const addDecisionMessage = useCallback((sender, message, isSystem = false) => {
+    setDecisions(prev => [
+      { id: Date.now(), sender, message, isSystem },
+      ...prev.slice(0, 9)
+    ]);
+  }, []);
+
+  // Hook personalizado para guardado de flujos
+  const {
+    saveFlow,
+    currentFlowId,
+    lastSaved,
+    autoSaveEnabled,
+    setAutoSaveEnabled
+  } = useFlowSave({
+    userId,
+    nodes,
+    edges,
+    scenarioName,
+    scenarioDesc,
+    addLogMessage,
+    addDecisionMessage,
+    initialFlowId: initialFlow?.id
+  });
 
   // Comentado para no mostrar la guía automáticamente
   // useEffect(() => {
@@ -171,16 +211,7 @@ export default function PAIASimulator({ initialFlow }) {
     []
   );
 
-  const addLogMessage = useCallback((message) => {
-    setLogMessages(prev => [...prev, message]);
-  }, []);
-
-  const addDecisionMessage = useCallback((sender, message, isSystem = false) => {
-    setDecisions(prev => [
-      { id: Date.now(), sender, message, isSystem },
-      ...prev.slice(0, 9)
-    ]);
-  }, []);
+  // addLogMessage y addDecisionMessage movidos arriba antes del hook useFlowSave
 
   // Función para agregar mensaje al historial de un nodo específico
   const addMessageToNodeHistory = useCallback((nodeId, message) => {
@@ -214,7 +245,7 @@ export default function PAIASimulator({ initialFlow }) {
         try {
           const sourceNode = nodes.find(n => n.id === params.source);
           const targetNode = nodes.find(n => n.id === params.target);
-          
+
           // Solo conectar si ambos nodos tienen backendId (fueron creados en el backend)
           if (sourceNode?.data?.backendId && targetNode?.data?.backendId) {
             await PAIAApi.createConnection({
@@ -222,7 +253,7 @@ export default function PAIASimulator({ initialFlow }) {
               agent2: targetNode.data.backendId,
               type: 'direct'
             });
-            
+
             addLogMessage(`🔗 Conexión creada en backend: ${sourceNode.data.label} → ${targetNode.data.label}`);
             addDecisionMessage('Sistema', `Conexión backend establecida entre ${sourceNode.data.label} y ${targetNode.data.label}`, true);
           }
@@ -238,17 +269,17 @@ export default function PAIASimulator({ initialFlow }) {
   const addActor = useCallback(async (type, name = null, x = null, y = null) => {
     const id = `actor-${actorIdRef.current}`;
     const actorName = name || `${type === 'human' ? 'Humano' : 'IA'} ${actorIdRef.current}`;
-    
+
     const agentColor = type === 'ai' ? getAgentColor(null) : undefined;
-    
+
     const newNode = {
       id,
       type: 'actor',
-      position: { 
-        x: x ?? (100 + actorIdRef.current * 60), 
-        y: y ?? (100 + actorIdRef.current * 30) 
+      position: {
+        x: x ?? (100 + actorIdRef.current * 60),
+        y: y ?? (100 + actorIdRef.current * 30)
       },
-      data: { 
+      data: {
         label: actorName,
         actorType: type,
         emoji: type === 'human' ? '👤' : '🤖',
@@ -277,7 +308,7 @@ export default function PAIASimulator({ initialFlow }) {
           use_mcp: true,
           is_public: false
         };
-        
+
         await createBackendAgent(agentData);
         addLogMessage(`🤖 Agente ${actorName} creado en el backend`);
       } catch (error) {
@@ -289,7 +320,7 @@ export default function PAIASimulator({ initialFlow }) {
 
   const createConfiguredAgent = useCallback(async (agentConfig) => {
     const id = `agent-${actorIdRef.current}`;
-    
+
     if (agentConfig.isNotesNode) {
       agentConfig.expertise = 'notes';
       agentConfig.is_capability_node = true;
@@ -305,7 +336,7 @@ export default function PAIASimulator({ initialFlow }) {
           user_id: userId,
           is_public: agentConfig.is_public !== undefined ? agentConfig.is_public : true
         };
-        
+
         backendAgent = await PAIAApi.createAgent(agentDataWithUser);
         addLogMessage(`✅ Agente PAIA creado en backend: ${agentConfig.name}`);
         addDecisionMessage('Sistema', `Agente ${agentConfig.name} configurado con ${agentConfig.personality} y expertise en ${agentConfig.expertise}`, true);
@@ -314,17 +345,17 @@ export default function PAIASimulator({ initialFlow }) {
         addLogMessage(`⚠️ Error al crear agente en backend, usando configuración local`);
       }
     }
-    
+
     const agentColor = getAgentColor(agentConfig.personality);
-    
+
     const newNode = {
       id: backendAgent?.id || id,
       type: 'actor',
-      position: { 
-        x: 100 + actorIdRef.current * 60, 
-        y: 100 + actorIdRef.current * 30 
+      position: {
+        x: 100 + actorIdRef.current * 60,
+        y: 100 + actorIdRef.current * 30
       },
-      data: { 
+      data: {
         label: agentConfig.name,
         actorType: 'ai',
         emoji: agentConfig.isNotesNode ? '📒' : '🤖',
@@ -350,15 +381,15 @@ export default function PAIASimulator({ initialFlow }) {
   // Función para agregar nodo de Telegram
   const addTelegramNode = useCallback((x = null, y = null) => {
     const id = `telegram-${actorIdRef.current}`;
-    
+
     const newNode = {
       id,
       type: 'telegram',
-      position: { 
-        x: x ?? (100 + actorIdRef.current * 60), 
-        y: y ?? (100 + actorIdRef.current * 30) 
+      position: {
+        x: x ?? (100 + actorIdRef.current * 60),
+        y: y ?? (100 + actorIdRef.current * 30)
       },
-      data: { 
+      data: {
         label: 'Telegram',
         nodeType: 'telegram',
         isConfigured: false,
@@ -421,114 +452,6 @@ export default function PAIASimulator({ initialFlow }) {
     addLogMessage('👥 Buscando usuarios para conexión social...');
   }, [addLogMessage]);
 
-  // Función para guardar flujo
-  const saveFlow = useCallback(async (flowData) => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/flows/save`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          user_id: userId,
-          name: flowData.name,
-          description: flowData.description,
-          is_public: flowData.is_public,
-          tags: flowData.tags,
-          flow_data: {
-            nodes: nodes,
-            edges: edges,
-            scenario: {
-              name: scenarioName,
-              description: scenarioDesc
-            }
-          },
-          metadata: {
-            node_count: nodes.length,
-            edge_count: edges.length,
-            created_from: 'simulator'
-          }
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Error guardando el flujo');
-      }
-
-      const result = await response.json();
-      addLogMessage(`💾 Flujo '${flowData.name}' guardado exitosamente`);
-      addDecisionMessage('Sistema', `Flujo guardado con ID: ${result.flow_id}`, true);
-      
-      return result;
-    } catch (error) {
-      addLogMessage(`❌ Error guardando flujo: ${error.message}`);
-      throw error;
-    }
-  }, [userId, nodes, edges, scenarioName, scenarioDesc, addLogMessage, addDecisionMessage]);
-
-  // Auto-guardado de flujos
-  const autoSaveFlow = useCallback(async () => {
-    if (!autoSaveEnabled || !userId || userId === 'anonymous') return;
-    if (nodes.length === 0) return; // No guardar flujos vacíos
-
-    try {
-      const flowData = {
-        user_id: userId,
-        name: scenarioName || `Flujo ${new Date().toLocaleDateString()}`,
-        description: scenarioDesc || 'Auto-guardado',
-        is_public: false,
-        tags: ['auto-save'],
-        flow_data: {
-          nodes: nodes,
-          edges: edges,
-          scenario: {
-            name: scenarioName,
-            description: scenarioDesc
-          }
-        },
-        metadata: {
-          node_count: nodes.length,
-          edge_count: edges.length,
-          created_from: 'simulator-auto',
-          last_modified: new Date().toISOString()
-        }
-      };
-
-      const url = currentFlowId
-        ? `${process.env.NEXT_PUBLIC_API_URL}/api/flows/${currentFlowId}`
-        : `${process.env.NEXT_PUBLIC_API_URL}/api/flows/save`;
-
-      const response = await fetch(url, {
-        method: currentFlowId ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(flowData)
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (!currentFlowId) {
-          setCurrentFlowId(result.flow_id);
-        }
-        setLastSaved(new Date());
-        console.log('💾 Flujo auto-guardado');
-      }
-    } catch (error) {
-      console.error('Error en auto-guardado:', error);
-    }
-  }, [userId, nodes, edges, scenarioName, scenarioDesc, currentFlowId, autoSaveEnabled]);
-
-  // Debounced auto-save (esperar 3 segundos después del último cambio)
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      autoSaveFlow();
-    }, 3000);
-
-    return () => clearTimeout(timeoutId);
-  }, [nodes, edges, scenarioName, scenarioDesc, autoSaveFlow]);
-
   // Función para mostrar configuración de Calendar
   const addCalendarNode = useCallback(() => {
     setShowConfigureCalendar(true);
@@ -537,15 +460,15 @@ export default function PAIASimulator({ initialFlow }) {
   // Función para crear nodo Calendar configurado
   const createConfiguredCalendar = useCallback((calendarConfig, x = null, y = null) => {
     const id = `calendar-${actorIdRef.current}`;
-    
+
     const newNode = {
       id,
       type: 'calendar',
-      position: { 
-        x: x ?? (100 + actorIdRef.current * 60), 
-        y: y ?? (100 + actorIdRef.current * 30) 
+      position: {
+        x: x ?? (100 + actorIdRef.current * 60),
+        y: y ?? (100 + actorIdRef.current * 30)
       },
-      data: { 
+      data: {
         label: calendarConfig.name || 'Google Calendar',
         nodeType: 'calendar',
         isAuthenticated: calendarConfig.isAuthenticated,
@@ -564,7 +487,7 @@ export default function PAIASimulator({ initialFlow }) {
   const handleCalendarAuthRequest = useCallback(async (nodeData) => {
     try {
       addLogMessage(`🔐 Solicitando autenticación para Google Calendar...`);
-      
+
       // Llamar al MCP para obtener URL de autenticación
       const response = await fetch('/api/mcp', {
         method: 'POST',
@@ -580,14 +503,14 @@ export default function PAIASimulator({ initialFlow }) {
       if (response.ok) {
         const result = await response.json();
         const authUrlMatch = result.content?.[0]?.text?.match(/URL de autenticación: (.+)/);
-        
+
         if (authUrlMatch) {
           const authUrl = authUrlMatch[1];
           addLogMessage(`🔗 Abriendo ventana de autenticación de Google...`);
-          
+
           // Abrir ventana de autenticación
           window.open(authUrl, 'google-auth', 'width=500,height=600,scrollbars=yes,resizable=yes');
-          
+
           // TODO: Implementar listener para cuando se complete la autenticación
           // Por ahora, mostrar mensaje informativo
           addLogMessage(`ℹ️ Complete la autenticación en la ventana emergente. El nodo se actualizará automáticamente.`);
@@ -609,22 +532,24 @@ export default function PAIASimulator({ initialFlow }) {
       // Conexión de flujo creada con un agente específico
       addLogMessage(`⚡ Conexión de flujo establecida con el agente ${connectionData.agent.name}`);
       addDecisionMessage('Sistema', `Flujo conectado al agente ${connectionData.agent.name}`, true);
-      
+
       // Actualizar el ConnectionNode correspondiente
-      setNodes(currentNodes => 
-        currentNodes.map(node => 
+      setNodes(currentNodes =>
+        currentNodes.map(node =>
           node.id === connectionData.connectionNodeId
             ? {
-                ...node,
-                data: {
-                  ...node.data,
-                  isConnected: true,
-                  status: 'online',
-                  label: `Conectado a ${connectionData.agent.name}`,
-                  connectedAgent: connectionData.agent, // Guardamos el agente completo
-                  flowConnectionId: connectionData.flowConnectionId
-                }
+              ...node,
+              data: {
+                ...node.data,
+                isConnected: true,
+                status: 'online',
+                label: `Conectado a ${connectionData.agent.name}`,
+                connectedAgent: connectionData.agent, // Guardamos el agente completo
+                flowConnectionId: connectionData.flowConnectionId,
+                targetAgentId: connectionData.agent.id, // ID del agente objetivo
+                targetAgentName: connectionData.agent.name // Nombre del agente objetivo
               }
+            }
             : node
         )
       );
@@ -638,7 +563,7 @@ export default function PAIASimulator({ initialFlow }) {
   // Función para cargar agentes públicos de otros usuarios
   const loadPublicAgents = useCallback(async () => {
     if (!isConnected) return;
-    
+
     try {
       const agents = await PAIAApi.getPublicAgents(userId);
       setPublicAgents(agents);
@@ -658,15 +583,15 @@ export default function PAIASimulator({ initialFlow }) {
     }
 
     const agentColor = getAgentColor(publicAgent.personality);
-    
+
     const newNode = {
       id: `external-${publicAgent.id}`,
       type: 'actor',
-      position: { 
-        x: 100 + actorIdRef.current * 60, 
-        y: 100 + actorIdRef.current * 30 
+      position: {
+        x: 100 + actorIdRef.current * 60,
+        y: 100 + actorIdRef.current * 30
       },
-      data: { 
+      data: {
         label: publicAgent.name,
         actorType: 'ai',
         emoji: '🌐', // Emoji diferente para agentes externos
@@ -699,10 +624,10 @@ export default function PAIASimulator({ initialFlow }) {
 
     setActiveChatAgent(agentId);
     setShowChat(true);
-    
+
     // Cargar historial de mensajes del nodo
     const nodeHistory = nodeMessageHistory[agentId] || [];
-    
+
     if (agent.data.actorType === 'human') {
       // Para humanos: mostrar configuración + historial de mensajes recibidos
       const systemMessage = {
@@ -710,7 +635,7 @@ export default function PAIASimulator({ initialFlow }) {
         content: `Configurando ${agent.data.label}. Escribe el mensaje que este humano enviará durante la simulación. Mensaje actual: "${agent.data.customMessage || 'Sin mensaje configurado'}"`,
         timestamp: new Date().toLocaleTimeString()
       };
-      
+
       setChatMessages([systemMessage, ...nodeHistory]);
     } else {
       // Para IAs: mostrar historial normal
@@ -720,24 +645,136 @@ export default function PAIASimulator({ initialFlow }) {
 
   // Función para actualizar mensaje personalizado de nodos humanos
   const updateHumanMessage = useCallback((nodeId, newMessage) => {
-    setNodes(currentNodes => 
-      currentNodes.map(node => 
+    setNodes(currentNodes =>
+      currentNodes.map(node =>
         node.id === nodeId && node.data.actorType === 'human'
           ? {
-              ...node,
-              data: {
-                ...node.data,
-                customMessage: newMessage
-              }
+            ...node,
+            data: {
+              ...node.data,
+              customMessage: newMessage
             }
+          }
           : node
       )
     );
     addLogMessage(`📝 Mensaje actualizado para ${nodes.find(n => n.id === nodeId)?.data.label}: "${newMessage}"`);
   }, [nodes, addLogMessage]);
 
+  // Función para iniciar conversación entre agentes
+  const startAgentConversation = useCallback(async (sourceAgentNode, targetAgentNode, userRequest) => {
+    // Cerrar el chat actual
+    setShowChat(false);
+
+    // Configurar agentes
+    const sourceAgent = {
+      id: sourceAgentNode.id,
+      name: sourceAgentNode.data.label,
+      color: getAgentColorFromId(sourceAgentNode.id)
+    };
+
+    const targetAgent = {
+      id: targetAgentNode.id,
+      name: targetAgentNode.data.label,
+      color: getAgentColorFromId(targetAgentNode.id)
+    };
+
+    setConversationSourceAgent(sourceAgent);
+    setConversationTargetAgent(targetAgent);
+    setAgentConversationMessages([]);
+    setShowAgentConversation(true);
+    setIsConversationActive(true);
+
+    // Generar conversación de demostración
+    const demoMessages = generateMeetingConversation(sourceAgent.id, targetAgent.id);
+
+    // Simular envío progresivo de mensajes
+    await simulateConversation(
+      demoMessages,
+      (message) => {
+        setAgentConversationMessages(prev => [...prev, message]);
+      },
+      2500 // 2.5 segundos entre mensajes
+    );
+
+    setIsConversationActive(false);
+
+    // Log del evento
+    addLogMessage(`🤝 Conversación completada entre ${sourceAgent.name} y ${targetAgent.name}`);
+    addDecisionMessage('Sistema', `Los agentes han coordinado exitosamente`, true);
+  }, [addLogMessage, addDecisionMessage, setShowChat]);
+
   const sendChatMessage = useCallback(async (message) => {
+    console.log(' sendChatMessage llamado con:', message);
     if (!activeChatAgent) return;
+
+    // DETECTAR SOLICITUD DE COMUNICACIÓN ENTRE AGENTES
+
+    if (detectAgentCommunicationRequest(message)) {
+      console.log('🔍 Detectada solicitud de comunicación entre agentes');
+
+      // Buscar nodos de agente y conexión
+      const agentNodes = nodes.filter(n => n.type === 'actor');
+      const connectionNodes = nodes.filter(n => n.type === 'connection' && n.data.isConnected);
+
+      console.log('📊 Agentes encontrados:', agentNodes.length);
+      console.log('🔗 Nodos de conexión:', connectionNodes.length);
+
+      if (agentNodes.length > 0 && connectionNodes.length > 0) {
+        // Encontrar el agente activo en el chat
+        const sourceAgent = agentNodes.find(a => a.id === activeChatAgent);
+
+        if (!sourceAgent) {
+          console.log('❌ No se encontró el agente fuente');
+        } else {
+          console.log('✅ Agente fuente:', sourceAgent.data.label);
+
+          // Buscar nodo de conexión conectado a este agente mediante edges
+          let connectedNode = null;
+          for (const connectionNode of connectionNodes) {
+            // Verificar si hay un edge entre el agente y el nodo de conexión
+            const hasEdge = edges.some(edge =>
+              (edge.source === sourceAgent.id && edge.target === connectionNode.id) ||
+              (edge.target === sourceAgent.id && edge.source === connectionNode.id)
+            );
+
+            if (hasEdge) {
+              connectedNode = connectionNode;
+              console.log('✅ Nodo de conexión encontrado:', connectedNode.id);
+              break;
+            }
+          }
+
+          if (connectedNode && connectedNode.data.targetAgentId) {
+            console.log('🎯 Target Agent ID:', connectedNode.data.targetAgentId);
+            console.log('🎯 Target Agent Name:', connectedNode.data.targetAgentName);
+
+            // Buscar el agente objetivo o crear uno temporal
+            let targetAgent = agentNodes.find(a => a.id === connectedNode.data.targetAgentId);
+
+            // Si no encontramos el agente en los nodos (es remoto), creamos uno temporal
+            if (!targetAgent && connectedNode.data.targetAgentName) {
+              targetAgent = {
+                id: connectedNode.data.targetAgentId,
+                data: { label: connectedNode.data.targetAgentName }
+              };
+              console.log('📝 Creado agente temporal:', targetAgent.data.label);
+            }
+
+            if (targetAgent) {
+              console.log('🚀 Iniciando conversación entre agentes');
+              // Iniciar conversación entre agentes
+              startAgentConversation(sourceAgent, targetAgent, message);
+              return; // Salir de la función sin procesar el mensaje normalmente
+            } else {
+              console.log('❌ No se pudo crear/encontrar el agente objetivo');
+            }
+          } else {
+            console.log('❌ No se encontró nodo de conexión válido o no tiene targetAgentId');
+          }
+        }
+      }
+    }
 
     const agent = nodes.find(n => n.id === activeChatAgent);
     if (!agent) return;
@@ -746,25 +783,25 @@ export default function PAIASimulator({ initialFlow }) {
     if (agent.data.actorType === 'human') {
       // Actualizar el mensaje personalizado del nodo
       updateHumanMessage(activeChatAgent, message);
-      
+
       const humanMessage = {
         sender: 'human',
         content: `Mensaje configurado: "${message}"`,
         timestamp: new Date().toLocaleTimeString()
       };
-      
+
       const confirmMessage = {
         sender: 'system',
         content: `✅ Mensaje configurado para ${agent.data.label}. Durante la simulación, este humano dirá: "${message}"`,
         timestamp: new Date().toLocaleTimeString()
       };
-      
+
       setChatMessages(prev => [...prev, humanMessage, confirmMessage]);
-      
+
       // Agregar al historial del nodo
       addMessageToNodeHistory(activeChatAgent, humanMessage);
       addMessageToNodeHistory(activeChatAgent, confirmMessage);
-      
+
       addDecisionMessage(agent.data.label, `Mensaje configurado: "${message.slice(0, 30)}..."`, false);
       return;
     }
@@ -786,7 +823,7 @@ export default function PAIASimulator({ initialFlow }) {
       // Intentar respuesta del backend si está disponible
       if (useBackend && isConnected && agent.data.backendId) {
         try {
-          const response = await PAIAApi.sendMessage(agent.data.backendId, message);
+          const response = await PAIAApi.sendMessage(agent.data.backendId, message, userId);
           agentResponse = response.response;
           addDecisionMessage(agent.data.label, `Procesé la consulta: "${message.slice(0, 30)}..."`, false);
         } catch (error) {
@@ -805,14 +842,14 @@ export default function PAIASimulator({ initialFlow }) {
       };
 
       setChatMessages(prev => [...prev, aiMessage]);
-      
+
       // Agregar mensajes al historial del nodo
       addMessageToNodeHistory(activeChatAgent, userMessage);
       addMessageToNodeHistory(activeChatAgent, aiMessage);
-      
+
       setIsTyping(false);
     }, 1000 + Math.random() * 2000);
-  }, [activeChatAgent, nodes, useBackend, isConnected, addDecisionMessage, addMessageToNodeHistory, updateHumanMessage]);
+  }, [activeChatAgent, nodes, edges, useBackend, isConnected, addDecisionMessage, addMessageToNodeHistory, updateHumanMessage, startAgentConversation]);
 
   const closeChat = useCallback(() => {
     setShowChat(false);
@@ -876,7 +913,7 @@ export default function PAIASimulator({ initialFlow }) {
         id: actor.id,
         type: 'actor',
         position: actor.position,
-        data: { 
+        data: {
           label: actor.name,
           actorType: actor.type,
           emoji: actor.type === 'human' ? '👤' : '🤖'
@@ -930,22 +967,22 @@ export default function PAIASimulator({ initialFlow }) {
 
   const importScenario = useCallback((file) => {
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = function (e) {
       try {
         const content = JSON.parse(e.target.result);
         setNodes([]);
         setEdges([]);
         actorIdRef.current = 1;
-        
+
         setScenarioName(content.name || '');
         setScenarioDesc(content.description || '');
-        
+
         content.actors.forEach(actor => {
           const newNode = {
             id: actor.id,
             type: 'actor',
             position: actor.position,
-            data: { 
+            data: {
               label: actor.name,
               actorType: actor.type,
               emoji: actor.type === 'human' ? '👤' : '🤖'
@@ -954,7 +991,7 @@ export default function PAIASimulator({ initialFlow }) {
           };
           setNodes((nds) => [...nds, newNode]);
         });
-        
+
         content.interactions.forEach(interaction => {
           const edge = {
             id: `${interaction.source}-${interaction.target}`,
@@ -977,15 +1014,15 @@ export default function PAIASimulator({ initialFlow }) {
 
   // Función para animar un edge específico
   const animateEdge = useCallback((edgeId, duration = 2000) => {
-    setEdges(eds => eds.map(edge => 
-      edge.id === edgeId 
+    setEdges(eds => eds.map(edge =>
+      edge.id === edgeId
         ? { ...edge, animated: true, style: { stroke: 'var(--primary-color)', strokeWidth: 3 } }
         : edge
     ));
-    
+
     setTimeout(() => {
-      setEdges(eds => eds.map(edge => 
-        edge.id === edgeId 
+      setEdges(eds => eds.map(edge =>
+        edge.id === edgeId
           ? { ...edge, animated: false, style: undefined }
           : edge
       ));
@@ -1023,11 +1060,11 @@ export default function PAIASimulator({ initialFlow }) {
         return node;
       });
       setNodes(updatedNodes);
-      
+
       // Agregar nodos de Telegram activos al estado
       const telegramIds = telegramNodes.filter(n => n.data.isConfigured).map(n => n.id);
       setActiveTelegramNodes(new Set(telegramIds));
-      
+
       setIsRunning(true);
       addLogMessage('🚀 Flujo ejecutándose - Telegram activo y conectado...');
       return; // No ejecutar simulación tradicional si hay Telegram
@@ -1058,7 +1095,7 @@ export default function PAIASimulator({ initialFlow }) {
     // Flujo tradicional (sin Telegram)
     setIsRunning(true);
     addLogMessage('🚀 Ejecutando flujo...');
-    
+
     if (useBackend && isConnected) {
       // Usar simulación con backend
       const success = await simulateWithBackend(nodes, edges, addLogMessage, addDecisionMessage);
@@ -1074,10 +1111,10 @@ export default function PAIASimulator({ initialFlow }) {
       for (const edge of edges) {
         const sourceNode = nodes.find(n => n.id === edge.source);
         const targetNode = nodes.find(n => n.id === edge.target);
-        
+
         if (sourceNode && targetNode) {
           animateEdge(edge.id, 2000);
-          
+
           // Determinar el mensaje basado en el tipo de nodo fuente
           let messageContent = '';
           if (sourceNode.data.actorType === 'human') {
@@ -1089,28 +1126,28 @@ export default function PAIASimulator({ initialFlow }) {
             messageContent = `Hola ${targetNode.data.label}, colaboremos en esta tarea.`;
             addLogMessage(`🤖→${targetNode.data.actorType === 'human' ? '👤' : '🤖'} ${sourceNode.data.label}: "${messageContent}"`);
           }
-          
+
           // Manejar diferentes tipos de nodos destino
           if (targetNode.type === 'connection') {
             // ConnectionNode - enrutar a agente externo
             if (targetNode.data.isConnected && targetNode.data.connectedAgent) {
               const targetAgent = targetNode.data.connectedAgent;
               addLogMessage(`🌐→ ${sourceNode.data.label} intenta comunicarse con ${targetAgent.name} a través de un nodo de conexión.`);
-              
+
               if (useBackend && isConnected && sourceNode.data.backendId) {
                 // Construir el prompt para que el agente de origen use la herramienta
                 const intelligentPrompt = `Usa la herramienta 'ask_connected_agent' para enviar la siguiente pregunta al agente con ID '${targetAgent.id}': "${messageContent}"`;
-                
+
                 addLogMessage(`🤖 Prompt para ${sourceNode.data.label}: "${intelligentPrompt}"`);
                 addDecisionMessage(sourceNode.data.label, `Preparando para preguntar a ${targetAgent.name}...`, false);
 
                 try {
                   // Enviar el prompt al agente de origen para que ejecute la herramienta
-                  const response = await PAIAApi.sendMessage(sourceNode.data.backendId, intelligentPrompt);
-                  
+                  const response = await PAIAApi.sendMessage(sourceNode.data.backendId, intelligentPrompt, userId);
+
                   // La respuesta del backend será la respuesta del agente consultado
                   const agentResponse = response.response;
-                  
+
                   addLogMessage(`✅ Respuesta de ${targetAgent.name}: "${agentResponse}"`);
                   addDecisionMessage(targetAgent.name, agentResponse, false);
 
@@ -1119,7 +1156,7 @@ export default function PAIASimulator({ initialFlow }) {
                     sender: 'agent',
                     content: `Pregunta enviada a ${targetAgent.name}: "${messageContent}"`
                   });
-                   addMessageToNodeHistory(targetNode.id, {
+                  addMessageToNodeHistory(targetNode.id, {
                     sender: 'received',
                     content: `Pregunta de ${sourceNode.data.label}: "${messageContent}"`,
                     from: sourceNode.data.label
@@ -1135,7 +1172,7 @@ export default function PAIASimulator({ initialFlow }) {
                   addDecisionMessage('Sistema', errorMsg, true);
                 }
               } else {
-                 addLogMessage(`⚠️ La comunicación agente-a-agente requiere que el backend esté activo y que el agente de origen (${sourceNode.data.label}) exista en el backend.`);
+                addLogMessage(`⚠️ La comunicación agente-a-agente requiere que el backend esté activo y que el agente de origen (${sourceNode.data.label}) exista en el backend.`);
               }
             } else {
               addLogMessage(`⚠️ Nodo de conexión '${targetNode.data.label}' no está configurado o conectado a un agente específico.`);
@@ -1145,7 +1182,7 @@ export default function PAIASimulator({ initialFlow }) {
             const response = generateMockResponse(targetNode.data, messageContent);
             addLogMessage(`🤖→${sourceNode.data.actorType === 'human' ? '👤' : '🤖'} ${targetNode.data.label}: "${response}"`);
             addDecisionMessage(targetNode.data.label, response, false);
-            
+
             // Agregar mensajes al historial del nodo IA
             addMessageToNodeHistory(targetNode.id, {
               sender: 'received',
@@ -1159,14 +1196,14 @@ export default function PAIASimulator({ initialFlow }) {
           } else {
             // Si el target es humano, agregar mensaje recibido a su historial
             addDecisionMessage(targetNode.data.label, `Recibió mensaje: "${messageContent.slice(0, 30)}..."`, false);
-            
+
             addMessageToNodeHistory(targetNode.id, {
               sender: 'received',
               content: messageContent,
               from: sourceNode.data.label
             });
           }
-          
+
           await new Promise(resolve => setTimeout(resolve, 2500));
         }
       }
@@ -1192,7 +1229,7 @@ export default function PAIASimulator({ initialFlow }) {
       return node;
     });
     setNodes(updatedNodes);
-    
+
     // Limpiar nodos de Telegram activos
     setActiveTelegramNodes(new Set());
     setIsRunning(false);
@@ -1223,124 +1260,137 @@ export default function PAIASimulator({ initialFlow }) {
     <div style={{ width: '100vw', height: '100vh', display: 'flex' }}>
       <UserHeader />
       <div style={{ width: '100%', height: '100%', display: 'flex', paddingTop: '60px' }}>
-      <LeftSidebar
-        scenarioName={scenarioName}
-        setScenarioName={setScenarioName}
-        scenarioDesc={scenarioDesc}
-        setScenarioDesc={setScenarioDesc}
-        onPresetChange={loadPresetScenario}
-        onImport={importScenario}
-        onExport={exportScenario}
-        onRun={runFlow}
-        onStop={stopFlow}
-        onReset={resetSimulation}
-        isRunning={isRunning}
-        onShowGuide={() => setShowGuide(true)}
-        useBackend={useBackend}
-        setUseBackend={setUseBackend}
-        isBackendConnected={isConnected}
-        onCheckBackend={checkBackendConnection}
-        onAddConnectionNode={addConnectionNode}
-        onConnectUser={openSocialConnectionModal}
-        onSaveFlow={() => setShowSaveFlow(true)}
-        onShowFriends={() => setShowFriendsPanel(true)}
-      />
-      
-      <div style={{ flex: 1, margin: '0 280px', position: 'relative' }}>
-        <ReactFlow
+        <LeftSidebar
+          scenarioName={scenarioName}
+          setScenarioName={setScenarioName}
+          scenarioDesc={scenarioDesc}
+          setScenarioDesc={setScenarioDesc}
+          onPresetChange={loadPresetScenario}
+          onImport={importScenario}
+          onExport={exportScenario}
+          onRun={runFlow}
+          onStop={stopFlow}
+          onReset={resetSimulation}
+          isRunning={isRunning}
+          onShowGuide={() => setShowGuide(true)}
+          useBackend={useBackend}
+          setUseBackend={setUseBackend}
+          isBackendConnected={isConnected}
+          onCheckBackend={checkBackendConnection}
+          onAddConnectionNode={addConnectionNode}
+          onConnectUser={openSocialConnectionModal}
+          onSaveFlow={() => setShowSaveFlow(true)}
+          onShowFriends={() => setShowFriendsPanel(true)}
+        />
+
+        <div style={{ flex: 1, margin: '0 280px', position: 'relative' }}>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            nodeTypes={nodeTypes}
+            fitView
+          >
+            <Controls />
+          </ReactFlow>
+        </div>
+
+        <RightSidebar
+          onAddActor={addActor}
+          onAddTelegram={addTelegramNode}
+          onAddCalendar={addCalendarNode}
+          onConnect={() => { }} // Connect functionality handled by ReactFlow
+          onCreateAgent={() => setShowCreateAgent(true)}
+          onChatWithAgent={startChat}
           nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          nodeTypes={nodeTypes}
-          fitView
-        >
-          <Controls />
-        </ReactFlow>
-      </div>
-
-      <RightSidebar
-        onAddActor={addActor}
-        onAddTelegram={addTelegramNode}
-        onAddCalendar={addCalendarNode}
-        onConnect={() => {}} // Connect functionality handled by ReactFlow
-        onCreateAgent={() => setShowCreateAgent(true)}
-        onChatWithAgent={startChat}
-        nodes={nodes}
-        publicAgents={publicAgents}
-        onLoadPublicAgents={loadPublicAgents}
-        onAddPublicAgent={addPublicAgentToCanvas}
-        isBackendConnected={isConnected}
-      />
-
-      <StatsPanel stats={stats} />
-      
-      <LogPanel messages={logMessages} />
-
-      {showGuide && (
-        <GuideModal onClose={() => setShowGuide(false)} />
-      )}
-
-      {showCreateAgent && (
-        <CreateAgentModal
-          isOpen={showCreateAgent}
-          onClose={() => setShowCreateAgent(false)}
-          onCreateAgent={createConfiguredAgent}
+          publicAgents={publicAgents}
+          onLoadPublicAgents={loadPublicAgents}
+          onAddPublicAgent={addPublicAgentToCanvas}
+          isBackendConnected={isConnected}
         />
-      )}
 
-      {showConfigureCalendar && (
-        <ConfigureCalendarModal
-          isOpen={showConfigureCalendar}
-          onClose={() => setShowConfigureCalendar(false)}
-          onConfigureCalendar={createConfiguredCalendar}
-        />
-      )}
+        <StatsPanel stats={stats} />
 
-      {showChat && (
-        <ChatModal
-          isOpen={showChat}
-          onClose={closeChat}
-          activeAgent={activeChatAgent}
-          nodes={nodes}
-          onSendMessage={sendChatMessage}
-          chatMessages={chatMessages}
-          isTyping={isTyping}
-        />
-      )}
+        <LogPanel messages={logMessages} />
 
-      {showConnectUserModal && (
-        <ConnectUserModal
-          isOpen={showConnectUserModal}
+        {showGuide && (
+          <GuideModal onClose={() => setShowGuide(false)} />
+        )}
+
+        {showCreateAgent && (
+          <CreateAgentModal
+            isOpen={showCreateAgent}
+            onClose={() => setShowCreateAgent(false)}
+            onCreateAgent={createConfiguredAgent}
+          />
+        )}
+
+        {showConfigureCalendar && (
+          <ConfigureCalendarModal
+            isOpen={showConfigureCalendar}
+            onClose={() => setShowConfigureCalendar(false)}
+            onConfigureCalendar={createConfiguredCalendar}
+          />
+        )}
+
+        {showChat && (
+          <ChatModal
+            isOpen={showChat}
+            onClose={closeChat}
+            activeAgent={activeChatAgent}
+            nodes={nodes}
+            onSendMessage={sendChatMessage}
+            chatMessages={chatMessages}
+            isTyping={isTyping}
+          />
+        )}
+
+        {showConnectUserModal && (
+          <ConnectUserModal
+            isOpen={showConnectUserModal}
+            onClose={() => {
+              setShowConnectUserModal(false);
+              setConnectionMode('social');
+              setActiveConnectionNodeId(null);
+            }}
+            currentUserId={userId}
+            onConnect={handleUserConnection}
+            connectionMode={connectionMode}
+            connectionNodeId={activeConnectionNodeId}
+          />
+        )}
+
+        {showSaveFlow && (
+          <SaveFlowModal
+            isOpen={showSaveFlow}
+            onClose={() => setShowSaveFlow(false)}
+            onSave={saveFlow}
+          />
+        )}
+
+        {showFriendsPanel && (
+          <FriendsPanel
+            isOpen={showFriendsPanel}
+            onClose={() => setShowFriendsPanel(false)}
+            userId={userId}
+          />
+        )}
+        {/* Modal de Conversación entre Agentes */}
+        <AgentConversationModal
+          isOpen={showAgentConversation}
           onClose={() => {
-            setShowConnectUserModal(false);
-            setConnectionMode('social');
-            setActiveConnectionNodeId(null);
+            setShowAgentConversation(false);
+            setIsConversationActive(false);
           }}
-          currentUserId={userId}
-          onConnect={handleUserConnection}
-          connectionMode={connectionMode}
-          connectionNodeId={activeConnectionNodeId}
+          sourceAgent={conversationSourceAgent}
+          targetAgent={conversationTargetAgent}
+          messages={agentConversationMessages}
+          isActive={isConversationActive}
         />
-      )}
-
-      {showSaveFlow && (
-        <SaveFlowModal
-          isOpen={showSaveFlow}
-          onClose={() => setShowSaveFlow(false)}
-          onSave={saveFlow}
-        />
-      )}
-
-      {showFriendsPanel && (
-        <FriendsPanel 
-          isOpen={showFriendsPanel} 
-          onClose={() => setShowFriendsPanel(false)} 
-          userId={userId} 
-        />
-      )}
       </div>
     </div>
   );
 }
+

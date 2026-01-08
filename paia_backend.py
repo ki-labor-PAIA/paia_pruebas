@@ -196,6 +196,8 @@ message_history: Dict[str, List[AgentMessage]] = {}  # conversation_id -> messag
 class PAIAAgentManager:
     def __init__(self):
         self.llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.7)
+    
+    async def get_mcp_client_for_user(self, user_id: str):
         """Crear cliente MCP con contexto de usuario específico"""
         try:
             return MultiServerMCPClient({
@@ -1012,7 +1014,8 @@ agent_manager = PAIAAgentManager()
 
 # Inicializar el cliente MCP al arrancar
 async def init_mcp_client():
-    await agent_manager.setup_mcp_client()
+    # Los clientes MCP se inicializan bajo demanda en get_mcp_client_for_user()
+    print("[INFO] Sistema MCP listo para inicializar bajo demanda")
 
 # Cargar agentes persistentes al arrancar
 async def load_persistent_agents():
@@ -2032,6 +2035,41 @@ async def get_conversation_history(agent1_id: str, agent2_id: str):
         })
     
     return {"messages": messages}
+
+@app.get("/api/flow/connections/active/{user_id}")
+async def get_active_flow_connections(user_id: str):
+    """Obtener todas las conexiones de flujo activas para un usuario"""
+    try:
+        # Obtener conexiones de flujo desde la base de datos
+        connections = await db_manager.get_user_flow_connections(user_id, status='active')
+        
+        # Enriquecer con información de agentes
+        enriched_connections = []
+        for conn in connections:
+            # Obtener información de los agentes
+            source_agent = await db_manager.get_agent(conn.get('source_agent_id'))
+            target_agent = await db_manager.get_agent(conn.get('target_agent_id'))
+            
+            if source_agent and target_agent:
+                enriched_connections.append({
+                    'id': conn.get('id'),
+                    'source_agent_id': conn.get('source_agent_id'),
+                    'source_agent_name': source_agent.name,
+                    'source_agent_owner': conn.get('flow_owner_id'),
+                    'target_agent_id': conn.get('target_agent_id'),
+                    'target_agent_name': target_agent.name,
+                    'target_agent_owner': conn.get('target_user_id'),
+                    'connection_node_id': conn.get('connection_node_id'),
+                    'status': conn.get('status', 'active'),
+                    'created_at': conn.get('created_at'),
+                    'last_activity': conn.get('last_activity')
+                })
+        
+        return {"connections": enriched_connections}
+    except Exception as e:
+        print(f"Error getting active flow connections: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.websocket("/ws/{agent_id}")
 async def websocket_endpoint(websocket: WebSocket, agent_id: str):
