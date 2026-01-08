@@ -2,18 +2,19 @@
 import { useTranslation } from 'react-i18next';
 
 
-export default function RightSidebar({ 
-  onAddActor, 
+export default function RightSidebar({
+  onAddActor,
   onAddTelegram,
   onAddCalendar,
-  onConnect, 
-  onCreateAgent, 
-  onChatWithAgent, 
+  onConnect,
+  onCreateAgent,
+  onChatWithAgent,
   nodes,
   publicAgents,
   onLoadPublicAgents,
+  onLoadMyAgents,
   onAddPublicAgent,
-  isBackendConnected 
+  isBackendConnected
 }) {
 
   const { t } = useTranslation();
@@ -60,9 +61,20 @@ export default function RightSidebar({
             className="discreet-button"
             style={{ marginBottom: '10px' }}
           >
-            {t('rightSidebar.loadAvailableAgents')}
+            🌐 {t('rightSidebar.loadAvailableAgents')}
           </button>
-          
+
+          <button
+            onClick={onLoadMyAgents}
+            className="discreet-button"
+            style={{
+              marginBottom: '10px',
+              background: 'rgba(72, 187, 120, 0.15)'
+            }}
+          >
+            📂 Cargar Mis Agentes
+          </button>
+
           {publicAgents.length > 0 && (
             <div style={{ maxHeight: '150px', overflow: 'auto' }}>
               {publicAgents.map(agent => (

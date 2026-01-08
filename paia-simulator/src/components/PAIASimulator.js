@@ -25,18 +25,18 @@ import ConfigureCalendarModal from './ConfigureCalendarModal';
 import ConnectUserModal from './ConnectUserModal';
 import SaveFlowModal from './SaveFlowModal';
 import FriendsPanel from './FriendsPanel';
+import AgentConversationModal from './AgentConversationModal';
 import { useSession } from 'next-auth/react';
 import usePAIABackend from '@/hooks/usePAIABackend';
 import useFlowSave from '@/hooks/useFlowSave';
 import { generateMockResponse } from '@/utils/mockResponses';
 import PAIAApi from '@/utils/api';
 import { t } from 'i18next';
-import AgentConversationModal from './AgentConversationModal';
 import {
+  getAgentColorFromId,
   generateMeetingConversation,
-  detectAgentCommunicationRequest,
   simulateConversation,
-  getAgentColorFromId
+  detectAgentCommunicationRequest
 } from '@/utils/agentConversationDemo';
 
 // Los node types se definirán dentro del componente para pasar props
@@ -154,36 +154,6 @@ export default function PAIASimulator({ initialFlow }) {
     createBackendAgent
   } = usePAIABackend();
 
-  // Definir callbacks antes de usarlos en hooks
-  const addLogMessage = useCallback((message) => {
-    setLogMessages(prev => [...prev, message]);
-  }, []);
-
-  const addDecisionMessage = useCallback((sender, message, isSystem = false) => {
-    setDecisions(prev => [
-      { id: Date.now(), sender, message, isSystem },
-      ...prev.slice(0, 9)
-    ]);
-  }, []);
-
-  // Hook personalizado para guardado de flujos
-  const {
-    saveFlow,
-    currentFlowId,
-    lastSaved,
-    autoSaveEnabled,
-    setAutoSaveEnabled
-  } = useFlowSave({
-    userId,
-    nodes,
-    edges,
-    scenarioName,
-    scenarioDesc,
-    addLogMessage,
-    addDecisionMessage,
-    initialFlowId: initialFlow?.id
-  });
-
   // Comentado para no mostrar la guía automáticamente
   // useEffect(() => {
   //   setTimeout(() => setShowGuide(true), 1000);
@@ -211,7 +181,33 @@ export default function PAIASimulator({ initialFlow }) {
     []
   );
 
-  // addLogMessage y addDecisionMessage movidos arriba antes del hook useFlowSave
+  // Funciones para agregar mensajes a los logs y decisiones
+  const addLogMessage = useCallback((message) => {
+    setLogMessages(prev => [...prev, {
+      id: Date.now() + Math.random(),
+      message,
+      timestamp: new Date().toLocaleTimeString()
+    }]);
+  }, []);
+
+  const addDecisionMessage = useCallback((sender, message, isSystem = false) => {
+    setDecisions(prev => [
+      { id: Date.now() + Math.random(), sender, message, isSystem },
+      ...prev.slice(0, 9)
+    ]);
+  }, []);
+
+  // Hook para guardar flujos
+  const { saveFlow, currentFlowId, lastSaved, autoSaveEnabled, setAutoSaveEnabled, isSaving } = useFlowSave({
+    userId,
+    nodes,
+    edges,
+    scenarioName,
+    scenarioDesc,
+    addLogMessage,
+    addDecisionMessage,
+    initialFlowId: initialFlow?.id || null
+  });
 
   // Función para agregar mensaje al historial de un nodo específico
   const addMessageToNodeHistory = useCallback((nodeId, message) => {
@@ -279,7 +275,7 @@ export default function PAIASimulator({ initialFlow }) {
         x: x ?? (100 + actorIdRef.current * 60),
         y: y ?? (100 + actorIdRef.current * 30)
       },
-      data: {
+      data: { 
         label: actorName,
         actorType: type,
         emoji: type === 'human' ? '👤' : '🤖',
@@ -355,7 +351,7 @@ export default function PAIASimulator({ initialFlow }) {
         x: 100 + actorIdRef.current * 60,
         y: 100 + actorIdRef.current * 30
       },
-      data: {
+      data: { 
         label: agentConfig.name,
         actorType: 'ai',
         emoji: agentConfig.isNotesNode ? '📒' : '🤖',
@@ -565,12 +561,38 @@ export default function PAIASimulator({ initialFlow }) {
     if (!isConnected) return;
 
     try {
-      const agents = await PAIAApi.getPublicAgents(userId);
+      // Validar userId - si es 'anonymous' o inválido, pasar null para no excluir
+      const validUserId = (userId && userId !== 'anonymous') ? userId : null;
+      const agents = await PAIAApi.getPublicAgents(validUserId);
       setPublicAgents(agents);
       addLogMessage(`📡 Cargados ${agents.length} agentes públicos disponibles`);
     } catch (error) {
       console.error('Error loading public agents:', error);
       addLogMessage(`❌ Error cargando agentes públicos: ${error.message}`);
+    }
+  }, [isConnected, userId, addLogMessage]);
+
+  // Función para cargar los agentes del usuario actual
+  const loadMyAgents = useCallback(async () => {
+    if (!isConnected) {
+      addLogMessage('❌ Backend no conectado');
+      return;
+    }
+
+    if (!userId || userId === 'anonymous') {
+      addLogMessage('❌ Debes estar autenticado para cargar tus agentes');
+      return;
+    }
+
+    try {
+      const response = await PAIAApi.getAgents(userId);
+      // Manejar tanto {agents: [...]} como [...]
+      const agents = response.agents || response || [];
+      setPublicAgents(agents); // Reutilizar el mismo estado
+      addLogMessage(`📂 Cargados ${agents.length} de tus agentes`);
+    } catch (error) {
+      console.error('Error loading my agents:', error);
+      addLogMessage(`❌ Error cargando tus agentes: ${error.message}`);
     }
   }, [isConnected, userId, addLogMessage]);
 
@@ -591,7 +613,7 @@ export default function PAIASimulator({ initialFlow }) {
         x: 100 + actorIdRef.current * 60,
         y: 100 + actorIdRef.current * 30
       },
-      data: {
+      data: { 
         label: publicAgent.name,
         actorType: 'ai',
         emoji: '🌐', // Emoji diferente para agentes externos
@@ -913,7 +935,7 @@ export default function PAIASimulator({ initialFlow }) {
         id: actor.id,
         type: 'actor',
         position: actor.position,
-        data: {
+        data: { 
           label: actor.name,
           actorType: actor.type,
           emoji: actor.type === 'human' ? '👤' : '🤖'
@@ -1298,36 +1320,37 @@ export default function PAIASimulator({ initialFlow }) {
         </div>
 
         <RightSidebar
-          onAddActor={addActor}
-          onAddTelegram={addTelegramNode}
-          onAddCalendar={addCalendarNode}
-          onConnect={() => { }} // Connect functionality handled by ReactFlow
-          onCreateAgent={() => setShowCreateAgent(true)}
-          onChatWithAgent={startChat}
-          nodes={nodes}
-          publicAgents={publicAgents}
-          onLoadPublicAgents={loadPublicAgents}
-          onAddPublicAgent={addPublicAgentToCanvas}
-          isBackendConnected={isConnected}
+        onAddActor={addActor}
+        onAddTelegram={addTelegramNode}
+        onAddCalendar={addCalendarNode}
+        onConnect={() => {}} // Connect functionality handled by ReactFlow
+        onCreateAgent={() => setShowCreateAgent(true)}
+        onChatWithAgent={startChat}
+        nodes={nodes}
+        publicAgents={publicAgents}
+        onLoadPublicAgents={loadPublicAgents}
+        onLoadMyAgents={loadMyAgents}
+        onAddPublicAgent={addPublicAgentToCanvas}
+        isBackendConnected={isConnected}
+      />
+
+      <StatsPanel stats={stats} />
+      
+      <LogPanel messages={logMessages} />
+
+      {showGuide && (
+        <GuideModal onClose={() => setShowGuide(false)} />
+      )}
+
+      {showCreateAgent && (
+        <CreateAgentModal
+          isOpen={showCreateAgent}
+          onClose={() => setShowCreateAgent(false)}
+          onCreateAgent={createConfiguredAgent}
         />
+      )}
 
-        <StatsPanel stats={stats} />
-
-        <LogPanel messages={logMessages} />
-
-        {showGuide && (
-          <GuideModal onClose={() => setShowGuide(false)} />
-        )}
-
-        {showCreateAgent && (
-          <CreateAgentModal
-            isOpen={showCreateAgent}
-            onClose={() => setShowCreateAgent(false)}
-            onCreateAgent={createConfiguredAgent}
-          />
-        )}
-
-        {showConfigureCalendar && (
+      {showConfigureCalendar && (
           <ConfigureCalendarModal
             isOpen={showConfigureCalendar}
             onClose={() => setShowConfigureCalendar(false)}
