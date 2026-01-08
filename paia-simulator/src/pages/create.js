@@ -56,7 +56,7 @@ export default function Create() {
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           <link rel="icon" href="/favicon.ico" />
         </Head>
-        <AuthGuard>
+        {/* <AuthGuard> */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -67,7 +67,7 @@ export default function Create() {
           }}>
             🔄 Cargando flujo...
           </div>
-        </AuthGuard>
+        {/* </AuthGuard> */}
       </>
     );
   }
@@ -81,7 +81,7 @@ export default function Create() {
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           <link rel="icon" href="/favicon.ico" />
         </Head>
-        <AuthGuard>
+        {/* <AuthGuard> */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -110,7 +110,7 @@ export default function Create() {
               Volver a Biblioteca
             </button>
           </div>
-        </AuthGuard>
+        {/* </AuthGuard> */}
       </>
     );
   }
@@ -123,9 +123,9 @@ export default function Create() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <AuthGuard>
+      {/* <AuthGuard> */}
         <PAIASimulator initialFlow={flowData} />
-      </AuthGuard>
+      {/* </AuthGuard> */}
     </>
   );
 }

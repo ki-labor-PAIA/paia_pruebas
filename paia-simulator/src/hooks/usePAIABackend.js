@@ -160,9 +160,10 @@ export default function usePAIABackend() {
     setBackendConnections([]);
   }, []);
 
-  useEffect(() => {
-    checkBackendConnection();
-  }, [checkBackendConnection]);
+  // Comentado temporalmente para trabajar sin backend
+   useEffect(() => {
+     checkBackendConnection();
+   }, [checkBackendConnection]);
 
   return {
     isConnected,

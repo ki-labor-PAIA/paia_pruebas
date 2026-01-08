@@ -23,6 +23,20 @@ from db_manager_supabase import DatabaseManager
 from supabase_config import supabase_client
 from whatsapp_service import WhatsAppService
 from dotenv import load_dotenv
+
+# === PROTOCOLO PAIA ===
+from paia_protocol import (
+    PAIAMessageRouter,
+    PAIADiscoveryService,
+    AutonomyManager,
+    PAIAWebSocketHandler,
+    PAIARequestMessage,
+    PAIAChatMessage,
+    CapabilityBuilder,
+    AutonomyLevel,
+    AutonomySettings
+)
+
 load_dotenv()
 app = FastAPI(title="PAIA Platform Backend", version="1.0.0")
 
@@ -99,6 +113,12 @@ class TelegramService:
 # Instancia global del servicio de Telegram
 telegram_service = TelegramService(TELEGRAM_BOT_TOKEN)
 
+# =============== PROTOCOLO PAIA - VARIABLES GLOBALES ===============
+paia_router: Optional[PAIAMessageRouter] = None
+paia_discovery: Optional[PAIADiscoveryService] = None
+paia_autonomy: Optional[AutonomyManager] = None
+paia_ws_handler: Optional[PAIAWebSocketHandler] = None
+
 # =============== CONFIGURACIÓN DE WHATSAPP ===============
 # Instancia global del servicio de WhatsApp
 try:
@@ -116,6 +136,7 @@ async def on_startup():
     await db_manager.init_db()
     await init_mcp_client()
     await load_persistent_agents()
+    await init_paia_protocol()  # Inicializar protocolo PAIA
 
 # Configuración
 os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY")
@@ -175,23 +196,6 @@ message_history: Dict[str, List[AgentMessage]] = {}  # conversation_id -> messag
 class PAIAAgentManager:
     def __init__(self):
         self.llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.7)
-        self.mcp_client = None
-    
-    async def setup_mcp_client(self) -> None:
-        """Configurar cliente MCP con Google Calendar"""
-        try:
-                    self.mcp_client = MultiServerMCPClient({
-                        "google_calendar": {
-                            "url": "http://127.0.0.1:3000/api/mcp",
-                            "transport": "streamable_http"
-                        }
-                    })
-                    print("Cliente MCP configurado para Google Calendar TypeScript")
-        except Exception as e:
-            print(f"WARNING: Error configurando MCP cliente: {e}")
-            self.mcp_client = None
-
-    async def get_mcp_client_for_user(self, user_id: str):
         """Crear cliente MCP con contexto de usuario específico"""
         try:
             return MultiServerMCPClient({
@@ -718,7 +722,7 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
                         telegram_msg
                     )
                 
-                return f"✓ Mensaje enviado a {target_agent_name}.\n {response}"
+                return f"Mensaje enviado a {target_agent_name}.\n {response}"
                 
             except Exception as e:
                 return f"Error enviando mensaje: {str(e)}"
@@ -1052,6 +1056,128 @@ async def get_all_users_with_persistent_agents():
         return list(set([row["user_id"] for row in result.data]))
     except:
         return []
+
+# =============== PROTOCOLO PAIA - INICIALIZACIÓN ===============
+
+async def init_paia_protocol():
+    """Inicializar todos los componentes del Protocolo PAIA"""
+    global paia_router, paia_discovery, paia_autonomy, paia_ws_handler
+
+    try:
+        print("[PAIA] Inicializando Protocolo PAIA v1.0...")
+
+        # 1. Crear servicio de descubrimiento
+        paia_discovery = PAIADiscoveryService(db_manager)
+        print("[PAIA] Discovery service inicializado")
+
+        # 2. Crear gestor de autonomía
+        paia_autonomy = AutonomyManager()
+        print("[PAIA] Autonomy manager inicializado")
+
+        # 3. Crear router de mensajes
+        paia_router = PAIAMessageRouter(
+            db_manager=db_manager,
+            discovery_service=paia_discovery,
+            autonomy_manager=paia_autonomy,
+            agent_manager=agent_manager  # Usar el agent_manager existente
+        )
+        print("[PAIA] Message router inicializado")
+
+        # 4. Crear WebSocket handler
+        paia_ws_handler = PAIAWebSocketHandler(
+            router=paia_router,
+            auth_manager=auth_manager,
+            db_manager=db_manager
+        )
+        print("[PAIA] WebSocket handler inicializado")
+
+        # 5. Conectar router con ws_handler
+        paia_router.ws_manager = paia_ws_handler
+
+        # 6. Registrar agentes existentes en el protocolo
+        await register_existing_agents_in_paia()
+
+        print("[PAIA] Protocolo PAIA inicializado correctamente")
+
+    except Exception as e:
+        print(f"[PAIA] Error inicializando protocolo: {e}")
+        import traceback
+        traceback.print_exc()
+
+async def register_existing_agents_in_paia():
+    """Registrar todos los agentes existentes en el protocolo PAIA"""
+    try:
+        print("[PAIA] Registrando agentes existentes en el protocolo...")
+
+        # Obtener todos los agentes de la BD
+        result = supabase_client.table("agents").select("*").execute()
+
+        registered_count = 0
+        for agent_data in result.data:
+            try:
+                await register_agent_in_paia(
+                    agent_id=agent_data["id"],
+                    agent_data=agent_data
+                )
+                registered_count += 1
+            except Exception as e:
+                print(f"[PAIA] Error registrando agente {agent_data['id']}: {e}")
+
+        print(f"[PAIA] {registered_count} agentes registrados en el protocolo")
+
+    except Exception as e:
+        print(f"[PAIA] Error en register_existing_agents_in_paia: {e}")
+
+async def register_agent_in_paia(agent_id: str, agent_data: dict):
+    """Registrar un agente en el protocolo PAIA con sus capabilities"""
+
+    # Definir capabilities según expertise
+    capabilities = []
+    expertise = agent_data.get('expertise', 'general')
+
+    # Capabilities base para todos los agentes
+    capabilities.append(CapabilityBuilder.chat_message())
+
+    # Capabilities específicas por expertise
+    if expertise == 'calendar' or expertise == 'scheduling':
+        capabilities.extend([
+            CapabilityBuilder.calendar_check_availability(),
+            CapabilityBuilder.calendar_schedule_event()
+        ])
+
+    # Registrar en discovery service
+    await paia_discovery.register_agent(
+        agent_id=agent_id,
+        user_id=agent_data['user_id'],
+        agent_name=agent_data['name'],
+        expertise=[expertise],
+        capabilities=capabilities,
+        is_public=agent_data.get('is_public', True)
+    )
+
+    # Guardar capabilities en BD
+    for cap in capabilities:
+        try:
+            await db_manager.save_agent_capability({
+                "agent_id": agent_id,
+                "capability_name": cap.name,
+                "capability_type": cap.message_type,
+                "description": cap.description,
+                "input_schema": cap.input_schema,
+                "output_schema": cap.output_schema,
+                "requires_approval": cap.requires_approval,
+                "autonomy_level": cap.autonomy_level
+            })
+        except Exception as e:
+            # Ignorar si ya existe
+            pass
+
+    # Configurar autonomía por defecto
+    settings = paia_autonomy.create_default_settings(expertise)
+    paia_autonomy.set_agent_settings(agent_id, settings)
+
+    # Guardar settings en BD
+    await db_manager.save_autonomy_settings(agent_id, settings.to_dict())
 
 async def persistent_agents_supervisor():
     """Supervisor que mantiene activos los agentes persistentes"""
@@ -2560,6 +2686,148 @@ async def health_check():
         "database_connected": True,
         "timestamp": datetime.now().isoformat()
     }
+
+# =============== PROTOCOLO PAIA - ENDPOINTS ===============
+
+@app.get("/api/paia/health")
+async def paia_health_check():
+    """Health check del protocolo PAIA"""
+    if not paia_router or not paia_discovery or not paia_autonomy:
+        return {
+            "status": "not_initialized",
+            "protocol_version": "1.0",
+            "message": "Protocolo PAIA no inicializado"
+        }
+
+    try:
+        online_agents = len(paia_discovery.get_online_agents()) if hasattr(paia_discovery, 'get_online_agents') else 0
+        total_agents = len(paia_discovery.get_all_registered_agents()) if hasattr(paia_discovery, 'get_all_registered_agents') else 0
+
+        return {
+            "status": "healthy",
+            "protocol_version": "1.0",
+            "total_agents": total_agents,
+            "online_agents": online_agents,
+            "active_connections": len(paia_ws_handler.active_connections) if paia_ws_handler and hasattr(paia_ws_handler, 'active_connections') else 0
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "protocol_version": "1.0",
+            "error": str(e)
+        }
+
+@app.get("/api/paia/discover/{user_id}")
+async def discover_agents_paia(
+    user_id: str,
+    target_name: str = None,
+    expertise: str = None
+):
+    """Descubrir agentes disponibles mediante el protocolo PAIA"""
+    if not paia_discovery:
+        raise HTTPException(status_code=503, detail="Protocolo PAIA no inicializado")
+
+    try:
+        if target_name:
+            # Descubrir por nombre de usuario
+            agent = await paia_discovery.discover_agent_by_name(
+                requester_user_id=user_id,
+                target_name=target_name
+            )
+
+            if agent:
+                return {"agent": agent.to_dict()}
+            else:
+                return {"error": "Agent not found"}
+
+        elif expertise:
+            # Descubrir por expertise
+            agents = await paia_discovery.discover_agents_by_expertise(
+                requester_user_id=user_id,
+                expertise=expertise
+            )
+
+            return {"agents": [agent.to_dict() for agent in agents]}
+
+        else:
+            raise HTTPException(status_code=400, detail="Provide either target_name or expertise")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/paia/autonomy/{agent_id}")
+async def configure_autonomy(agent_id: str, settings_data: dict):
+    """Configurar autonomía de un agente"""
+    if not paia_autonomy:
+        raise HTTPException(status_code=503, detail="Protocolo PAIA no inicializado")
+
+    try:
+        # Verificar que el agente existe
+        db_agent = await db_manager.get_agent(agent_id)
+        if not db_agent:
+            raise HTTPException(status_code=404, detail="Agente no encontrado")
+
+        # Verificar autorización
+        user_id = settings_data.get('user_id')
+        if not user_id or db_agent.user_id != user_id:
+            raise HTTPException(status_code=403, detail="No autorizado")
+
+        # Crear configuración de autonomía
+        settings = AutonomySettings.from_dict(settings_data.get('settings', {}))
+
+        # Aplicar en el manager
+        paia_autonomy.set_agent_settings(agent_id, settings)
+
+        # Guardar en BD
+        await db_manager.save_autonomy_settings(agent_id, settings.to_dict())
+
+        return {
+            "success": True,
+            "message": f"Autonomía configurada para agente {agent_id}",
+            "settings": settings.to_dict()
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/paia/capabilities/{agent_id}")
+async def get_agent_capabilities_paia(agent_id: str):
+    """Obtener capabilities de un agente"""
+    try:
+        # Obtener de BD
+        capabilities = await db_manager.get_agent_capabilities(agent_id)
+
+        return {
+            "agent_id": agent_id,
+            "capabilities": capabilities
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/paia/autonomy/{agent_id}")
+async def get_autonomy_settings_endpoint(agent_id: str):
+    """Obtener configuración de autonomía de un agente"""
+    try:
+        settings = await db_manager.get_autonomy_settings(agent_id)
+
+        if not settings:
+            # Retornar configuración por defecto
+            return {
+                "agent_id": agent_id,
+                "default_level": "supervised",
+                "rules": []
+            }
+
+        return {
+            "agent_id": agent_id,
+            **settings
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 

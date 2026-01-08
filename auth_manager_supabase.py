@@ -239,6 +239,38 @@ class AuthManager:
             image=picture
         )
 
+    async def register_user(self, email: str, password: str, name: Optional[str] = None) -> Dict:
+        """Registrar un nuevo usuario - wrapper para compatibilidad"""
+        try:
+            user = await self.create_user(email=email, password=password, name=name)
+            return {
+                "success": True,
+                "message": "Usuario registrado exitosamente",
+                "user_id": user.id
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": str(e),
+                "user_id": None
+            }
+
+    async def login_user(self, email: str, password: str) -> Dict:
+        """Login de usuario - wrapper para compatibilidad"""
+        user = await self.verify_password(email, password)
+        if user:
+            return {
+                "success": True,
+                "id": user.id,
+                "email": user.email,
+                "name": user.name
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Email o contraseña incorrectos"
+            }
+
     async def init_db(self):
         """Initialize database - Not needed for Supabase as tables are managed via SQL"""
         # This method is kept for compatibility with the original interface

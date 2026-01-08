@@ -1,3 +1,24 @@
+/* Animaciones para login */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes glowMove {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(10%, 10%);
+  }
+}
+
 :root {
   /* Tesla-inspired minimalist palette */
   --primary-color: #3e6ae1;
@@ -48,7 +69,11 @@ body {
   max-width: 100vw;
   overflow-x: hidden;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
-  background: var(--dark-bg);
+  background-image: url('/Fondo.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   color: var(--text-primary);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -166,9 +191,9 @@ a {
   gap: 16px;
   box-shadow: var(--shadow-md);
   overflow-y: auto;
-  height: 100vh;
+  height: 93.5vh;
   position: fixed;
-  top: 0;
+  top: 6.5vh;
   z-index: 10;
   border-right: 1px solid var(--border-color);
 }
@@ -382,7 +407,7 @@ a {
 /* Stats Panel - Tesla Minimal */
 .stats-panel {
   position: fixed;
-  top: 30px;
+  top: 7.5vh;
   right: 300px;
   width: 260px;
   background-color: rgba(10, 10, 10, 0.95);

@@ -6,12 +6,20 @@ import AuthGuard from '@/components/AuthGuard';
 import NotificationPanel from '@/components/NotificationPanel';
 import ConnectUserModal from '@/components/ConnectUserModal';
 import CreateAgentModal from '@/components/CreateAgentModal';
-import LanguageSelector from '@/components/LanguageSelector';
+import TutorialModal from '@/components/tutorial/TutorialModal';
 
 export default function Home() {
   const { data: session, status } = useSession();
-  const router = useRouter();
-  
+const router = useRouter();
+
+  // on server render router.asPath/patname pueden ser undefined; usa window como fallback en cliente
+  const asPathSafe =
+    typeof window !== 'undefined'
+      ? (router?.asPath || router?.pathname || window.location.pathname || '')
+      : (router?.asPath || router?.pathname || '');
+
+  // Mostrar siempre el botón del tutorial
+  const showTutorialBtn = true;
   // Estados principales
   const [activeTab, setActiveTab] = useState('flows');
   const [myFlows, setMyFlows] = useState([]);
@@ -26,6 +34,7 @@ export default function Home() {
   const [showConnectUser, setShowConnectUser] = useState(false);
   const [showCreateAgent, setShowCreateAgent] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -36,10 +45,10 @@ export default function Home() {
 
   const loadInitialData = async () => {
     if (!session?.user?.id) return;
-    
+
     setLoading(true);
     setError('');
-    
+
     try {
       switch (activeTab) {
         case 'flows':
@@ -60,49 +69,87 @@ export default function Home() {
       }
     } catch (err) {
       console.error('Error loading data:', err);
-      setError(`Error cargando datos: ${err.message}`);
+      // Comentado para no mostrar error cuando el backend no está disponible
+      // setError(`Error cargando datos: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
   const loadMyFlows = async () => {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/flows/user/${session.user.id}`);
-    if (response.ok) {
-      const data = await response.json();
-      setMyFlows(data.flows || []);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/flows/user/${session.user.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setMyFlows(data.flows || []);
+      } else {
+        console.warn('Backend no disponible, usando datos vacíos');
+        setMyFlows([]);
+      }
+    } catch (error) {
+      console.warn('Backend no disponible, usando datos vacíos:', error);
+      setMyFlows([]);
     }
   };
 
   const loadMyAgents = async () => {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agents?user_id=${session.user.id}`);
-    if (response.ok) {
-      const data = await response.json();
-      setMyAgents(data.agents || []);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agents?user_id=${session.user.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setMyAgents(data.agents || []);
+      } else {
+        console.warn('Backend no disponible, usando datos vacíos');
+        setMyAgents([]);
+      }
+    } catch (error) {
+      console.warn('Backend no disponible, usando datos vacíos:', error);
+      setMyAgents([]);
     }
   };
 
   const loadFriends = async () => {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${session.user.id}/connections`);
-    if (response.ok) {
-      const data = await response.json();
-      setFriends(data.connections || []);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${session.user.id}/connections`);
+      if (response.ok) {
+        const data = await response.json();
+        setFriends(data.connections || []);
+      } else {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Error loading friends:', error);
+      throw error;
     }
   };
 
   const loadFriendsActiveFlows = async () => {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/flows/friends/${session.user.id}/active`);
-    if (response.ok) {
-      const data = await response.json();
-      setFriendsActiveFlows(data.active_flows || []);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/flows/friends/${session.user.id}/active`);
+      if (response.ok) {
+        const data = await response.json();
+        setFriendsActiveFlows(data.active_flows || []);
+      } else {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Error loading friends active flows:', error);
+      throw error;
     }
   };
 
   const loadPublicAgents = async () => {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agents/public?exclude_user_id=${session.user.id}`);
-    if (response.ok) {
-      const data = await response.json();
-      setPublicAgents(data.agents || []);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agents/public?exclude_user_id=${session.user.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setPublicAgents(data.agents || []);
+      } else {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Error loading public agents:', error);
+      throw error;
     }
   };
 
@@ -220,6 +267,7 @@ export default function Home() {
                 <span style={{ fontSize: '16px', opacity: 0.9 }}>Biblioteca de Agentes</span>
               </div>
               <button
+              data-tour="create-flow"
                 onClick={() => navigateToCreate()}
                 style={{
                   background: 'rgba(255,255,255,0.2)',
@@ -238,6 +286,7 @@ export default function Home() {
                 onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
                 onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
               >
+                
                 🎮 Crear Flujo
               </button>
             </div>
@@ -258,10 +307,30 @@ export default function Home() {
                 onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
                 onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
               >
+                
                 📢 Notificaciones
               </button>
 
-              <LanguageSelector />
+                { showTutorialBtn && (
+  <button
+    data-tour="show-tutorial"
+    onClick={() => setShowTutorial(true)}
+    style={{
+      background: 'rgba(255,255,255,0.2)',
+      border: '1px solid rgba(255,255,255,0.3)',
+      color: 'white',
+      padding: '8px 16px',
+      borderRadius: '6px',
+      cursor: 'pointer',
+      fontSize: '14px',
+      transition: 'background 0.2s'
+    }}
+    onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
+    onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
+  >
+                🎓 Mostrar Tutorial
+              </button>
+                )}
 
               {/* Info del usuario */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -308,6 +377,7 @@ export default function Home() {
               ].map(tab => (
                 <button
                   key={tab.key}
+                   data-tour={tab.key === 'agents' ? 'agents-tab' : undefined}
                   onClick={() => setActiveTab(tab.key)}
                   style={{
                     background: activeTab === tab.key ? 'var(--primary-color)' : 'var(--card-bg)',
@@ -391,7 +461,7 @@ export default function Home() {
                       alignItems: 'center',
                       marginBottom: '24px'
                     }}>
-                      <h2 style={{ fontSize: '24px', fontWeight: '700', margin: 0 }}>
+                      <h2 data-tour="flows-section" style={{ fontSize: '24px', fontWeight: '700', margin: 0 }}>
                         ⚡ Mis Flujos Guardados
                       </h2>
                       <button
@@ -747,6 +817,7 @@ export default function Home() {
                         👥 Mis Amigos
                       </h2>
                       <button
+                        data-tour="connect-friend"
                         onClick={() => setShowConnectUser(true)}
                         style={{
                           background: 'var(--primary-color)',
@@ -1211,10 +1282,44 @@ export default function Home() {
           )}
 
           {showNotifications && (
-            <NotificationPanel 
+            <NotificationPanel
               userId={session?.user?.id}
               isOpen={showNotifications}
               onClose={() => setShowNotifications(false)}
+            />
+          )}
+
+          {showTutorial && (
+            <TutorialModal
+              steps={[
+                {
+                  title: 'Bienvenido a PAIA',
+                  description: 'PAIA es tu plataforma para crear y gestionar agentes de IA personalizados. Aquí puedes diseñar flujos de trabajo, conectar con amigos y compartir agentes.',
+                  image: null
+                },
+                {
+                  title: 'Mis Flujos',
+                  description: 'En esta sección puedes ver, crear y gestionar tus flujos de trabajo. Los flujos te permiten conectar múltiples agentes y servicios para automatizar tareas complejas.',
+                  image: null
+                },
+                {
+                  title: 'Mis Agentes',
+                  description: 'Crea agentes personalizados con diferentes personalidades y áreas de expertise. Puedes hacerlos públicos para compartirlos con la comunidad.',
+                  image: null
+                },
+                {
+                  title: 'Conecta con Amigos',
+                  description: 'Agrega amigos para compartir flujos y agentes. Colabora en proyectos y accede a los recursos compartidos por tu red.',
+                  image: null
+                },
+                {
+                  title: '¡Comienza a Crear!',
+                  description: 'Ahora estás listo para crear tu primer flujo o agente. Haz clic en "Crear Flujo" o navega a la pestaña de Agentes para comenzar.',
+                  image: null
+                }
+              ]}
+              forceOpen={true}
+              onClose={() => setShowTutorial(false)}
             />
           )}
         </div>
