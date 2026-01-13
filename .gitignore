@@ -24,16 +24,16 @@ build/
 *.swp
 *.swo
 *~
-
-# Claude
 .claude/
-
 # Documentation (private)
 GEMINI.md
 NGROK_WHATSAPP_SETUP.md
 WHATSAPP_README.md
 *.md
 !README.md
+!maintenance-guide.md
+!migration-map.md
+!refactoring-summary.md
 
 # SQL migrations
 *.sql
@@ -46,7 +46,7 @@ prueba.txt
 
 # Package manager errors
 =*
-
+nul
 # Logs
 *.log
 
