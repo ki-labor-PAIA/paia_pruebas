@@ -548,3 +548,146 @@ class DatabaseManager:
             read_at=datetime.fromisoformat(data["read_at"].replace('Z', '+00:00')) if data["read_at"] else None,
             dismissed_at=datetime.fromisoformat(data["dismissed_at"].replace('Z', '+00:00')) if data["dismissed_at"] else None
         )
+
+    # =============== PROTOCOLO PAIA - AGENT CAPABILITIES ===============
+
+    async def save_agent_capability(self, capability_data: Dict) -> str:
+        """Guardar una capability de un agente"""
+        capability_id = str(uuid.uuid4())
+        now = datetime.utcnow()
+
+        data = {
+            "id": capability_id,
+            "agent_id": capability_data["agent_id"],
+            "capability_name": capability_data["capability_name"],
+            "capability_type": capability_data["capability_type"],
+            "description": capability_data.get("description", ""),
+            "input_schema": capability_data.get("input_schema"),
+            "output_schema": capability_data.get("output_schema"),
+            "requires_approval": capability_data.get("requires_approval", False),
+            "autonomy_level": capability_data.get("autonomy_level", "supervised"),
+            "enabled": capability_data.get("enabled", True),
+            "created_at": now.isoformat()
+        }
+
+        result = self.client.table("agent_capabilities").insert(data).execute()
+        if result.data:
+            return capability_id
+        raise Exception("Failed to save capability")
+
+    async def get_agent_capabilities(self, agent_id: str) -> List[Dict]:
+        """Obtener todas las capabilities de un agente"""
+        result = self.client.table("agent_capabilities").select("*").eq(
+            "agent_id", agent_id
+        ).eq("enabled", True).execute()
+        return result.data if result.data else []
+
+    # =============== PROTOCOLO PAIA - CONVERSATIONS ===============
+
+    async def get_or_create_conversation(self, agent1_id: str, agent2_id: str) -> str:
+        """Obtener o crear conversación entre dos agentes usando función de PostgreSQL"""
+        try:
+            # Usar la función SQL que creamos en la migración
+            result = self.client.rpc('get_or_create_conversation', {
+                'p_agent1_id': agent1_id,
+                'p_agent2_id': agent2_id
+            }).execute()
+
+            if result.data:
+                return result.data
+            raise Exception("Failed to get/create conversation")
+        except Exception as e:
+            print(f"Error en get_or_create_conversation: {e}")
+            raise e
+
+    async def get_conversation(self, agent1_id: str, agent2_id: str) -> Optional[Dict]:
+        """Obtener conversación existente entre dos agentes"""
+        # Ordenar IDs para búsqueda
+        if agent1_id > agent2_id:
+            agent1_id, agent2_id = agent2_id, agent1_id
+
+        result = self.client.table("agent_conversations").select("*").eq(
+            "agent1_id", agent1_id
+        ).eq("agent2_id", agent2_id).execute()
+
+        return result.data[0] if result.data else None
+
+    # =============== PROTOCOLO PAIA - MESSAGES ===============
+
+    async def save_message_paia(self, message_data: Dict) -> Dict:
+        """Guardar mensaje del protocolo PAIA"""
+        message_id = str(uuid.uuid4())
+        now = datetime.utcnow()
+
+        data = {
+            "id": message_id,
+            "conversation_id": message_data["conversation_id"],
+            "from_agent_id": message_data["from_agent_id"],
+            "to_agent_id": message_data["to_agent_id"],
+            "message_type": message_data["message_type"],
+            "payload": message_data["payload"],
+            "metadata": message_data.get("metadata", {}),
+            "status": message_data.get("status", "sent"),
+            "created_at": now.isoformat()
+        }
+
+        result = self.client.table("agent_messages_paia").insert(data).execute()
+        if result.data:
+            return result.data[0]
+        raise Exception("Failed to save message")
+
+    async def update_message_status(self, message_id: str, status: str) -> bool:
+        """Actualizar estado de un mensaje"""
+        updates = {"status": status}
+
+        if status == "delivered":
+            updates["delivered_at"] = datetime.utcnow().isoformat()
+        elif status == "read":
+            updates["read_at"] = datetime.utcnow().isoformat()
+
+        result = self.client.table("agent_messages_paia").update(updates).eq(
+            "id", message_id
+        ).execute()
+        return len(result.data) > 0
+
+    async def get_conversation_messages(self, conversation_id: str, limit: int = 50) -> List[Dict]:
+        """Obtener mensajes de una conversación"""
+        result = self.client.table("agent_messages_paia").select("*").eq(
+            "conversation_id", conversation_id
+        ).order("created_at", desc=True).limit(limit).execute()
+        return result.data if result.data else []
+
+    # =============== PROTOCOLO PAIA - AUTONOMY SETTINGS ===============
+
+    async def get_autonomy_settings(self, agent_id: str) -> Optional[Dict]:
+        """Obtener configuración de autonomía de un agente"""
+        result = self.client.table("autonomy_settings").select("*").eq(
+            "agent_id", agent_id
+        ).execute()
+        return result.data[0] if result.data else None
+
+    async def save_autonomy_settings(self, agent_id: str, settings: Dict) -> bool:
+        """Guardar o actualizar configuración de autonomía"""
+        now = datetime.utcnow()
+
+        # Verificar si ya existe
+        existing = await self.get_autonomy_settings(agent_id)
+
+        data = {
+            "agent_id": agent_id,
+            "default_level": settings.get("default_level", "supervised"),
+            "rules": settings.get("rules", []),
+            "updated_at": now.isoformat()
+        }
+
+        if existing:
+            # Actualizar
+            result = self.client.table("autonomy_settings").update(data).eq(
+                "agent_id", agent_id
+            ).execute()
+        else:
+            # Insertar
+            data["created_at"] = now.isoformat()
+            result = self.client.table("autonomy_settings").insert(data).execute()
+
+        return len(result.data) > 0

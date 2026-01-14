@@ -1,0 +1,66 @@
+    // DETECTAR SOLICITUD DE COMUNICACIÓN ENTRE AGENTES
+    if (detectAgentCommunicationRequest(message)) {
+      console.log('🔍 Detectada solicitud de comunicación entre agentes');
+      
+      // Buscar nodos de agente y conexión
+      const agentNodes = nodes.filter(n => n.type === 'actor');
+      const connectionNodes = nodes.filter(n => n.type === 'connection' && n.data.isConnected);
+      
+      console.log('📊 Agentes encontrados:', agentNodes.length);
+      console.log('🔗 Nodos de conexión:', connectionNodes.length);
+      
+      if (agentNodes.length > 0 && connectionNodes.length > 0) {
+        // Encontrar el agente activo en el chat
+        const sourceAgent = agentNodes.find(a => a.id === activeChatAgent);
+        
+        if (!sourceAgent) {
+          console.log('❌ No se encontró el agente fuente');
+        } else {
+          console.log('✅ Agente fuente:', sourceAgent.data.label);
+          
+          // Buscar nodo de conexión conectado a este agente mediante edges
+          let connectedNode = null;
+          for (const connectionNode of connectionNodes) {
+            // Verificar si hay un edge entre el agente y el nodo de conexión
+            const hasEdge = edges.some(edge => 
+              (edge.source === sourceAgent.id && edge.target === connectionNode.id) ||
+              (edge.target === sourceAgent.id && edge.source === connectionNode.id)
+            );
+            
+            if (hasEdge) {
+              connectedNode = connectionNode;
+              console.log('✅ Nodo de conexión encontrado:', connectedNode.id);
+              break;
+            }
+          }
+          
+          if (connectedNode && connectedNode.data.targetAgentId) {
+            console.log('🎯 Target Agent ID:', connectedNode.data.targetAgentId);
+            console.log('🎯 Target Agent Name:', connectedNode.data.targetAgentName);
+            
+            // Buscar el agente objetivo o crear uno temporal
+            let targetAgent = agentNodes.find(a => a.id === connectedNode.data.targetAgentId);
+            
+            // Si no encontramos el agente en los nodos (es remoto), creamos uno temporal
+            if (!targetAgent && connectedNode.data.targetAgentName) {
+              targetAgent = {
+                id: connectedNode.data.targetAgentId,
+                data: { label: connectedNode.data.targetAgentName }
+              };
+              console.log('📝 Creado agente temporal:', targetAgent.data.label);
+            }
+            
+            if (targetAgent) {
+              console.log('🚀 Iniciando conversación entre agentes');
+              // Iniciar conversación entre agentes
+              startAgentConversation(sourceAgent, targetAgent, message);
+              return; // Salir de la función sin procesar el mensaje normalmente
+            } else {
+              console.log('❌ No se pudo crear/encontrar el agente objetivo');
+            }
+          } else {
+            console.log('❌ No se encontró nodo de conexión válido o no tiene targetAgentId');
+          }
+        }
+      }
+    }

@@ -56,7 +56,7 @@ export default function RightSidebar({
       {isBackendConnected && (
         <div className="button-group">
           <div className="button-group-title">{t('rightSidebar.publicAgents')}</div>
-          <button
+          <button 
             onClick={onLoadPublicAgents}
             className="discreet-button"
             style={{ marginBottom: '10px' }}
