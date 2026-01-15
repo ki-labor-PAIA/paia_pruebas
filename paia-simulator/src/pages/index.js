@@ -189,13 +189,13 @@ export default function Home() {
             <TabNavigation
               activeTab={activeTab}
               onTabChange={setActiveTab}
-              counts={{
-                flows: myFlows.length,
-                agents: myAgents.length,
-                friends: friends.length,
-                activeFlows: friendsActiveFlows.length,
-                publicAgents: publicAgents.length
-              }}
+              tabs={[
+                { key: 'flows', label: 'Mis Flujos', desc: 'Workflows', count: myFlows.length },
+                { key: 'agents', label: 'Mis Agentes', desc: 'Asistentes IA', count: myAgents.length },
+                { key: 'friends', label: 'Amigos', desc: 'Conexiones', count: friends.length },
+                { key: 'active-flows', label: 'Flujos Activos', desc: 'De amigos', count: friendsActiveFlows.length },
+                { key: 'public-agents', label: 'Agentes Publicos', desc: 'Comunidad', count: publicAgents.length }
+              ]}
             />
 
             {error && (
