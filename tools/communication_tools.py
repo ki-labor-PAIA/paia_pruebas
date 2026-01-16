@@ -20,11 +20,12 @@ def create_communication_tools(
     auth_manager: Any,
     agent_manager: Any,
     ensure_agent_loaded_func: Any,
+    gmail_service: Any, # Nueva dependencia
     AgentMessage: type
 ):
     """
     Create communication tools for a specific agent.
-
+    
     Args:
         agent_id: ID of the agent these tools belong to
         agents_store: Global agents storage
@@ -36,6 +37,7 @@ def create_communication_tools(
         auth_manager: AuthManager instance
         agent_manager: PAIAAgentManager instance
         ensure_agent_loaded_func: Function to ensure agent is loaded
+        gmail_service: GmailService instance
         AgentMessage: AgentMessage dataclass
 
     Returns:
@@ -333,11 +335,45 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
         except Exception as e:
             return f"❌ Error obteniendo historial: {str(e)}"
 
+    @tool
+    async def send_gmail(to: str, subject: str, message: str) -> str:
+        """
+        Send an email using the user's connected Gmail account.
+        Use this when the user explicitly asks to send an email.
+        
+        Args:
+            to: Recipient email address
+            subject: Email subject
+            message: Email body content
+            
+        Returns:
+            Status message
+        """
+        try:
+            # 1. Get the owner user of this agent
+            agent = agents_store.get(agent_id)
+            if not agent:
+                return "❌ Error: Agent not found internally."
+                
+            user_id = agent.user_id
+            
+            # 2. Send email using GmailService
+            result = await gmail_service.send_email(user_id, to, subject, message)
+            
+            if result["success"]:
+                return f"✅ Email enviado a {to} (ID: {result['message_id']})"
+            else:
+                return f"❌ Error enviando email: {result['error']}. Asegúrate de haber conectado tu cuenta de Gmail."
+
+        except Exception as e:
+            return f"❌ Error inesperado: {str(e)}"
+
     return [
         get_connected_agents,
         send_notification_to_user,
         ask_connected_agent,
         send_message_to_agent,
         get_agent_response,
-        get_conversation_history
+        get_conversation_history,
+        send_gmail
     ]

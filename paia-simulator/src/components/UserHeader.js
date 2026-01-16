@@ -16,6 +16,20 @@ export default function UserHeader() {
   const [showFriends, setShowFriends] = useState(false)
   const [showTutorial, setShowTutorial] = useState(false)
 
+  const handleConnectGmail = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const res = await fetch(`${apiUrl}/auth/google/authorize-url?user_id=${session.user.id}`)
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url
+      }
+    } catch (error) {
+      console.error("Error connecting Gmail:", error)
+      alert("Error iniciando conexión con Gmail")
+    }
+  }
+
   if (!session) return null
 
   return (
@@ -40,7 +54,7 @@ export default function UserHeader() {
           Sistema de Agentes de IA Personal
         </div>
       </div>
-      
+
       <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {session.user.image && (
@@ -52,8 +66,8 @@ export default function UserHeader() {
               overflow: 'hidden',
               position: 'relative'
             }}>
-              <Image 
-                src={session.user.image} 
+              <Image
+                src={session.user.image}
                 alt="Avatar"
                 width={32}
                 height={32}
@@ -73,7 +87,7 @@ export default function UserHeader() {
             </div>
           </div>
         </div>
-        
+
         <button
           onClick={() => setShowTutorial(true)}
           style={{
@@ -146,7 +160,7 @@ export default function UserHeader() {
             !
           </span>
         </button>
-        
+
         <button
           onClick={() => setShowFriends(!showFriends)}
           style={{
@@ -165,7 +179,7 @@ export default function UserHeader() {
         >
           👥 Amigos
         </button>
-        
+
         <button
           onClick={() => setShowTelegramPanel(true)}
           style={{
@@ -184,7 +198,26 @@ export default function UserHeader() {
         >
           📱 Telegram
         </button>
-        
+
+        <button
+          onClick={handleConnectGmail}
+          style={{
+            background: 'rgba(255,255,255,0.2)',
+            border: '1px solid rgba(255,255,255,0.3)',
+            color: 'white',
+            padding: '8px 16px',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            transition: 'background 0.2s',
+            marginRight: '10px'
+          }}
+          onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
+          onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
+        >
+          📧 Conectar Gmail
+        </button>
+
         <button
           onClick={() => signOut()}
           style={{
@@ -203,17 +236,17 @@ export default function UserHeader() {
           Cerrar Sesión
         </button>
       </div>
-      
+
       {showTelegramPanel && (
         <TelegramPanel onClose={() => setShowTelegramPanel(false)} />
       )}
-      
-      <NotificationPanel 
+
+      <NotificationPanel
         userId={session?.user?.id}
         isOpen={showNotifications}
         onClose={() => setShowNotifications(false)}
       />
-      
+
       <FriendsPanel
         userId={session?.user?.id}
         isOpen={showFriends}

@@ -7,6 +7,12 @@ from dataclasses import dataclass, asdict
 from fastapi import FastAPI, HTTPException, WebSocket, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
+from dotenv import load_dotenv
+import os
+
+# Cargar variables de entorno ANTES de importar módulos que las usan
+load_dotenv()
+
 from langchain_mcp_adapters.client import load_mcp_tools 
 from langgraph.prebuilt import create_react_agent
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -21,7 +27,6 @@ from memory_manager import MemoryManager, Message
 from auth_manager_supabase import AuthManager
 from db_manager_supabase import DatabaseManager
 from supabase_config import supabase_client
-from dotenv import load_dotenv
 
 # === SERVICIOS ===
 from services.whatsapp_service import WhatsAppService
@@ -29,6 +34,7 @@ from services.telegram_service import TelegramService
 from services.agent_service import PAIAAgentManager
 from services.memory_service import MemoryService
 from services.mcp_service import MCPService, init_mcp_service
+from services.gmail_service import GmailService
 
 # === HERRAMIENTAS ===
 from tools.telegram_tools import create_telegram_tools
@@ -40,6 +46,7 @@ from tools.expertise_tools import get_expertise_tools
 # === ROUTERS ===
 from routers.health import create_health_router
 from routers.auth import create_auth_router
+from routers.google_auth import create_google_auth_router
 from routers.agents import create_agents_router
 from routers.connections import create_connections_router
 from routers.telegram import create_telegram_router
@@ -78,7 +85,6 @@ from config.settings import (
 )
 from models.agent import PAIAAgent, AgentConnection, AgentMessage
 
-load_dotenv()
 app = FastAPI(title=API_TITLE, version=API_VERSION)
 
 
@@ -99,6 +105,9 @@ telegram_service = TelegramService(TELEGRAM_BOT_TOKEN)
 
 # === SERVICIO MCP ===
 mcp_service: Optional[MCPService] = None
+
+# === SERVICIO GMAIL ===
+gmail_service = GmailService(db_manager)
 
 # =============== PROTOCOLO PAIA - VARIABLES GLOBALES ===============
 paia_router: Optional[PAIAMessageRouter] = None
@@ -160,7 +169,8 @@ async def init_mcp_client():
         telegram_service=telegram_service,
         whatsapp_service=whatsapp_service,
         auth_manager=auth_manager,
-        get_mcp_client_func=mcp_service.get_mcp_client_for_user
+        get_mcp_client_func=mcp_service.get_mcp_client_for_user,
+        gmail_service=gmail_service
     )
 
     # Inyectar stores globales compartidos
@@ -526,6 +536,9 @@ app.include_router(health_router)
 
 auth_router = create_auth_router(auth_manager=auth_manager)
 app.include_router(auth_router)
+
+google_auth_router = create_google_auth_router(db_manager=db_manager)
+app.include_router(google_auth_router)
 
 agents_router = create_agents_router(
     agents_store=agents_store,
