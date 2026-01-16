@@ -12,7 +12,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 def create_agents_router(
     agents_store: Dict[str, Any],
     connections_store: Dict[str, Any],
-    agent_manager: Any,
+    agent_manager: Any,  # Ahora es un dict con 'agent_manager' key
     auth_manager: Any,
     db_manager: Any,
     memory_manager: Any,
@@ -22,12 +22,26 @@ def create_agents_router(
 ) -> APIRouter:
     """
     Create agents router with dependencies.
+    agent_manager es un diccionario que contiene la referencia al manager real.
     """
     router = APIRouter()
+
+    def get_agent_manager():
+        """Obtener el agent_manager actual del contenedor de servicios"""
+        if isinstance(agent_manager, dict):
+            return agent_manager.get('agent_manager')
+        return agent_manager
 
     @router.post("/api/agents")
     async def create_agent(agent_data: dict) -> Dict[str, Any]:
         try:
+            manager = get_agent_manager()
+            if not manager:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Agent Manager no inicializado. El servidor esta iniciando."
+                )
+
             user_id = agent_data.get('user_id')
             if user_id:
                 user = await auth_manager.get_user_by_id(user_id)
@@ -56,10 +70,10 @@ def create_agents_router(
                     print(f"[Create Agent] Error: WhatsApp {whatsapp_phone} ya asignado a '{existing_agent.name}'")
                     raise HTTPException(
                         status_code=400,
-                        detail=f"El número de WhatsApp {whatsapp_phone} ya está asignado al agente '{existing_agent.name}'"
+                        detail=f"El numero de WhatsApp {whatsapp_phone} ya esta asignado al agente '{existing_agent.name}'"
                     )
 
-            agent = await agent_manager.create_agent(agent_data)
+            agent = await manager.create_agent(agent_data)
 
             whatsapp_phone = agent_data.get('whatsapp_phone_number')
             if whatsapp_phone and whatsapp_phone.strip():
@@ -289,7 +303,14 @@ def create_agents_router(
     @router.post("/api/agents/{from_agent_id}/send-to/{to_agent_id}")
     async def send_message_between_agents(from_agent_id: str, to_agent_id: str, message_data: dict) -> Dict[str, str]:
         try:
-            response = await agent_manager.send_message_to_agent_api(
+            manager = get_agent_manager()
+            if not manager:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Agent Manager no inicializado"
+                )
+
+            response = await manager.send_message_to_agent_api(
                 from_agent_id,
                 to_agent_id,
                 message_data['message']
@@ -300,6 +321,8 @@ def create_agents_router(
                 "to_agent": agents_store[to_agent_id].name,
                 "response": response
             }
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 

@@ -13,17 +13,20 @@ export default function LogPanel({ messages }) {
 
   return (
     <div className="log-panel" ref={logRef}>
-      {messages.map((message, index) => (
-        <div key={index} style={{ marginBottom: '4px' }}>
-          {message.includes('→') ? (
-            <span dangerouslySetInnerHTML={{ 
-              __html: message.replace(/(\w+) → (\w+)/, '<b>$1</b> → <b>$2</b>') 
-            }} />
-          ) : (
-            <b>{message}</b>
-          )}
-        </div>
-      ))}
+      {messages.map((item, index) => {
+        const text = typeof item === 'string' ? item : item.message;
+        return (
+          <div key={item.id || index} style={{ marginBottom: '4px' }}>
+            {text && text.includes('→') ? (
+              <span dangerouslySetInnerHTML={{
+                __html: text.replace(/(\w+) → (\w+)/, '<b>$1</b> → <b>$2</b>')
+              }} />
+            ) : (
+              <b>{text}</b>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

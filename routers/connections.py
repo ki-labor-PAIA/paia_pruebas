@@ -8,20 +8,26 @@ from fastapi import APIRouter, HTTPException
 
 
 def create_connections_router(
-    agent_manager: Any,
+    agent_manager: Any,  # Puede ser dict con 'agent_manager' key o instancia directa
     connections_store: Dict[str, Any]
 ) -> APIRouter:
     """
     Create connections router with dependencies.
 
     Args:
-        agent_manager: PAIAAgentManager instance for managing agent connections
+        agent_manager: Contenedor de servicios o PAIAAgentManager directo
         connections_store: Global connections storage
 
     Returns:
         Configured APIRouter with connection endpoints
     """
     router = APIRouter()
+
+    def get_agent_manager():
+        """Obtener el agent_manager actual del contenedor de servicios"""
+        if isinstance(agent_manager, dict):
+            return agent_manager.get('agent_manager')
+        return agent_manager
 
     @router.post("/api/connections")
     async def create_connection(connection_data: dict) -> Dict[str, Any]:
@@ -38,12 +44,21 @@ def create_connections_router(
             HTTPException: If connection creation fails
         """
         try:
-            connection = await agent_manager.connect_agents(
+            manager = get_agent_manager()
+            if not manager:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Agent Manager no inicializado"
+                )
+
+            connection = await manager.connect_agents(
                 connection_data['agent1'],
                 connection_data['agent2'],
                 connection_data.get('type', 'direct')
             )
             return asdict(connection)
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
