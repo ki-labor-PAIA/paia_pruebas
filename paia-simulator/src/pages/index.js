@@ -229,10 +229,27 @@ export default function Home() {
                 {activeTab === 'flows' && (
                   <FlowsTab
                     flows={myFlows}
-                    onCreateFlow={() => navigateToCreate()}
-                    onEditFlow={(flowId) => navigateToCreate(flowId)}
-                    onToggleStatus={handleFlowStatusToggle}
-                    onDeleteFlow={handleDeleteFlow}
+                    loading={loading}
+                    onCreateNew={() => navigateToCreate()}
+                    onFlowAction={(action, flowId, extra) => {
+                      switch (action) {
+                        case 'edit':
+                          navigateToCreate(flowId);
+                          break;
+                        case 'toggleStatus':
+                          handleFlowStatusToggle(flowId, extra);
+                          break;
+                        case 'delete':
+                          handleDeleteFlow(flowId);
+                          break;
+                        case 'duplicate':
+                          // TODO: implementar duplicacion de flujo
+                          console.log('Duplicar flujo:', flowId);
+                          break;
+                        default:
+                          console.warn('Accion desconocida:', action);
+                      }
+                    }}
                   />
                 )}
 

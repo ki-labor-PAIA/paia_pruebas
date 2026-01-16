@@ -20,7 +20,8 @@ def create_flows_router(db_manager: Any) -> APIRouter:
             if not user_id or not name or not flow_data_content:
                 raise HTTPException(status_code=400, detail='user_id, name y flow_data son requeridos')
 
-            flow_id = await db_manager.save_flow(flow_data)
+            saved_flow = await db_manager.save_flow(flow_data)
+            flow_id = saved_flow['id'] if isinstance(saved_flow, dict) else saved_flow
             return {'flow_id': flow_id, 'message': f"Flujo '{name}' guardado exitosamente"}
         except HTTPException:
             raise
