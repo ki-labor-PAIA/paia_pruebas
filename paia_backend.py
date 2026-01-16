@@ -154,6 +154,12 @@ message_history: Dict[str, List[AgentMessage]] = {}  # conversation_id -> messag
 # === GESTOR DE AGENTES (inicializado después del startup) ===
 agent_manager: Optional[PAIAAgentManager] = None
 
+# Contenedor para referencias que se inicializan en startup
+services = {
+    'agent_manager': None,
+    'mcp_service': None
+}
+
 # Inicializar el cliente MCP al arrancar
 async def init_mcp_client():
     """Inicializar el servicio MCP"""
@@ -175,6 +181,10 @@ async def init_mcp_client():
 
     # Inyectar stores globales compartidos
     agent_manager.set_stores(agents_store, connections_store, message_history)
+
+    # Actualizar referencia en el contenedor de servicios
+    services['agent_manager'] = agent_manager
+    services['mcp_service'] = mcp_service
 
     print("[INFO] Agent Manager y MCP Service inicializados")
 
@@ -398,7 +408,7 @@ async def ensure_agent_loaded(agent_id: str, user_id: str = None):
         all_tools = base_tools
         
         # Usar cliente MCP específico para el usuario
-        user_mcp_client = await agent_manager.get_mcp_client_for_user(db_agent.user_id)
+        user_mcp_client = await agent_manager.get_mcp_client_func(db_agent.user_id)
         if user_mcp_client:
             try:
                 mcp_tools = await user_mcp_client.get_tools()
@@ -543,7 +553,7 @@ app.include_router(google_auth_router)
 agents_router = create_agents_router(
     agents_store=agents_store,
     connections_store=connections_store,
-    agent_manager=agent_manager,
+    agent_manager=services,  # Pasar contenedor de servicios
     auth_manager=auth_manager,
     db_manager=db_manager,
     memory_manager=memory_manager,
@@ -556,7 +566,7 @@ app.include_router(agents_router)
 # === ROUTERS ADICIONALES ===
 
 connections_router = create_connections_router(
-    agent_manager=agent_manager,
+    agent_manager=services,  # Pasar contenedor de servicios
     connections_store=connections_store
 )
 app.include_router(connections_router)
