@@ -16,19 +16,7 @@ export default function UserHeader() {
   const [showFriends, setShowFriends] = useState(false)
   const [showTutorial, setShowTutorial] = useState(false)
 
-  const handleConnectGmail = async () => {
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      const res = await fetch(`${apiUrl}/auth/google/authorize-url?user_id=${session.user.id}`)
-      const data = await res.json()
-      if (data.url) {
-        window.location.href = data.url
-      }
-    } catch (error) {
-      console.error("Error connecting Gmail:", error)
-      alert("Error iniciando conexión con Gmail")
-    }
-  }
+
 
   if (!session) return null
 
@@ -199,24 +187,7 @@ export default function UserHeader() {
           📱 Telegram
         </button>
 
-        <button
-          onClick={handleConnectGmail}
-          style={{
-            background: 'rgba(255,255,255,0.2)',
-            border: '1px solid rgba(255,255,255,0.3)',
-            color: 'white',
-            padding: '8px 16px',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            transition: 'background 0.2s',
-            marginRight: '10px'
-          }}
-          onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
-          onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
-        >
-          📧 Conectar Gmail
-        </button>
+
 
         <button
           onClick={() => signOut()}

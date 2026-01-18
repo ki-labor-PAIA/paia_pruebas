@@ -9,7 +9,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 
 import LeftSidebar from './LeftSidebar';
-import RightSidebar from './RightSidebar';
+import RightSidebar from './RightSidebarV2';
 import StatsPanel from './StatsPanel';
 import DecisionsPanel from './DecisionsPanel';
 import LogPanel from './LogPanel';
@@ -560,7 +560,7 @@ export default function PAIASimulator({ initialFlow }) {
         id: actor.id,
         type: 'actor',
         position: actor.position,
-        data: { 
+        data: {
           label: actor.name,
           actorType: actor.type,
           emoji: actor.type === 'human' ? '👤' : '🤖'
@@ -722,37 +722,37 @@ export default function PAIASimulator({ initialFlow }) {
         </div>
 
         <RightSidebar
-        onAddActor={addActor}
-        onAddTelegram={addTelegramNode}
-        onAddCalendar={addCalendarNode}
-        onConnect={() => {}} // Connect functionality handled by ReactFlow
-        onCreateAgent={() => setShowCreateAgent(true)}
-        onChatWithAgent={startChat}
-        nodes={nodes}
-        publicAgents={publicAgents}
-        onLoadPublicAgents={loadPublicAgents}
-        onLoadMyAgents={loadMyAgents}
-        onAddPublicAgent={addPublicAgentToCanvas}
-        isBackendConnected={isConnected}
-      />
-
-      <StatsPanel stats={stats} />
-      
-      <LogPanel messages={logMessages} />
-
-      {showGuide && (
-        <GuideModal onClose={() => setShowGuide(false)} />
-      )}
-
-      {showCreateAgent && (
-        <CreateAgentModal
-          isOpen={showCreateAgent}
-          onClose={() => setShowCreateAgent(false)}
-          onCreateAgent={createConfiguredAgent}
+          onAddActor={addActor}
+          onAddTelegram={addTelegramNode}
+          onAddCalendar={addCalendarNode}
+          onConnect={() => { }} // Connect functionality handled by ReactFlow
+          onCreateAgent={() => setShowCreateAgent(true)}
+          onChatWithAgent={startChat}
+          nodes={nodes}
+          publicAgents={publicAgents}
+          onLoadPublicAgents={loadPublicAgents}
+          onLoadMyAgents={loadMyAgents}
+          onAddPublicAgent={addPublicAgentToCanvas}
+          isBackendConnected={isConnected}
         />
-      )}
 
-      {showConfigureCalendar && (
+        <StatsPanel stats={stats} />
+
+        <LogPanel messages={logMessages} />
+
+        {showGuide && (
+          <GuideModal onClose={() => setShowGuide(false)} />
+        )}
+
+        {showCreateAgent && (
+          <CreateAgentModal
+            isOpen={showCreateAgent}
+            onClose={() => setShowCreateAgent(false)}
+            onCreateAgent={createConfiguredAgent}
+          />
+        )}
+
+        {showConfigureCalendar && (
           <ConfigureCalendarModal
             isOpen={showConfigureCalendar}
             onClose={() => setShowConfigureCalendar(false)}

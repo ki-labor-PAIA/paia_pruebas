@@ -60,3 +60,50 @@ class GmailService:
         raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
         
         return {'raw': raw_message}
+
+    async def get_messages(self, user_id: str, max_results: int = 10) -> Dict[str, Any]:
+        """Get recent messages for a user"""
+        try:
+            service = await self.get_service(user_id)
+            if not service:
+                return {"success": False, "error": "User not connected to Gmail"}
+
+            # List messages
+            results = service.users().messages().list(userId='me', maxResults=max_results, labelIds=['INBOX']).execute()
+            messages = results.get('messages', [])
+
+            if not messages:
+                return {"success": True, "messages": []}
+
+            final_messages = []
+            for msg in messages:
+                # Get full message details
+                msg_detail = service.users().messages().get(userId='me', id=msg['id'], format='full').execute()
+                parsed = self._parse_message(msg_detail)
+                final_messages.append(parsed)
+
+            return {"success": True, "messages": final_messages}
+            
+        except Exception as e:
+            print(f"[Gmail] Error getting messages for user {user_id}: {e}")
+            return {"success": False, "error": str(e)}
+
+    def _parse_message(self, msg_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse raw Gmail message into friendly format"""
+        payload = msg_data.get('payload', {})
+        headers = payload.get('headers', [])
+        
+        subject = next((h['value'] for h in headers if h['name'] == 'Subject'), '(No Subject)')
+        sender = next((h['value'] for h in headers if h['name'] == 'From'), '(Unknown)')
+        date = next((h['value'] for h in headers if h['name'] == 'Date'), '')
+        
+        snippet = msg_data.get('snippet', '')
+        
+        return {
+            "id": msg_data['id'],
+            "threadId": msg_data['threadId'],
+            "subject": subject,
+            "from": sender,
+            "date": date,
+            "snippet": snippet
+        }

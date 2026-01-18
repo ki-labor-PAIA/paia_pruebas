@@ -9,7 +9,7 @@ from google_auth_oauthlib.flow import Flow
 from db_manager_supabase import DatabaseManager
 
 # Scopes required for sending emails
-SCOPES = ['https://www.googleapis.com/auth/gmail.send']
+SCOPES = ['https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/gmail.readonly']
 
 def create_google_auth_router(db_manager: DatabaseManager) -> APIRouter:
     router = APIRouter()
@@ -22,7 +22,7 @@ def create_google_auth_router(db_manager: DatabaseManager) -> APIRouter:
     if not CLIENT_ID or not CLIENT_SECRET:
         print("[WARNING] Google Client ID/Secret not configured")
 
-    @router.get("/auth/google/authorize-url")
+    @router.get("/api/auth/google/authorize-url")
     async def get_authorize_url(user_id: str) -> Dict[str, str]:
         """
         Generar URL de autorización para conectar Gmail.
@@ -60,7 +60,7 @@ def create_google_auth_router(db_manager: DatabaseManager) -> APIRouter:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error generating auth URL: {str(e)}")
 
-    @router.post("/auth/google/callback")
+    @router.post("/api/auth/google/callback")
     async def auth_callback(data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Manejar el código de autorización devuelto por Google.

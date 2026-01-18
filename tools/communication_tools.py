@@ -368,6 +368,46 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
         except Exception as e:
             return f"❌ Error inesperado: {str(e)}"
 
+    @tool
+    async def read_gmail(count: int = 5) -> str:
+        """
+        Read recent emails from the user's connected Gmail account.
+        Use this to check for new messages or summarize recent emails.
+
+        Args:
+            count: Number of emails to retrieve (default: 5, max: 20)
+
+        Returns:
+            List of emails with sender, subject, and snippet.
+        """
+        try:
+            # 1. Get the owner user of this agent
+            agent = agents_store.get(agent_id)
+            if not agent:
+                return "❌ Error: Agent not found internally."
+
+            user_id = agent.user_id
+
+            # 2. Get emails using GmailService
+            result = await gmail_service.get_messages(user_id, max_results=min(count, 20))
+
+            if not result["success"]:
+                return f"❌ Error leyendo emails: {result['error']}. Asegúrate de haber conectado tu cuenta de Gmail en el Frontend."
+
+            messages = result["messages"]
+            if not messages:
+                return "📭 No hay emails recientes en la bandeja de entrada."
+
+            # Format emails for the agent
+            email_list = []
+            for i, msg in enumerate(messages, 1):
+                email_list.append(f"{i}. DE: {msg['from']}\n   ASUNTO: {msg['subject']}\n   FECHA: {msg['date']}\n   RESUMEN: {msg['snippet']}\n   ---")
+
+            return f"📬 Últimos {len(messages)} emails:\n\n" + "\n".join(email_list)
+
+        except Exception as e:
+            return f"❌ Error inesperado leyendo emails: {str(e)}"
+
     return [
         get_connected_agents,
         send_notification_to_user,
@@ -375,5 +415,6 @@ Por favor responde de manera útil y directa. Si la pregunta es sobre disponibil
         send_message_to_agent,
         get_agent_response,
         get_conversation_history,
-        send_gmail
+        send_gmail,
+        read_gmail
     ]

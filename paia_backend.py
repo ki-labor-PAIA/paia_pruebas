@@ -56,6 +56,7 @@ from routers.users import create_users_router
 from routers.flows import create_flows_router
 from routers.paia import create_paia_router
 from routers.websocket import create_websocket_router
+from routers.emails import create_emails_router
 
 # === PROTOCOLO PAIA ===
 from paia_protocol import (
@@ -550,6 +551,9 @@ app.include_router(auth_router)
 google_auth_router = create_google_auth_router(db_manager=db_manager)
 app.include_router(google_auth_router)
 
+emails_router = create_emails_router(gmail_service=gmail_service, auth_manager=auth_manager)
+app.include_router(emails_router)
+
 agents_router = create_agents_router(
     agents_store=agents_store,
     connections_store=connections_store,
@@ -610,6 +614,11 @@ websocket_router = create_websocket_router(paia_ws_handler=paia_ws_handler)
 app.include_router(websocket_router)
 
 # =============== ENDPOINTS UNICOS (NO EN ROUTERS) ===============
+
+@app.get("/debug_ping")
+async def debug_ping():
+    return {"message": "pong", "status": "ok"}
+
 
 @app.get("/api/conversations/{agent1_id}/{agent2_id}")
 async def get_conversation_history(agent1_id: str, agent2_id: str):
@@ -681,11 +690,20 @@ async def create_architecture(architecture_data: dict):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 # =============== STARTUP ===============
 
 if __name__ == "__main__":
     print("Iniciando PAIA Platform Backend...")
     print("")
+
+    # Imprimir rutas registradas para debugging
+    print("=== RUTAS REGISTRADAS ===")
+    for route in app.routes:
+        if hasattr(route, "path"):
+            methods = ",".join(route.methods) if hasattr(route, "methods") else "WebSocket"
+            print(f"Ruta: {route.path} [{methods}]")
+    print("=========================")
     
     uvicorn.run(
         app, 

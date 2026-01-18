@@ -1,5 +1,6 @@
 
 import { useTranslation } from 'react-i18next';
+import { useSession } from 'next-auth/react';
 
 
 export default function RightSidebar({
@@ -17,9 +18,32 @@ export default function RightSidebar({
   isBackendConnected
 }) {
 
+
   const { t } = useTranslation();
+  const { data: session } = useSession();
+
+  const handleConnectGmail = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const res = await fetch(`${apiUrl}/auth/google/authorize-url?user_id=${session?.user?.id}`)
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url
+      }
+    } catch (error) {
+      console.error("Error connecting Gmail:", error)
+      alert("Error iniciando conexión con Gmail")
+    }
+  }
+
   return (
     <div className="sidebar right">
+      <div style={{ border: '4px solid red', padding: '10px', marginBottom: '20px', background: 'yellow', color: 'black' }}>
+        <strong>DEBUG ZONE</strong>
+        <button onClick={handleConnectGmail} style={{ background: '#EA4335', color: 'white', padding: '10px', width: '100%', marginTop: '5px' }}>
+          📧 TEST GMAIL (TOP)
+        </button>
+      </div>
       <div className="button-group">
         <div className="button-group-title">{t('rightSidebar.addActors')}</div>
         <button data-tour="add-actors" onClick={() => onAddActor('human')} className="discreet-button">
@@ -34,7 +58,7 @@ export default function RightSidebar({
       </div>
 
       <div className="button-group">
-        <div className="button-group-title">🔧 Herramientas</div>
+        <div className="button-group-title">🔧 Herramientas (TEST)</div>
         <button onClick={onAddTelegram} className="discreet-button" style={{ background: '#0088cc', color: 'white' }}>
           <i className="fas fa-paper-plane"></i> Telegram
         </button>
@@ -56,7 +80,7 @@ export default function RightSidebar({
       {isBackendConnected && (
         <div className="button-group">
           <div className="button-group-title">{t('rightSidebar.publicAgents')}</div>
-          <button 
+          <button
             onClick={onLoadPublicAgents}
             className="discreet-button"
             style={{ marginBottom: '10px' }}
@@ -78,12 +102,12 @@ export default function RightSidebar({
           {publicAgents.length > 0 && (
             <div style={{ maxHeight: '150px', overflow: 'auto' }}>
               {publicAgents.map(agent => (
-                <div 
+                <div
                   key={agent.id}
                   style={{
                     display: 'flex',
                     justifyContent: 'space-between',
-                    alignItems: 'center',  
+                    alignItems: 'center',
                     marginBottom: '6px',
                     padding: '6px 8px',
                     background: 'rgba(108, 92, 231, 0.1)',
@@ -115,7 +139,7 @@ export default function RightSidebar({
               ))}
             </div>
           )}
-          
+
           {publicAgents.length === 0 && (
             <div style={{ fontSize: '0.8em', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
               {t('rightSidebar.loadAgentsToConnect')}
@@ -136,7 +160,7 @@ export default function RightSidebar({
                 key={node.id}
                 onClick={() => onChatWithAgent(node.id)}
                 className="discreet-button"
-                style={{ 
+                style={{
                   marginBottom: '6px',
                   padding: '8px 10px !important',
                   fontSize: '0.8em',
@@ -166,9 +190,9 @@ export default function RightSidebar({
             ))}
           </div>
         ) : (
-          <div style={{ 
-            fontSize: '0.8em', 
-            color: 'var(--text-secondary)', 
+          <div style={{
+            fontSize: '0.8em',
+            color: 'var(--text-secondary)',
             fontStyle: 'italic',
             textAlign: 'center',
             padding: '16px 8px',
@@ -185,6 +209,6 @@ export default function RightSidebar({
         )}
       </div>
 
-      </div>
+    </div>
   );
 }
