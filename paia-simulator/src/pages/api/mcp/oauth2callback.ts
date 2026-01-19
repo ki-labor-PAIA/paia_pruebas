@@ -26,7 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:8000';
 
     // Intercambiar código por token en el backend
-    const response = await fetch(`${backendUrl}/auth/google/callback`, {
+    const response = await fetch(`${backendUrl}/api/auth/google/callback`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
