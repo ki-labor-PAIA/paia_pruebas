@@ -16,6 +16,8 @@ export default function UserHeader() {
   const [showFriends, setShowFriends] = useState(false)
   const [showTutorial, setShowTutorial] = useState(false)
 
+
+
   if (!session) return null
 
   return (
@@ -40,7 +42,7 @@ export default function UserHeader() {
           Sistema de Agentes de IA Personal
         </div>
       </div>
-      
+
       <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {session.user.image && (
@@ -52,8 +54,8 @@ export default function UserHeader() {
               overflow: 'hidden',
               position: 'relative'
             }}>
-              <Image 
-                src={session.user.image} 
+              <Image
+                src={session.user.image}
                 alt="Avatar"
                 width={32}
                 height={32}
@@ -73,7 +75,7 @@ export default function UserHeader() {
             </div>
           </div>
         </div>
-        
+
         <button
           onClick={() => setShowTutorial(true)}
           style={{
@@ -146,7 +148,7 @@ export default function UserHeader() {
             !
           </span>
         </button>
-        
+
         <button
           onClick={() => setShowFriends(!showFriends)}
           style={{
@@ -165,7 +167,7 @@ export default function UserHeader() {
         >
           👥 Amigos
         </button>
-        
+
         <button
           onClick={() => setShowTelegramPanel(true)}
           style={{
@@ -184,7 +186,9 @@ export default function UserHeader() {
         >
           📱 Telegram
         </button>
-        
+
+
+
         <button
           onClick={() => signOut()}
           style={{
@@ -203,17 +207,17 @@ export default function UserHeader() {
           Cerrar Sesión
         </button>
       </div>
-      
+
       {showTelegramPanel && (
         <TelegramPanel onClose={() => setShowTelegramPanel(false)} />
       )}
-      
-      <NotificationPanel 
+
+      <NotificationPanel
         userId={session?.user?.id}
         isOpen={showNotifications}
         onClose={() => setShowNotifications(false)}
       />
-      
+
       <FriendsPanel
         userId={session?.user?.id}
         isOpen={showFriends}

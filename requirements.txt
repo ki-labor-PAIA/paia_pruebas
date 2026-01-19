@@ -1,5 +1,8 @@
 # === Core Framework ===
 fastapi
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2
 uvicorn
 python-multipart
 websockets

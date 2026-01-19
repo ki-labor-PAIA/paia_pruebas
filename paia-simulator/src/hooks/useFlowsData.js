@@ -16,8 +16,11 @@ const useFlowsData = () => {
     setLoading(true);
     setError(null);
 
+    const requestUrl = `${API_URL}/api/flows/user/${userId}`;
+    console.log(`[DEBUG] Loading flows from: ${requestUrl} (userId: '${userId}')`);
+
     try {
-      const response = await fetch(`${API_URL}/api/flows/user/${userId}`);
+      const response = await fetch(requestUrl);
 
       if (!response.ok) {
         throw new Error(`Failed to load flows: ${response.statusText}`);

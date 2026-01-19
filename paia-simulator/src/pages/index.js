@@ -256,14 +256,14 @@ export default function Home() {
                 {activeTab === 'agents' && (
                   <AgentsTab
                     agents={myAgents}
-                    onCreateAgent={() => setShowCreateAgent(true)}
+                    onCreateNew={() => setShowCreateAgent(true)}
                   />
                 )}
 
                 {activeTab === 'friends' && (
                   <FriendsTab
                     friends={friends}
-                    onConnectFriend={() => setShowConnectUser(true)}
+                    onAddFriend={() => setShowConnectUser(true)}
                   />
                 )}
 

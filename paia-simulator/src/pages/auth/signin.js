@@ -23,7 +23,7 @@ export default function SignIn() {
         password,
         redirect: false
       })
-      
+
       if (result?.error) {
         setError('Credenciales inválidas')
       } else {
@@ -37,9 +37,9 @@ export default function SignIn() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
         })
-        
+
         const data = await response.json()
-        
+
         if (response.ok) {
           // Automáticamente hacer login después del registro
           const result = await signIn('credentials', {
@@ -47,7 +47,7 @@ export default function SignIn() {
             password,
             redirect: false
           })
-          
+
           if (!result?.error) {
             router.push('/')
           }
@@ -58,7 +58,7 @@ export default function SignIn() {
         setError('Error de conexión')
       }
     }
-    
+
     setLoading(false)
   }
 
@@ -69,9 +69,9 @@ export default function SignIn() {
   return (
     <>
       <Head>
-        <title>{isLogin ? 'Iniciar Sesión' : 'Registrarse'} - PAIA</title>
+        <title>{`${isLogin ? 'Iniciar Sesión' : 'Registrarse'} - PAIA`}</title>
       </Head>
-      
+
       <div style={{
         minHeight: '100vh',
         width: '100vw',
@@ -251,10 +251,10 @@ export default function SignIn() {
               }}
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style={{ width: '20px', height: '20px' }}>
-                <path fill="#EA4335" d="M24 9.5c3.54 0 6.7 1.22 9.21 3.6l6.85-6.85C35.63 2.6 30.3 0 24 0 14.64 0 6.48 5.58 2.56 13.68l7.98 6.2C12.32 13.64 17.72 9.5 24 9.5z"/>
-                <path fill="#34A853" d="M46.98 24.55c0-1.64-.15-3.22-.43-4.76H24v9.04h12.94c-.56 2.84-2.22 5.26-4.71 6.88l7.2 5.6C43.94 37.24 46.98 31.4 46.98 24.55z"/>
-                <path fill="#FBBC05" d="M10.54 28.42c-.8-2.34-1.25-4.84-1.25-7.42s.45-5.08 1.25-7.42L2.56 7.9C.92 11.08 0 14.44 0 18c0 3.56.92 6.92 2.56 10.1l7.98-6.2z"/>
-                <path fill="#4285F4" d="M24 48c6.48 0 11.93-2.14 15.9-5.84l-7.2-5.6c-2.01 1.35-4.58 2.16-8.7 2.16-6.28 0-11.68-4.14-13.46-9.86l-7.98 6.2C6.48 42.42 14.64 48 24 48z"/>
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.7 1.22 9.21 3.6l6.85-6.85C35.63 2.6 30.3 0 24 0 14.64 0 6.48 5.58 2.56 13.68l7.98 6.2C12.32 13.64 17.72 9.5 24 9.5z" />
+                <path fill="#34A853" d="M46.98 24.55c0-1.64-.15-3.22-.43-4.76H24v9.04h12.94c-.56 2.84-2.22 5.26-4.71 6.88l7.2 5.6C43.94 37.24 46.98 31.4 46.98 24.55z" />
+                <path fill="#FBBC05" d="M10.54 28.42c-.8-2.34-1.25-4.84-1.25-7.42s.45-5.08 1.25-7.42L2.56 7.9C.92 11.08 0 14.44 0 18c0 3.56.92 6.92 2.56 10.1l7.98-6.2z" />
+                <path fill="#4285F4" d="M24 48c6.48 0 11.93-2.14 15.9-5.84l-7.2-5.6c-2.01 1.35-4.58 2.16-8.7 2.16-6.28 0-11.68-4.14-13.46-9.86l-7.98 6.2C6.48 42.42 14.64 48 24 48z" />
               </svg>
               Google
             </button>
@@ -287,10 +287,10 @@ export default function SignIn() {
               }}
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 23 23" style={{ width: '20px', height: '20px' }}>
-                <rect width="10" height="10" x="0" y="0" fill="#f25022"/>
-                <rect width="10" height="10" x="13" y="0" fill="#7fba00"/>
-                <rect width="10" height="10" x="0" y="13" fill="#00a4ef"/>
-                <rect width="10" height="10" x="13" y="13" fill="#ffb900"/>
+                <rect width="10" height="10" x="0" y="0" fill="#f25022" />
+                <rect width="10" height="10" x="13" y="0" fill="#7fba00" />
+                <rect width="10" height="10" x="0" y="13" fill="#00a4ef" />
+                <rect width="10" height="10" x="13" y="13" fill="#ffb900" />
               </svg>
               Microsoft
             </button>
