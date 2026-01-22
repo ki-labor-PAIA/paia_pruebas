@@ -57,14 +57,8 @@ def create_agents_router(
 
             whatsapp_phone = agent_data.get('whatsapp_phone_number')
             if whatsapp_phone and whatsapp_phone.strip():
+                # La normalización ahora ocurre dentro de get_agent_by_whatsapp_phone
                 existing_agent = await db_manager.get_agent_by_whatsapp_phone(whatsapp_phone)
-
-                if not existing_agent and whatsapp_phone.startswith("521") and len(whatsapp_phone) >= 12:
-                    alt_phone = "52" + whatsapp_phone[3:]
-                    existing_agent = await db_manager.get_agent_by_whatsapp_phone(alt_phone)
-                elif not existing_agent and whatsapp_phone.startswith("52") and len(whatsapp_phone) >= 12 and not whatsapp_phone.startswith("521"):
-                    alt_phone = "521" + whatsapp_phone[2:]
-                    existing_agent = await db_manager.get_agent_by_whatsapp_phone(alt_phone)
 
                 if existing_agent:
                     print(f"[Create Agent] Error: WhatsApp {whatsapp_phone} ya asignado a '{existing_agent.name}'")
@@ -332,17 +326,8 @@ def create_agents_router(
             if not phone_number or not phone_number.strip():
                 return {"available": True}
 
+            # La normalización ahora ocurre automáticamente en db_manager
             existing = await db_manager.get_agent_by_whatsapp_phone(phone_number)
-
-            if not existing and phone_number.startswith("521") and len(phone_number) >= 12:
-                alt_phone = "52" + phone_number[3:]
-                print(f"[Check WhatsApp] Intentando variante sin 1: {alt_phone}")
-                existing = await db_manager.get_agent_by_whatsapp_phone(alt_phone)
-
-            if not existing and phone_number.startswith("52") and len(phone_number) >= 12 and not phone_number.startswith("521"):
-                alt_phone = "521" + phone_number[2:]
-                print(f"[Check WhatsApp] Intentando variante con 1: {alt_phone}")
-                existing = await db_manager.get_agent_by_whatsapp_phone(alt_phone)
 
             if existing:
                 print(f"[Check WhatsApp] Numero {phone_number} ya en uso por agente: {existing.name}")
