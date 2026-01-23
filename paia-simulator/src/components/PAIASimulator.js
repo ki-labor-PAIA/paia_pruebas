@@ -308,7 +308,7 @@ export default function PAIASimulator({ initialFlow }) {
     addLogMessage(`📝 Mensaje actualizado para ${nodes.find(n => n.id === nodeId)?.data.label}: "${newMessage}"`);
   }, [nodes, addLogMessage]);
 
-  // Función para iniciar conversación entre agentes
+  // Funcion para iniciar conversacion entre agentes
   const startAgentConversation = useCallback(async (sourceAgentNode, targetAgentNode, userRequest) => {
     // Cerrar el chat actual
     setShowChat(false);
@@ -332,24 +332,82 @@ export default function PAIASimulator({ initialFlow }) {
     setShowAgentConversation(true);
     setIsConversationActive(true);
 
-    // Generar conversación de demostración
-    const demoMessages = generateMeetingConversation(sourceAgent.id, targetAgent.id);
+    // Agregar mensaje del usuario
+    const userMessage = {
+      id: `msg-${Date.now()}`,
+      sender: 'user',
+      agentName: 'Tu',
+      content: userRequest,
+      timestamp: new Date().toLocaleTimeString()
+    };
+    setAgentConversationMessages(prev => [...prev, userMessage]);
 
-    // Simular envío progresivo de mensajes
-    await simulateConversation(
-      demoMessages,
-      (message) => {
-        setAgentConversationMessages(prev => [...prev, message]);
-      },
-      2500 // 2.5 segundos entre mensajes
-    );
+    try {
+      // Agregar mensaje de "pensando" del agente origen
+      const thinkingMessage = {
+        id: `msg-thinking-${Date.now()}`,
+        sender: sourceAgent.id,
+        agentName: sourceAgent.name,
+        content: `Consultando a ${targetAgent.name}...`,
+        timestamp: new Date().toLocaleTimeString(),
+        isThinking: true
+      };
+      setAgentConversationMessages(prev => [...prev, thinkingMessage]);
+
+      // Llamar a la API real - enviar mensaje al agente origen
+      const response = await PAIAApi.sendMessage(
+        sourceAgent.id,
+        userRequest,
+        session?.user?.id || null
+      );
+
+      // Remover mensaje de "pensando"
+      setAgentConversationMessages(prev => prev.filter(m => !m.isThinking));
+
+      if (response && response.response) {
+        // Agregar respuesta del agente
+        const agentResponse = {
+          id: `msg-${Date.now()}-response`,
+          sender: sourceAgent.id,
+          agentName: sourceAgent.name,
+          content: response.response,
+          timestamp: new Date().toLocaleTimeString()
+        };
+        setAgentConversationMessages(prev => [...prev, agentResponse]);
+      } else {
+        // Error o sin respuesta
+        const errorMessage = {
+          id: `msg-${Date.now()}-error`,
+          sender: 'system',
+          agentName: 'Sistema',
+          content: 'No se pudo obtener respuesta del agente.',
+          timestamp: new Date().toLocaleTimeString(),
+          isError: true
+        };
+        setAgentConversationMessages(prev => [...prev, errorMessage]);
+      }
+    } catch (error) {
+      console.error('Error en conversacion entre agentes:', error);
+      // Remover mensaje de "pensando" si existe
+      setAgentConversationMessages(prev => prev.filter(m => !m.isThinking));
+
+      const errorMessage = {
+        id: `msg-${Date.now()}-error`,
+        sender: 'system',
+        agentName: 'Sistema',
+        content: `Error: ${error.message || 'Error desconocido'}`,
+        timestamp: new Date().toLocaleTimeString(),
+        isError: true
+      };
+      setAgentConversationMessages(prev => [...prev, errorMessage]);
+    }
 
     setIsConversationActive(false);
 
     // Log del evento
-    addLogMessage(`🤝 Conversación completada entre ${sourceAgent.name} y ${targetAgent.name}`);
-    addDecisionMessage('Sistema', `Los agentes han coordinado exitosamente`, true);
-  }, [addLogMessage, addDecisionMessage, setShowChat]);
+    addLogMessage(`Conversacion entre ${sourceAgent.name} y ${targetAgent.name}`);
+    addDecisionMessage('Sistema', `Comunicacion inter-agente completada`, true);
+  }, [addLogMessage, addDecisionMessage, setShowChat, session]);
 
   const sendChatMessage = useCallback(async (message) => {
     console.log(' sendChatMessage llamado con:', message);

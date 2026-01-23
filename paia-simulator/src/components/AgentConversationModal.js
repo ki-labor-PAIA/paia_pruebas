@@ -309,18 +309,43 @@ export default function AgentConversationModal({
                         </div>
                     ) : (
                         messages.map((msg, index) => {
-                            const isFromSource = msg.from === sourceAgent?.id;
-                            const agentColor = getAgentColor(msg.from);
+                            // Compatibilidad: usar sender o from
+                            const senderId = msg.sender || msg.from;
+                            const isUser = senderId === 'user';
+                            const isSystem = senderId === 'system';
+                            const isFromSource = senderId === sourceAgent?.id;
+                            const isThinking = msg.isThinking;
+                            const isError = msg.isError;
+
+                            // Determinar color y nombre
+                            let agentColor = '#6366f1';
+                            let displayName = msg.agentName || 'Sistema';
+
+                            if (isUser) {
+                                agentColor = '#8B5CF6';
+                                displayName = 'Tu';
+                            } else if (isFromSource) {
+                                agentColor = sourceAgent?.color || '#6366f1';
+                                displayName = sourceAgent?.name;
+                            } else if (!isSystem) {
+                                agentColor = targetAgent?.color || '#059669';
+                                displayName = msg.agentName || targetAgent?.name;
+                            }
+
+                            if (isError) {
+                                agentColor = '#EF4444';
+                            }
 
                             return (
                                 <div
-                                    key={index}
+                                    key={msg.id || index}
                                     style={{
                                         marginBottom: '16px',
                                         display: 'flex',
                                         flexDirection: 'column',
-                                        alignItems: isFromSource ? 'flex-start' : 'flex-end',
-                                        animation: 'fadeInUp 0.3s ease-out'
+                                        alignItems: isUser ? 'flex-end' : 'flex-start',
+                                        animation: 'fadeInUp 0.3s ease-out',
+                                        opacity: isThinking ? 0.7 : 1
                                     }}
                                 >
                                     {/* Nombre del agente */}
@@ -333,14 +358,15 @@ export default function AgentConversationModal({
                                         alignItems: 'center',
                                         gap: '6px'
                                     }}>
-                                        <i className="fas fa-robot" style={{ fontSize: '12px' }}></i>
-                                        {isFromSource ? sourceAgent?.name : targetAgent?.name}
+                                        {!isUser && <i className="fas fa-robot" style={{ fontSize: '12px' }}></i>}
+                                        {isUser && <i className="fas fa-user" style={{ fontSize: '12px' }}></i>}
+                                        {displayName}
                                     </div>
 
                                     {/* Burbuja de mensaje */}
                                     <div style={{
-                                        background: isFromSource
-                                            ? `linear-gradient(135deg, ${agentColor}30, ${agentColor}20)`
+                                        background: isUser
+                                            ? 'linear-gradient(135deg, #8B5CF630, #8B5CF620)'
                                             : `linear-gradient(135deg, ${agentColor}30, ${agentColor}20)`,
                                         border: `1px solid ${agentColor}40`,
                                         borderRadius: '12px',
@@ -349,7 +375,8 @@ export default function AgentConversationModal({
                                         color: 'white',
                                         fontSize: '14px',
                                         lineHeight: '1.5',
-                                        boxShadow: `0 2px 8px ${agentColor}20`
+                                        boxShadow: `0 2px 8px ${agentColor}20`,
+                                        fontStyle: isThinking ? 'italic' : 'normal'
                                     }}>
                                         {msg.content}
                                     </div>
@@ -360,7 +387,7 @@ export default function AgentConversationModal({
                                         color: '#6B7280',
                                         marginTop: '4px'
                                     }}>
-                                        {new Date(msg.timestamp).toLocaleTimeString()}
+                                        {msg.timestamp || ''}
                                     </div>
                                 </div>
                             );

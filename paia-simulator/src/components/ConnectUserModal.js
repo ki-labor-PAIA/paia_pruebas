@@ -28,12 +28,14 @@ export default function ConnectUserModal({
   const [error, setError] = useState('');
 
   // --- 'flow' Mode State ---
-  const [step, setStep] = useState('selectFriend');
+  const [step, setStep] = useState('selectMyAgent');
   const [friends, setFriends] = useState([]);
   const [publicAgents, setPublicAgents] = useState([]);
   const [selectedFriend, setSelectedFriend] = useState(null);
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [selectedConnectionType, setSelectedConnectionType] = useState(null);
+  const [myAgents, setMyAgents] = useState([]);
+  const [selectedMyAgent, setSelectedMyAgent] = useState(null);
 
   // --- 'social' Mode State ---
   const [searchQuery, setSearchQuery] = useState('');
@@ -68,7 +70,7 @@ export default function ConnectUserModal({
   const resetState = useCallback(() => {
     setLoading(false);
     setError('');
-    setStep('selectFriend');
+    setStep('selectMyAgent');
     setFriends([]);
     setPublicAgents([]);
     setSelectedFriend(null);
@@ -77,16 +79,49 @@ export default function ConnectUserModal({
     setSearchQuery('');
     setSearchResults([]);
     setSearchLoading(false);
+    setMyAgents([]);
+    setSelectedMyAgent(null);
   }, []);
+
+  const loadFriends = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await PAIAApi.getUserConnections(currentUserId, 'accepted');
+      setFriends(response.connections || []);
+    } catch (err) {
+      setError('Error al cargar amigos.');
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUserId]);
+
+  const loadMyAgents = useCallback(async () => {
+    try {
+      const response = await PAIAApi.getAgents(currentUserId);
+      const agents = response.agents || response || [];
+      setMyAgents(Array.isArray(agents) ? agents : []);
+      // Si solo tiene un agente, seleccionarlo automaticamente
+      if (agents.length === 1) {
+        setSelectedMyAgent(agents[0]);
+        setStep('selectFriend');
+        loadFriends();
+      } else if (agents.length === 0) {
+        setError('No tienes agentes creados. Crea un agente primero.');
+      }
+    } catch (err) {
+      console.error('Error loading my agents:', err);
+      setError('Error al cargar tus agentes.');
+    }
+  }, [currentUserId, loadFriends]);
 
   useEffect(() => {
     if (isOpen) {
       resetState();
       if (connectionMode === 'flow') {
-        loadFriends();
+        loadMyAgents();
       }
     }
-  }, [isOpen, connectionMode, resetState]);
+  }, [isOpen, connectionMode, resetState, loadMyAgents]);
 
   useEffect(() => {
     if (debouncedSearchQuery && connectionMode === 'social') {
@@ -128,18 +163,6 @@ export default function ConnectUserModal({
     }
   };
 
-  const loadFriends = async () => {
-    setLoading(true);
-    try {
-      const response = await PAIAApi.getUserConnections(currentUserId, 'accepted');
-      setFriends(response.connections || []);
-    } catch (err) {
-      setError('Error al cargar la lista de amigos.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSelectFriend = (friendConnection) => {
     const friendDetails = friendConnection.requester.id === currentUserId ? friendConnection.recipient : friendConnection.requester;
     setSelectedFriend(friendDetails);
@@ -155,14 +178,18 @@ export default function ConnectUserModal({
         setError('');
         try {
           // 1. Get all agents for the selected friend
-          const allAgents = await PAIAApi.getAgents(selectedFriend.id);
-          
+          const response = await PAIAApi.getAgents(selectedFriend.id);
+          const allAgents = response.agents || response || [];
+
           // 2. Filter for public agents
-          const publicAgents = allAgents.filter(agent => agent.is_public);
-          
+          const publicAgents = Array.isArray(allAgents)
+            ? allAgents.filter(agent => agent.is_public)
+            : [];
+
           setPublicAgents(publicAgents);
           setStep('selectAgent');
         } catch (err) {
+          console.error('Error loading friend agents:', err);
           setError('Error al cargar los agentes del amigo.');
         } finally {
           setLoading(false);
@@ -182,31 +209,36 @@ export default function ConnectUserModal({
         return;
       }
 
-      const connectionData = {
-        flow_owner_id: currentUserId,
-        target_user_id: selectedFriend.id,
-        connection_node_id: connectionNodeId,
-        connection_type: 'agent', // Hardcode to 'agent'
-        target_agent_id: agentTarget.id,
-        metadata: { 
-          target_user_name: selectedFriend.name,
-          target_agent_name: agentTarget.name // Corrected from agentTarget.label
-        }
-      };
-      
-      const response = await PAIAApi.createFlowConnection(connectionData);
-      
+      if (!selectedMyAgent) {
+        setError("Debe seleccionar tu agente primero.");
+        setLoading(false);
+        return;
+      }
+
+      // Crear conexion real entre agentes en el backend
+      const connectionResponse = await PAIAApi.createConnection({
+        agent1: selectedMyAgent.id,
+        agent2: agentTarget.id,
+        type: 'direct'
+      });
+
+      console.log('Conexion creada:', connectionResponse);
+
       if (onConnect) {
-        onConnect({ 
-          mode: 'flow', 
-          agent: agentTarget, // Pass the full agent object
-          connectionNodeId, 
-          flowConnectionId: response.flow_connection_id 
+        onConnect({
+          mode: 'flow',
+          agent: agentTarget,
+          myAgent: selectedMyAgent,
+          connectionNodeId,
+          flowConnectionId: connectionResponse.id || `conn-${Date.now()}`,
+          targetUserId: selectedFriend.id,
+          targetUserName: selectedFriend.name
         });
       }
       onClose();
     } catch (err) {
-      setError(err.message || 'Error al crear la conexión de flujo.');
+      console.error('Error creating connection:', err);
+      setError(err.message || 'Error al crear la conexion de flujo.');
       setLoading(false);
     }
   };
@@ -254,10 +286,52 @@ export default function ConnectUserModal({
     return (
       <>
         {loading && !searchLoading && <div style={{textAlign: 'center', padding: '20px'}}>Cargando...</div>}
-        
+
+        {step === 'selectMyAgent' && (
+          <>
+            <label style={{display: 'block', marginBottom: '10px'}}>1. Selecciona tu agente que se conectara:</label>
+            {!loading && !myAgents.length && (
+              <div style={{padding: '20px 0', textAlign: 'center', color: '#ff6b6b'}}>
+                No tienes agentes creados. Crea un agente primero desde el panel derecho.
+              </div>
+            )}
+            {myAgents.map(agent => (
+              <div
+                key={agent.id}
+                onClick={() => {
+                  setSelectedMyAgent(agent);
+                  setStep('selectFriend');
+                  loadFriends();
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '12px',
+                  cursor: 'pointer',
+                  borderRadius: '8px',
+                  border: selectedMyAgent?.id === agent.id ? '2px solid var(--primary-color)' : '2px solid transparent',
+                  marginBottom: '8px',
+                  background: '#444'
+                }}
+              >
+                <div style={{marginRight: '12px', fontSize: '24px'}}>🤖</div>
+                <div>
+                  <div style={{fontWeight: 'bold'}}>{agent.name}</div>
+                  <div style={{fontSize: '12px', color: '#aaa'}}>{agent.expertise || 'General'}</div>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+
         {step === 'selectFriend' && (
           <>
-            <label style={{display: 'block', marginBottom: '10px'}}>1. Selecciona un amigo:</label>
+            <label style={{display: 'block', marginBottom: '10px'}}>2. Selecciona un amigo:</label>
+            {selectedMyAgent && (
+              <div style={{marginBottom: '10px', padding: '8px', background: '#3a3a5a', borderRadius: '6px', fontSize: '13px'}}>
+                Tu agente: <strong>{selectedMyAgent.name}</strong>
+              </div>
+            )}
             {!loading && !friends.length && <div style={{padding: '20px 0', textAlign: 'center'}}>No tienes amigos para conectar. Añade amigos desde el panel izquierdo.</div>}
             {friends.map(friendConnection => {
               const friend = friendConnection.requester.id === currentUserId ? friendConnection.recipient : friendConnection.requester;
@@ -273,7 +347,7 @@ export default function ConnectUserModal({
 
         {step === 'selectConnectionType' && selectedFriend && (
           <>
-            <label style={{display: 'block', marginBottom: '10px'}}>2. ¿Cómo quieres conectar con {selectedFriend.name}?</label>
+            <label style={{display: 'block', marginBottom: '10px'}}>3. ¿Como quieres conectar con {selectedFriend.name}?</label>
             <div onClick={() => setSelectedConnectionType('user')} style={selectionBoxStyle('user')}>
               <h4 style={{margin: '0 0 5px 0'}}>Conectar con Usuario</h4>
               <p style={{margin: 0, fontSize: '14px', color: '#ccc'}}>Crea una conexión directa con el usuario. Útil para notificaciones simples.</p>
@@ -287,7 +361,7 @@ export default function ConnectUserModal({
 
         {step === 'selectAgent' && (
           <>
-            <label style={{display: 'block', marginBottom: '10px'}}>3. Selecciona un agente público de {selectedFriend.name}:</label>
+            <label style={{display: 'block', marginBottom: '10px'}}>4. Selecciona un agente de {selectedFriend.name}:</label>
             {!loading && !publicAgents.length && <div style={{padding: '20px 0', textAlign: 'center'}}>Este usuario no tiene agentes públicos disponibles.</div>}
             {publicAgents.map(agent => (
               <div 

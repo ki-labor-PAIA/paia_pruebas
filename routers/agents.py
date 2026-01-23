@@ -18,7 +18,8 @@ def create_agents_router(
     memory_manager: Any,
     ensure_agent_loaded_func: Any,
     whatsapp_service: Optional[Any],
-    telegram_default_chat_id: str
+    telegram_default_chat_id: str,
+    register_agent_in_paia_func: Any = None  # Funcion para registrar en protocolo PAIA
 ) -> APIRouter:
     """
     Create agents router with dependencies.
@@ -69,9 +70,22 @@ def create_agents_router(
 
             agent = await manager.create_agent(agent_data)
 
+            # Registrar en protocolo PAIA (capabilities y autonomia)
+            if register_agent_in_paia_func:
+                try:
+                    await register_agent_in_paia_func(agent.id, {
+                        'id': agent.id,
+                        'user_id': agent.user_id,
+                        'name': agent.name,
+                        'expertise': agent.expertise,
+                        'is_public': getattr(agent, 'is_public', True)
+                    })
+                except Exception as paia_err:
+                    print(f"[PAIA] Warning: No se pudo registrar agente en PAIA: {paia_err}")
+
             whatsapp_phone = agent_data.get('whatsapp_phone_number')
             if whatsapp_phone and whatsapp_phone.strip():
-                print(f"[WhatsApp] Número guardado en Supabase para agente '{agent.name}': {whatsapp_phone}")
+                print(f"[WhatsApp] Numero guardado en Supabase para agente '{agent.name}': {whatsapp_phone}")
 
             agent_dict = asdict(agent)
             agent_dict.pop('llm_instance', None)
