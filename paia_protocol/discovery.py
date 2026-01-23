@@ -60,6 +60,7 @@ class PAIADiscoveryService:
     """
     Servicio de descubrimiento de agentes PAIA.
     Permite encontrar agentes a través de conexiones sociales.
+    Usa lazy loading para cargar agentes bajo demanda.
     """
 
     def __init__(self, db_manager):
@@ -69,6 +70,88 @@ class PAIADiscoveryService:
         """
         self.db_manager = db_manager
         self._agent_registry: Dict[str, AgentProfile] = {}
+        self._capability_builder_func = None  # Funcion para construir capabilities
+
+    def set_capability_builder(self, builder_func):
+        """Configurar funcion que construye capabilities segun expertise"""
+        self._capability_builder_func = builder_func
+
+    async def _load_agent_from_db(self, agent_id: str) -> Optional[AgentProfile]:
+        """
+        Cargar un agente desde la BD y registrarlo en cache.
+
+        Args:
+            agent_id: ID del agente a cargar
+
+        Returns:
+            AgentProfile si se encontro, None si no existe
+        """
+        try:
+            # Buscar agente en BD
+            agent_data = await self.db_manager.get_agent(agent_id)
+            if not agent_data:
+                return None
+
+            # Obtener campos (soporta tanto objeto DBAgent como dict)
+            if hasattr(agent_data, 'expertise'):
+                expertise = agent_data.expertise or 'general'
+                user_id = agent_data.user_id
+                agent_name = agent_data.name
+                is_public = agent_data.is_public
+            else:
+                expertise = agent_data.get('expertise', 'general')
+                user_id = agent_data['user_id']
+                agent_name = agent_data['name']
+                is_public = agent_data.get('is_public', True)
+
+            # Construir capabilities segun expertise
+            capabilities = []
+
+            # Siempre agregar chat
+            capabilities.append(CapabilityBuilder.chat_message())
+
+            # Capabilities por expertise
+            if expertise in ('calendar', 'scheduling'):
+                capabilities.extend([
+                    CapabilityBuilder.calendar_check_availability(),
+                    CapabilityBuilder.calendar_schedule_event()
+                ])
+
+            # Crear perfil
+            profile = AgentProfile(
+                agent_id=agent_id,
+                user_id=user_id,
+                agent_name=agent_name,
+                expertise=[expertise],
+                capabilities=capabilities,
+                status="online",
+                is_public=is_public
+            )
+
+            # Guardar en cache
+            self._agent_registry[agent_id] = profile
+            return profile
+
+        except Exception as e:
+            print(f"[DISCOVERY] Error cargando agente {agent_id} desde BD: {e}")
+            return None
+
+    async def _ensure_agent_loaded(self, agent_id: str) -> Optional[AgentProfile]:
+        """
+        Asegurar que un agente este en el registry (lazy loading).
+
+        Args:
+            agent_id: ID del agente
+
+        Returns:
+            AgentProfile si existe, None si no
+        """
+        # Si ya esta en cache, retornarlo
+        if agent_id in self._agent_registry:
+            return self._agent_registry[agent_id]
+
+        # Si no, cargarlo de la BD
+        return await self._load_agent_from_db(agent_id)
 
     async def register_agent(
         self,
@@ -129,8 +212,8 @@ class PAIADiscoveryService:
         return False
 
     async def get_agent_profile(self, agent_id: str) -> Optional[AgentProfile]:
-        """Obtener el perfil completo de un agente"""
-        return self._agent_registry.get(agent_id)
+        """Obtener el perfil completo de un agente (con lazy loading)"""
+        return await self._ensure_agent_loaded(agent_id)
 
     async def discover_agent_by_name(
         self,
@@ -180,11 +263,21 @@ class PAIADiscoveryService:
                 print(f"[DISCOVERY] Usuario '{target_name}' no es amigo de {requester_user_id}")
                 return None
 
-            # 3. Obtener agentes públicos del usuario objetivo
-            agents = [
-                profile for profile in self._agent_registry.values()
-                if profile.user_id == target_user['id'] and profile.is_public
-            ]
+            # 3. Obtener agentes públicos del usuario objetivo desde BD
+            db_agents = await self.db_manager.get_agents_by_user(target_user['id'])
+
+            if not db_agents:
+                print(f"[DISCOVERY] Usuario '{target_name}' no tiene agentes")
+                return None
+
+            # Filtrar solo publicos y cargar en cache
+            agents = []
+            for db_agent in db_agents:
+                if db_agent.is_public if hasattr(db_agent, 'is_public') else db_agent.get('is_public', True):
+                    agent_id = db_agent.id if hasattr(db_agent, 'id') else db_agent['id']
+                    profile = await self._ensure_agent_loaded(agent_id)
+                    if profile and profile.is_public:
+                        agents.append(profile)
 
             if not agents:
                 print(f"[DISCOVERY] Usuario '{target_name}' no tiene agentes públicos")
@@ -243,20 +336,21 @@ class PAIADiscoveryService:
                     else:
                         friend_ids.add(conn['requester']['id'])
 
-            # Buscar agentes con la expertise
+            # Buscar agentes con la expertise en BD (solo entre amigos por seguridad)
             matching_agents = []
-            for profile in self._agent_registry.values():
-                # Verificar que sea público
-                if not profile.is_public:
-                    continue
 
-                # Verificar que sea amigo (si se requiere)
-                if friends_only and profile.user_id not in friend_ids:
-                    continue
+            # Buscar en agentes de amigos
+            for friend_id in friend_ids:
+                friend_agents = await self.db_manager.get_agents_by_user(friend_id)
+                for db_agent in friend_agents:
+                    agent_expertise = db_agent.expertise if hasattr(db_agent, 'expertise') else db_agent.get('expertise', 'general')
+                    is_public = db_agent.is_public if hasattr(db_agent, 'is_public') else db_agent.get('is_public', True)
 
-                # Verificar expertise
-                if expertise in profile.expertise:
-                    matching_agents.append(profile)
+                    if is_public and agent_expertise == expertise:
+                        agent_id = db_agent.id if hasattr(db_agent, 'id') else db_agent['id']
+                        profile = await self._ensure_agent_loaded(agent_id)
+                        if profile:
+                            matching_agents.append(profile)
 
             print(f"[DISCOVERY] Encontrados {len(matching_agents)} agentes con expertise '{expertise}'")
             return matching_agents
@@ -297,20 +391,19 @@ class PAIADiscoveryService:
                     else:
                         friend_ids.add(conn['requester']['id'])
 
-            # Buscar agentes con la capability
+            # Buscar agentes con la capability en BD (solo de amigos)
             matching_agents = []
-            for profile in self._agent_registry.values():
-                # Verificar que sea público
-                if not profile.is_public:
-                    continue
 
-                # Verificar que sea amigo (si se requiere)
-                if friends_only and profile.user_id not in friend_ids:
-                    continue
+            for friend_id in friend_ids:
+                friend_agents = await self.db_manager.get_agents_by_user(friend_id)
+                for db_agent in friend_agents:
+                    is_public = db_agent.is_public if hasattr(db_agent, 'is_public') else db_agent.get('is_public', True)
 
-                # Verificar capability
-                if any(cap.message_type == capability_type for cap in profile.capabilities):
-                    matching_agents.append(profile)
+                    if is_public:
+                        agent_id = db_agent.id if hasattr(db_agent, 'id') else db_agent['id']
+                        profile = await self._ensure_agent_loaded(agent_id)
+                        if profile and any(cap.message_type == capability_type for cap in profile.capabilities):
+                            matching_agents.append(profile)
 
             print(f"[DISCOVERY] Encontrados {len(matching_agents)} agentes con capability '{capability_type}'")
             return matching_agents
@@ -373,16 +466,23 @@ class PAIADiscoveryService:
 
         return False, "No hay conexión social con el dueño del agente"
 
-    def get_all_registered_agents(self) -> List[AgentProfile]:
-        """Obtener todos los agentes registrados"""
+    def get_cached_agents(self) -> List[AgentProfile]:
+        """Obtener agentes actualmente en cache (solo los que ya se cargaron)"""
         return list(self._agent_registry.values())
 
-    def get_online_agents(self) -> List[AgentProfile]:
-        """Obtener solo agentes online"""
-        return [
-            profile for profile in self._agent_registry.values()
-            if profile.status == "online"
-        ]
+    def get_cached_agents_count(self) -> int:
+        """Obtener cantidad de agentes en cache"""
+        return len(self._agent_registry)
+
+    def clear_cache(self):
+        """Limpiar cache de agentes (para liberar memoria)"""
+        self._agent_registry.clear()
+        print("[DISCOVERY] Cache de agentes limpiado")
+
+    def remove_from_cache(self, agent_id: str):
+        """Remover un agente especifico del cache"""
+        if agent_id in self._agent_registry:
+            del self._agent_registry[agent_id]
 
 
 # ==================== CAPABILITY BUILDERS ====================
