@@ -1,0 +1,42 @@
+name: Deploy to EC2
+
+  on:
+    push:
+      branches:
+        - main
+
+  jobs:
+    deploy:
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout repo
+          uses: actions/checkout@v3
+
+        - name: Deploy to EC2 and restart services
+          uses: appleboy/ssh-action@v0.1.7
+          with:
+            host: ${{ secrets.EC2_HOST }}
+            username: ${{ secrets.EC2_USER }}
+            key: ${{ secrets.EC2_KEY }}
+            script: |
+              cd ~/paia_pruebas
+              git pull origin main
+
+              # Instalar dependencias Python
+              source ~/PAIA_GIT/bin/activate
+              pip install -r requirements.txt
+
+              # Build frontend
+              cd paia-simulator
+              npm install
+              npm run build
+              cd ..
+
+              # Reiniciar servicios
+              sudo systemctl restart paia-backend
+              sudo systemctl restart paia-frontend
+              sudo systemctl reload nginx
+
+              # Verificar estado
+              sudo systemctl status paia-backend --no-pager
+              sudo systemctl status paia-frontend --no-pager
