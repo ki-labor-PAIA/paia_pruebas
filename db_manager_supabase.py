@@ -123,11 +123,11 @@ class DatabaseManager:
     async def get_agent_by_whatsapp_phone(self, phone_number: str) -> Optional[DBAgent]:
         """
         Obtener agente por número de WhatsApp, intentando variantes normalizadas.
-        Maneja automáticamente la inconsistencia del "1" móvil mexicano.
+        Maneja automáticamente las diferencias de formato de México y USA/Canadá.
         """
-        from routers.phone_normalization import normalize_mexican_phone
+        from routers.phone_normalization import normalize_whatsapp_phone
 
-        phone_variants = normalize_mexican_phone(phone_number)
+        phone_variants = normalize_whatsapp_phone(phone_number)
 
         for phone in phone_variants:
             result = self.client.table("agents").select("*").eq("whatsapp_phone_number", phone).execute()
