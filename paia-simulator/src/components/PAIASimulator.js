@@ -117,7 +117,7 @@ export default function PAIASimulator({ initialFlow }) {
   const [stats, setStats] = useState({
     responseTime: 0,
     queriesProcessed: 0,
-    status: 'Waiting...'
+    status: 'En espera...'
   });
 
   // Estados para conversación entre agentes
@@ -254,7 +254,7 @@ export default function PAIASimulator({ initialFlow }) {
             });
 
             addLogMessage(`🔗 Backend connection created: ${sourceNode.data.label} → ${targetNode.data.label}`);
-            addDecisionMessage('Sistema', `Backend connection established between ${sourceNode.data.label} and ${targetNode.data.label}`, true);
+            addDecisionMessage('System', `Backend connection established between ${sourceNode.data.label} and ${targetNode.data.label}`, true);
           }
         } catch (error) {
           console.error('Error creating backend connection:', error);
@@ -279,7 +279,7 @@ export default function PAIASimulator({ initialFlow }) {
       // Para humanos: mostrar configuración + historial de mensajes recibidos
       const systemMessage = {
         sender: 'system',
-        content: `Configuring ${agent.data.label}. Write the message this human will send during the simulation. Current message: "${agent.data.customMessage || 'No message configured'}"`,
+        content: `Configuring ${agent.data.label}. Write the message this human will send during simulation. Current message: "${agent.data.customMessage || 'No message configured'}"`,
         timestamp: new Date().toLocaleTimeString()
       };
 
@@ -305,10 +305,10 @@ export default function PAIASimulator({ initialFlow }) {
           : node
       )
     );
-    addLogMessage(`📝 Message updated for ${nodes.find(n => n.id === nodeId)?.data.label}: "${newMessage}"`);
+    addLogMessage(`📝 Mensaje actualizado para ${nodes.find(n => n.id === nodeId)?.data.label}: "${newMessage}"`);
   }, [nodes, addLogMessage]);
 
-  // Función para iniciar conversación entre agentes
+  // Funcion para iniciar conversacion entre agentes
   const startAgentConversation = useCallback(async (sourceAgentNode, targetAgentNode, userRequest) => {
     // Cerrar el chat actual
     setShowChat(false);
@@ -332,24 +332,82 @@ export default function PAIASimulator({ initialFlow }) {
     setShowAgentConversation(true);
     setIsConversationActive(true);
 
-    // Generar conversación de demostración
-    const demoMessages = generateMeetingConversation(sourceAgent.id, targetAgent.id);
+    // Add user message
+    const userMessage = {
+      id: `msg-${Date.now()}`,
+      sender: 'user',
+      agentName: 'You',
+      content: userRequest,
+      timestamp: new Date().toLocaleTimeString()
+    };
+    setAgentConversationMessages(prev => [...prev, userMessage]);
 
-    // Simular envío progresivo de mensajes
-    await simulateConversation(
-      demoMessages,
-      (message) => {
-        setAgentConversationMessages(prev => [...prev, message]);
-      },
-      2500 // 2.5 segundos entre mensajes
-    );
+    try {
+      // Add "thinking" message from source agent
+      const thinkingMessage = {
+        id: `msg-thinking-${Date.now()}`,
+        sender: sourceAgent.id,
+        agentName: sourceAgent.name,
+        content: `Consulting ${targetAgent.name}...`,
+        timestamp: new Date().toLocaleTimeString(),
+        isThinking: true
+      };
+      setAgentConversationMessages(prev => [...prev, thinkingMessage]);
+
+      // Llamar a la API real - enviar mensaje al agente origen
+      const response = await PAIAApi.sendMessage(
+        sourceAgent.id,
+        userRequest,
+        session?.user?.id || null
+      );
+
+      // Remover mensaje de "pensando"
+      setAgentConversationMessages(prev => prev.filter(m => !m.isThinking));
+
+      if (response && response.response) {
+        // Add agent response
+        const agentResponse = {
+          id: `msg-${Date.now()}-response`,
+          sender: sourceAgent.id,
+          agentName: sourceAgent.name,
+          content: response.response,
+          timestamp: new Date().toLocaleTimeString()
+        };
+        setAgentConversationMessages(prev => [...prev, agentResponse]);
+      } else {
+        // Error or no response
+        const errorMessage = {
+          id: `msg-${Date.now()}-error`,
+          sender: 'system',
+          agentName: 'System',
+          content: 'Could not get response from agent.',
+          timestamp: new Date().toLocaleTimeString(),
+          isError: true
+        };
+        setAgentConversationMessages(prev => [...prev, errorMessage]);
+      }
+    } catch (error) {
+      console.error('Error in agent conversation:', error);
+      // Remove "thinking" message if exists
+      setAgentConversationMessages(prev => prev.filter(m => !m.isThinking));
+
+      const errorMessage = {
+        id: `msg-${Date.now()}-error`,
+        sender: 'system',
+        agentName: 'System',
+        content: `Error: ${error.message || 'Unknown error'}`,
+        timestamp: new Date().toLocaleTimeString(),
+        isError: true
+      };
+      setAgentConversationMessages(prev => [...prev, errorMessage]);
+    }
 
     setIsConversationActive(false);
 
-    // Log del evento
-    addLogMessage(`🤝 Conversation completed between ${sourceAgent.name} and ${targetAgent.name}`);
-    addDecisionMessage('Sistema', `The agents have successfully coordinated`, true);
-  }, [addLogMessage, addDecisionMessage, setShowChat]);
+    // Log event
+    addLogMessage(`Conversation between ${sourceAgent.name} and ${targetAgent.name}`);
+    addDecisionMessage('System', `Inter-agent communication completed`, true);
+  }, [addLogMessage, addDecisionMessage, setShowChat, session]);
 
   const sendChatMessage = useCallback(async (message) => {
     console.log(' sendChatMessage llamado con:', message);
@@ -439,7 +497,7 @@ export default function PAIASimulator({ initialFlow }) {
 
       const confirmMessage = {
         sender: 'system',
-        content: `✅ Message configured for ${agent.data.label}. During the simulation, this human will say: "${message}"`,
+        content: `✅ Mensaje configurado para ${agent.data.label}. Durante la simulación, este humano dirá: "${message}"`,
         timestamp: new Date().toLocaleTimeString()
       };
 
@@ -449,7 +507,7 @@ export default function PAIASimulator({ initialFlow }) {
       addMessageToNodeHistory(activeChatAgent, humanMessage);
       addMessageToNodeHistory(activeChatAgent, confirmMessage);
 
-      addDecisionMessage(agent.data.label, `Message configured: "${message.slice(0, 30)}..."`, false);
+      addDecisionMessage(agent.data.label, `Mensaje configurado: "${message.slice(0, 30)}..."`, false);
       return;
     }
 
@@ -472,7 +530,7 @@ export default function PAIASimulator({ initialFlow }) {
         try {
           const response = await PAIAApi.sendMessage(agent.data.backendId, message, userId);
           agentResponse = response.response;
-          addDecisionMessage(agent.data.label, `Processed the query: "${message.slice(0, 30)}..."`, false);
+          addDecisionMessage(agent.data.label, `Procesé la consulta: "${message.slice(0, 30)}..."`, false);
         } catch (error) {
           console.error('Error sending message to backend:', error);
           agentResponse = generateMockResponse(agent.data, message);
@@ -508,12 +566,12 @@ export default function PAIASimulator({ initialFlow }) {
   const loadPresetScenario = useCallback((scenarioType) => {
     const scenarios = {
       trash: {
-        name: "Trash",
-        description: "The wife asks her husband's AI to remind him to take out the trash after his meeting.",
+        name: "Basura",
+        description: "La esposa le pide a la IA del esposo que le recuerde sacar la basura al terminar su junta.",
         actors: [
-          { id: "h1", name: "Wife", type: "human", position: { x: 100, y: 100 } },
+          { id: "h1", name: "Esposa", type: "human", position: { x: 100, y: 100 } },
           { id: "h2", name: "Juan", type: "human", position: { x: 400, y: 100 } },
-          { id: "ai1", name: "Juan's PAIA", type: "ai", position: { x: 250, y: 200 } }
+          { id: "ai1", name: "PAIA de Juan", type: "ai", position: { x: 250, y: 200 } }
         ],
         interactions: [
           { source: "h1", target: "ai1" },
@@ -521,23 +579,23 @@ export default function PAIASimulator({ initialFlow }) {
         ]
       },
       calendar: {
-        name: "Calendar",
-        description: "The assistant schedules a meeting and sends a reminder to the user.",
+        name: "Calendario",
+        description: "El asistente agenda una reunión y manda un recordatorio al usuario.",
         actors: [
-          { id: "h1", name: "User", type: "human", position: { x: 100, y: 120 } },
-          { id: "ai1", name: "User's PAIA", type: "ai", position: { x: 300, y: 120 } }
+          { id: "h1", name: "Usuario", type: "human", position: { x: 100, y: 120 } },
+          { id: "ai1", name: "PAIA del Usuario", type: "ai", position: { x: 300, y: 120 } }
         ],
         interactions: [
           { source: "ai1", target: "h1" }
         ]
       },
       party: {
-        name: "Cancel party",
-        description: "A person with COVID-19 uses their PAIA to cancel a scheduled party.",
+        name: "Cancelar fiesta",
+        description: "Una persona con COVID-19 usa su PAIA para cancelar una fiesta programada.",
         actors: [
-          { id: "h1", name: "Host", type: "human", position: { x: 100, y: 120 } },
-          { id: "ai1", name: "Host's PAIA", type: "ai", position: { x: 300, y: 120 } },
-          { id: "h2", name: "Guest", type: "human", position: { x: 500, y: 120 } }
+          { id: "h1", name: "Anfitrión", type: "human", position: { x: 100, y: 120 } },
+          { id: "ai1", name: "PAIA del Anfitrión", type: "ai", position: { x: 300, y: 120 } },
+          { id: "h2", name: "Invitado", type: "human", position: { x: 500, y: 120 } }
         ],
         interactions: [
           { source: "h1", target: "ai1" },
@@ -653,7 +711,7 @@ export default function PAIASimulator({ initialFlow }) {
           setEdges((eds) => [...eds, edge]);
         });
       } catch (error) {
-        alert('Error importing file: ' + error.message);
+        alert('Error al importar el archivo: ' + error.message);
       }
     };
     reader.readAsText(file);
@@ -665,11 +723,11 @@ export default function PAIASimulator({ initialFlow }) {
     setNodes([]);
     setEdges([]);
     setLogMessages([]);
-    setDecisions([{ id: 1, sender: 'Sistema', message: 'Simulation restarted', isSystem: true }]);
+    setDecisions([{ id: 1, sender: 'System', message: 'Simulation reset', isSystem: true }]);
     actorIdRef.current = 1;
     setScenarioName('');
     setScenarioDesc('');
-    addLogMessage('🔄 System restarted');
+    addLogMessage('🔄 System reset');
   }, [addLogMessage]);
 
   // Definir nodeTypes con props

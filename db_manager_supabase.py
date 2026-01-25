@@ -121,10 +121,21 @@ class DatabaseManager:
         return [self._dict_to_agent(row) for row in result.data]
 
     async def get_agent_by_whatsapp_phone(self, phone_number: str) -> Optional[DBAgent]:
-        """Obtener un agente por su número de WhatsApp asociado"""
-        result = self.client.table("agents").select("*").eq("whatsapp_phone_number", phone_number).execute()
-        if result.data:
-            return self._dict_to_agent(result.data[0])
+        """
+        Obtener agente por número de WhatsApp, intentando variantes normalizadas.
+        Maneja automáticamente las diferencias de formato de México y USA/Canadá.
+        """
+        from routers.phone_normalization import normalize_whatsapp_phone
+
+        phone_variants = normalize_whatsapp_phone(phone_number)
+
+        for phone in phone_variants:
+            result = self.client.table("agents").select("*").eq("whatsapp_phone_number", phone).execute()
+            if result.data:
+                if phone != phone_number:
+                    print(f"[DB] Agente encontrado con formato alternativo: {phone_number} -> {phone}")
+                return self._dict_to_agent(result.data[0])
+
         return None
 
     async def update_agent(self, agent_id: str, updates: Dict) -> bool:
