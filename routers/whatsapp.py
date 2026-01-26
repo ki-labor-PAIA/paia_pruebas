@@ -38,6 +38,33 @@ def create_whatsapp_router(
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
+    @router.post("/api/whatsapp/send-template")
+    async def send_whatsapp_template_endpoint(message_data: dict) -> Dict[str, Any]:
+        """
+        Envía un template de WhatsApp (mensajes predefinidos aprobados por Meta)
+        """
+        try:
+            if not whatsapp_service:
+                raise HTTPException(status_code=503, detail="WhatsApp Service no está configurado")
+
+            phone_number = message_data.get('phone_number', '')
+            template_name = message_data.get('template_name', 'hello_world')
+            language_code = message_data.get('language_code', 'en_US')
+
+            if not phone_number:
+                raise HTTPException(status_code=400, detail="phone_number es requerido")
+
+            result = whatsapp_service.send_template_message(phone_number, template_name, language_code)
+
+            if result['success']:
+                return result
+            else:
+                raise HTTPException(status_code=500, detail=result['message'])
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
     @router.get("/api/webhooks/whatsapp")
     async def verify_whatsapp_webhook(
         request: Request,
