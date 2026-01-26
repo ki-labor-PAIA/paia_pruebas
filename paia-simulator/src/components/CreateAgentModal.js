@@ -124,7 +124,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
 
     // Verificar si el número ya está en uso
     try {
-      const checkResponse = await fetch(`http://localhost:8000/api/agents/check-whatsapp/${encodeURIComponent(phone)}`);
+      const checkResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agents/check-whatsapp/${encodeURIComponent(phone)}`);
       const checkResult = await checkResponse.json();
 
       if (!checkResult.available) {
@@ -155,7 +155,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
     }));
 
     try {
-      const response = await fetch('http://localhost:8000/api/whatsapp/send-template', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/whatsapp/send-template`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -211,7 +211,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
     }));
 
     try {
-      const response = await fetch('http://localhost:8000/api/whatsapp/send', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/whatsapp/send`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
