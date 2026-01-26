@@ -31,6 +31,7 @@ jobs:
             # Build frontend
             cd paia-simulator
             npm install
+            rm -rf .next
             npm run build
             cd ..
 
