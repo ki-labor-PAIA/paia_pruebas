@@ -18,19 +18,6 @@ def normalize_whatsapp_phone(phone: str) -> List[str]:
 
     Returns:
         Lista de variantes a intentar [original, alternativa]
-
-    Ejemplos:
-        >>> normalize_whatsapp_phone("5214425498784")
-        ["5214425498784", "524425498784"]
-
-        >>> normalize_whatsapp_phone("524425498784")
-        ["524425498784", "5214425498784"]
-
-        >>> normalize_whatsapp_phone("16505644482")
-        ["16505644482", "6505644482"]
-
-        >>> normalize_whatsapp_phone("6505644482")
-        ["6505644482", "16505644482"]
     """
     variants = [phone]  # Siempre intentar el original primero
 
