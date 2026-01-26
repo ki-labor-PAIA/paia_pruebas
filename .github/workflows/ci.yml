@@ -20,11 +20,12 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
-            cd /home/paia/paia_pruebas
+            set -e  # Detener si hay algún error
+            cd ~/paia_pruebas
             git pull origin main
 
             # Instalar dependencias Python
-            source /home/paia/paia_pruebas/venv/bin/activate
+            source ~/paia_pruebas/venv/bin/activate
             pip install -r requirements.txt
 
             # Build frontend
