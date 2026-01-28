@@ -14,9 +14,40 @@ const useNodeManagement = ({
   setActiveConnectionNodeId,
   setShowConnectUserModal,
   setShowConfigureCalendar,
-  createBackendAgent
+  createBackendAgent,
+  reactFlowInstance
 }) => {
   const actorIdRef = useRef(1);
+
+  // Helper function to calculate position based on current viewport
+  const getViewportCenterPosition = useCallback((offsetX = 0, offsetY = 0) => {
+    if (!reactFlowInstance) {
+      // Fallback to simple offset positioning if ReactFlow instance is not available yet
+      return {
+        x: 100 + offsetX,
+        y: 100 + offsetY
+      };
+    }
+
+    const viewport = reactFlowInstance.getViewport();
+
+    // Calculate the center of the visible viewport in flow coordinates
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    // Account for sidebars (approximate 280px each when open)
+    const effectiveWidth = viewportWidth - 560; // Both sidebars
+    const effectiveHeight = viewportHeight - 60; // Header height
+
+    // Convert screen center to flow coordinates
+    const centerX = ((effectiveWidth / 2 + 280) - viewport.x) / viewport.zoom;
+    const centerY = ((effectiveHeight / 2 + 60) - viewport.y) / viewport.zoom;
+
+    return {
+      x: centerX + offsetX,
+      y: centerY + offsetY
+    };
+  }, [reactFlowInstance]);
 
   const addActor = useCallback(async (type, name = null, x = null, y = null) => {
     const id = `actor-${actorIdRef.current}`;
@@ -24,13 +55,20 @@ const useNodeManagement = ({
 
     const agentColor = type === 'ai' ? getAgentColor(null) : undefined;
 
+    // Use provided coordinates or calculate based on viewport
+    let position;
+    if (x !== null && y !== null) {
+      position = { x, y };
+    } else {
+      const offset = actorIdRef.current * 30; // Small offset for each new node
+      const viewportPos = getViewportCenterPosition(offset, offset);
+      position = viewportPos;
+    }
+
     const newNode = {
       id,
       type: 'actor',
-      position: {
-        x: x ?? (100 + actorIdRef.current * 60),
-        y: y ?? (100 + actorIdRef.current * 30)
-      },
+      position,
       data: {
         label: actorName,
         actorType: type,
@@ -66,7 +104,7 @@ const useNodeManagement = ({
         addLogMessage(`⚠️ Agente ${actorName} creado solo en frontend`);
       }
     }
-  }, [isConnected, createBackendAgent, addLogMessage, setNodes]);
+  }, [isConnected, createBackendAgent, addLogMessage, setNodes, getViewportCenterPosition]);
 
   const createConfiguredAgent = useCallback(async (agentConfig) => {
     const id = `agent-${actorIdRef.current}`;
@@ -96,13 +134,14 @@ const useNodeManagement = ({
 
     const agentColor = getAgentColor(agentConfig.personality);
 
+    // Calculate position based on viewport
+    const offset = actorIdRef.current * 30;
+    const position = getViewportCenterPosition(offset, offset);
+
     const newNode = {
       id: backendAgent?.id || id,
       type: 'actor',
-      position: {
-        x: 100 + actorIdRef.current * 60,
-        y: 100 + actorIdRef.current * 30
-      },
+      position,
       data: {
         label: agentConfig.name,
         actorType: 'ai',
@@ -124,18 +163,24 @@ const useNodeManagement = ({
 
     setNodes((nds) => [...nds, newNode]);
     actorIdRef.current++;
-  }, [isConnected, addLogMessage, addDecisionMessage, userId, setNodes]);
+  }, [isConnected, addLogMessage, addDecisionMessage, userId, setNodes, getViewportCenterPosition]);
 
   const addTelegramNode = useCallback((x = null, y = null) => {
     const id = `telegram-${actorIdRef.current}`;
 
+    // Use provided coordinates or calculate based on viewport
+    let position;
+    if (x !== null && y !== null) {
+      position = { x, y };
+    } else {
+      const offset = actorIdRef.current * 30;
+      position = getViewportCenterPosition(offset, offset);
+    }
+
     const newNode = {
       id,
       type: 'telegram',
-      position: {
-        x: x ?? (100 + actorIdRef.current * 60),
-        y: y ?? (100 + actorIdRef.current * 30)
-      },
+      position,
       data: {
         label: 'Telegram',
         nodeType: 'telegram',
@@ -150,7 +195,7 @@ const useNodeManagement = ({
     setNodes((nds) => [...nds, newNode]);
     actorIdRef.current++;
     addLogMessage(`📱 Nodo Telegram agregado`);
-  }, [addLogMessage, setNodes]);
+  }, [addLogMessage, setNodes, getViewportCenterPosition]);
 
   const handleConnectionNodeClick = useCallback((nodeData, nodeId) => {
     switch (nodeData.connectionType) {
@@ -169,10 +214,14 @@ const useNodeManagement = ({
   }, [addLogMessage, setConnectionMode, setActiveConnectionNodeId, setShowConnectUserModal]);
 
   const addConnectionNode = useCallback((connectionType = 'user') => {
+    // Calculate position based on viewport with some randomness to avoid overlapping
+    const randomOffset = Math.random() * 50;
+    const position = getViewportCenterPosition(randomOffset, randomOffset);
+
     const newNode = {
       id: `connection-${actorIdRef.current}`,
       type: 'connection',
-      position: { x: 300 + Math.random() * 200, y: 300 + Math.random() * 200 },
+      position,
       data: {
         label: connectionType === 'user' ? 'Flow Connection' : 'Connection',
         connectionType: connectionType,
@@ -186,7 +235,7 @@ const useNodeManagement = ({
     setNodes((nds) => [...nds, newNode]);
     actorIdRef.current++;
     addLogMessage(`🔗 ${connectionType === 'user' ? 'User search' : 'Connection'} node added`);
-  }, [addLogMessage, handleConnectionNodeClick, setNodes]);
+  }, [addLogMessage, handleConnectionNodeClick, setNodes, getViewportCenterPosition]);
 
   const openSocialConnectionModal = useCallback(() => {
     setConnectionMode('social');
@@ -202,13 +251,19 @@ const useNodeManagement = ({
   const createConfiguredCalendar = useCallback((calendarConfig, x = null, y = null) => {
     const id = `calendar-${actorIdRef.current}`;
 
+    // Use provided coordinates or calculate based on viewport
+    let position;
+    if (x !== null && y !== null) {
+      position = { x, y };
+    } else {
+      const offset = actorIdRef.current * 30;
+      position = getViewportCenterPosition(offset, offset);
+    }
+
     const newNode = {
       id,
       type: 'calendar',
-      position: {
-        x: x ?? (100 + actorIdRef.current * 60),
-        y: y ?? (100 + actorIdRef.current * 30)
-      },
+      position,
       data: {
         label: calendarConfig.name || 'Google Calendar',
         nodeType: 'calendar',
@@ -222,7 +277,7 @@ const useNodeManagement = ({
     setNodes((nds) => [...nds, newNode]);
     actorIdRef.current++;
     addLogMessage(`📅 ${calendarConfig.name} node added and configured`);
-  }, [addLogMessage, setNodes]);
+  }, [addLogMessage, setNodes, getViewportCenterPosition]);
 
   const handleCalendarAuthRequest = useCallback(async (nodeData) => {
     try {
@@ -337,13 +392,14 @@ const useNodeManagement = ({
 
     const agentColor = getAgentColor(publicAgent.personality);
 
+    // Calculate position based on viewport
+    const offset = actorIdRef.current * 30;
+    const position = getViewportCenterPosition(offset, offset);
+
     const newNode = {
       id: `external-${publicAgent.id}`,
       type: 'actor',
-      position: {
-        x: 100 + actorIdRef.current * 60,
-        y: 100 + actorIdRef.current * 30
-      },
+      position,
       data: {
         label: publicAgent.name,
         actorType: 'ai',
@@ -369,7 +425,7 @@ const useNodeManagement = ({
     setNodes((nds) => [...nds, newNode]);
     actorIdRef.current++;
     addLogMessage(`🌐 Agente externo agregado: ${publicAgent.name} (creado por ${publicAgent.user_id})`);
-  }, [nodes, addLogMessage, setNodes]);
+  }, [nodes, addLogMessage, setNodes, getViewportCenterPosition]);
 
   return {
     addActor,

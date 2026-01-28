@@ -1,4 +1,4 @@
-export default function ActiveFlowsTab({ friendsActiveFlows = [], loading = false, onConnectToFlow }) {
+export default function ActiveFlowsTab({ flows = [], loading = false, onConnectToFlow }) {
   if (loading) {
     return (
       <div style={{
@@ -24,7 +24,7 @@ export default function ActiveFlowsTab({ friendsActiveFlows = [], loading = fals
     );
   }
 
-  if (friendsActiveFlows.length === 0) {
+  if (flows.length === 0) {
     return (
       <div style={{
         display: 'flex',
@@ -125,7 +125,7 @@ export default function ActiveFlowsTab({ friendsActiveFlows = [], loading = fals
             backgroundColor: '#10B981',
             animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
           }} />
-          <span>{friendsActiveFlows.length} flow{friendsActiveFlows.length !== 1 ? 's' : ''} live</span>
+          <span>{flows.length} flow{flows.length !== 1 ? 's' : ''} live</span>
         </div>
       </div>
 
@@ -136,7 +136,7 @@ export default function ActiveFlowsTab({ friendsActiveFlows = [], loading = fals
         maxWidth: '1200px',
         margin: '0 auto'
       }}>
-        {friendsActiveFlows.map(flow => (
+        {flows.map(flow => (
           <div
             key={`${flow.user_id}-${flow.id}`}
             style={{

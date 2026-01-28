@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-export default function StatsPanel({ stats }) {
+export default function StatsPanel({ stats, rightSidebarOpen = true }) {
   const { t } = useTranslation();
   const getStatusColor = (status) => {
     if (status.includes('error') || status.includes('Error')) {
@@ -15,7 +15,9 @@ export default function StatsPanel({ stats }) {
   };
 
   return (
-    <div className="stats-panel">
+    <div className="stats-panel" style={{
+      right: rightSidebarOpen ? '300px' : '20px'
+    }}>
       <h4>{t('stats.title')}</h4>
       <ul className="stats-list">
         <li>

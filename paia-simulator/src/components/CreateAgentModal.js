@@ -11,7 +11,6 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
     personality: 'Analítico',
     expertise: 'general',
     is_public: false,
-    is_capability_node: false,
     customColor: '',
     whatsapp_phone_number: '',
     whatsapp_test_message: ''
@@ -34,7 +33,6 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
         personality: agentToEdit.personality || 'Analítico',
         expertise: agentToEdit.expertise || 'general',
         is_public: agentToEdit.is_public || false,
-        is_capability_node: agentToEdit.is_capability_node || false,
         customColor: agentToEdit.customColor || '',
         whatsapp_phone_number: agentToEdit.whatsapp_phone_number || '',
         whatsapp_test_message: ''
@@ -47,7 +45,6 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
         personality: 'Analítico',
         expertise: 'general',
         is_public: false,
-        is_capability_node: false,
         customColor: '',
         whatsapp_phone_number: '',
         whatsapp_test_message: ''
@@ -80,7 +77,6 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
       personality: 'Analítico',
       expertise: 'general',
       is_public: false,
-      is_capability_node: false,
       customColor: '',
       whatsapp_phone_number: '',
       whatsapp_test_message: ''
@@ -95,7 +91,6 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
       personality: 'Analítico',
       expertise: 'general',
       is_public: true,
-      is_capability_node: false,
       whatsapp_phone_number: '',
       whatsapp_test_message: ''
     });
@@ -389,40 +384,6 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
             </select>
           </div>
 
-          {formData.expertise === 'notes' && (
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                fontSize: '0.9em',
-                fontWeight: '500',
-                color: 'var(--text-primary)',
-                cursor: 'pointer'
-              }}>
-                <input
-                  type="checkbox"
-                  checked={formData.is_capability_node}
-                  onChange={(e) => handleChange('is_capability_node', e.target.checked)}
-                  style={{
-                    width: '16px',
-                    height: '16px',
-                    cursor: 'pointer'
-                  }}
-                />
-                Capabilities Node
-              </label>
-              <div style={{
-                fontSize: '0.75em',
-                color: 'var(--text-secondary)',
-                marginTop: '4px',
-                marginLeft: '24px'
-              }}>
-                This agent will act as a capabilities node, providing tools to other agents.
-              </div>
-            </div>
-          )}
-          
           <div style={{ marginBottom: '20px' }}>
             <label style={{
               display: 'flex',

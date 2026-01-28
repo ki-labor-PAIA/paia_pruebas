@@ -41,6 +41,14 @@ export default function Library() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
 
+  // Habilitar scroll para esta página
+  useEffect(() => {
+    document.body.classList.add('library-page');
+    return () => {
+      document.body.classList.remove('library-page');
+    };
+  }, []);
+
   // Redirigir si no está autenticado
   useEffect(() => {
     if (status === 'loading') return;
@@ -214,7 +222,10 @@ export default function Library() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: 'var(--bg-primary)'
+    }}>
       {/* Header con funciones movidas */}
       <div style={{
         position: 'fixed',
@@ -321,7 +332,11 @@ export default function Library() {
       </div>
 
       {/* Contenido principal */}
-      <div style={{ paddingTop: '80px', padding: '20px' }}>
+      <div style={{
+        marginTop: '60px',
+        padding: '20px',
+        minHeight: 'calc(100vh - 60px)'
+      }}>
         {/* Pestañas de navegación */}
         <div style={{ 
           display: 'flex', 

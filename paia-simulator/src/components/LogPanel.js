@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-export default function LogPanel({ messages }) {
+export default function LogPanel({ messages, leftSidebarOpen = true, rightSidebarOpen = true }) {
   const logRef = useRef(null);
 
   useEffect(() => {
@@ -12,7 +12,10 @@ export default function LogPanel({ messages }) {
   if (messages.length === 0) return null;
 
   return (
-    <div className="log-panel" ref={logRef}>
+    <div className="log-panel" ref={logRef} style={{
+      left: leftSidebarOpen ? '300px' : '20px',
+      right: rightSidebarOpen ? '300px' : '20px'
+    }}>
       {messages.map((item, index) => {
         const text = typeof item === 'string' ? item : item.message;
         return (

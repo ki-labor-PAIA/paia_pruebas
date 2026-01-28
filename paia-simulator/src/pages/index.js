@@ -3,6 +3,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Head from "next/head";
 import AuthGuard from '@/components/AuthGuard';
+import UserHeader from '@/components/UserHeader';
 import NotificationPanel from '@/components/NotificationPanel';
 import ConnectUserModal from '@/components/ConnectUserModal';
 import CreateAgentModal from '@/components/CreateAgentModal';
@@ -31,9 +32,6 @@ export default function Home() {
       ? (router?.asPath || router?.pathname || window.location.pathname || '')
       : (router?.asPath || router?.pathname || '');
 
-  // Mostrar siempre el botón del tutorial
-  const showTutorialBtn = true;
-
   // Estados principales
   const [activeTab, setActiveTab] = useState('flows');
   const [loading, setLoading] = useState(false);
@@ -44,7 +42,8 @@ export default function Home() {
     flows: myFlows,
     loadFlows,
     toggleFlowStatus,
-    deleteFlow
+    deleteFlow,
+    createFlow
   } = useFlowsData();
 
   const {
@@ -125,6 +124,14 @@ export default function Home() {
     }
   }, [session, loadInitialData]);
 
+  // Habilitar scroll y estilos para esta página
+  useEffect(() => {
+    document.body.classList.add('library-page');
+    return () => {
+      document.body.classList.remove('library-page');
+    };
+  }, []);
+
   const handleFlowStatusToggle = async (flowId, currentStatus) => {
     try {
       const success = await toggleFlowStatus(flowId, currentStatus);
@@ -146,6 +153,37 @@ export default function Home() {
       }
     } catch (err) {
       setError(`Error deleting flow: ${err.message}`);
+    }
+  };
+
+  const handleDuplicateFlow = async (flowId) => {
+    try {
+      // Encontrar el flujo a duplicar
+      const flowToDuplicate = myFlows.find(f => f.id === flowId);
+      if (!flowToDuplicate) {
+        setError('Flow not found');
+        return;
+      }
+
+      // Preparar los datos del flujo duplicado en el formato que espera el backend
+      const duplicatedFlowData = {
+        user_id: session.user.id,
+        name: `${flowToDuplicate.name} (Copy)`,
+        flow_data: flowToDuplicate.flow_data || {}, // El contenido del flujo (nodes, edges, etc.)
+        description: flowToDuplicate.description || '',
+        is_public: false, // Los flujos duplicados son privados por defecto
+        metadata: flowToDuplicate.metadata || {}
+      };
+
+      const result = await createFlow(duplicatedFlowData);
+      if (result) {
+        console.log('Flow duplicated successfully');
+      } else {
+        setError('Error duplicating flow');
+      }
+    } catch (err) {
+      console.error('Error duplicating flow:', err);
+      setError(`Error duplicating flow: ${err.message}`);
     }
   };
 
@@ -289,17 +327,34 @@ export default function Home() {
       </Head>
 
       <AuthGuard>
-        <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
-          <Header
-            title="PAIA"
-            subtitle={`Welcome, ${session?.user?.name || session?.user?.email || 'User'}`}
-            showNotifications={true}
-            onNotificationsClick={() => setShowNotifications(!showNotifications)}
-            showTutorialButton={showTutorialBtn}
-            onTutorialClick={() => setShowTutorial(true)}
-          />
+        <UserHeader />
 
-          <div style={{ paddingTop: '90px', paddingLeft: '30px', paddingRight: '30px', paddingBottom: '30px', maxWidth: '1400px', margin: '0 auto' }}>
+        <div style={{
+          minHeight: '100vh',
+          backgroundColor: 'var(--bg-primary)',
+          paddingTop: '60px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center'
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: '1400px',
+            padding: '30px 40px 20px 40px'
+          }}>
+            <Header
+              title={`Welcome, ${session?.user?.name || session?.user?.email || 'User'}`}
+              subtitle=""
+              showNotifications={false}
+              showTutorialButton={false}
+            />
+          </div>
+
+          <div style={{
+            width: '100%',
+            maxWidth: '1400px',
+            padding: '0 40px 30px 40px'
+          }}>
             <TabNavigation
               activeTab={activeTab}
               onTabChange={setActiveTab}
@@ -357,8 +412,7 @@ export default function Home() {
                           handleDeleteFlow(flowId);
                           break;
                         case 'duplicate':
-                          // TODO: implement flow duplication
-                          console.log('Duplicate flow:', flowId);
+                          handleDuplicateFlow(flowId);
                           break;
                         default:
                           console.warn('Unknown action:', action);

@@ -1,5 +1,6 @@
 
 import { useTranslation } from 'react-i18next';
+import { User, Bot, Send, Calendar, StickyNote, Globe, Plus } from 'lucide-react';
 
 
 export default function RightSidebar({
@@ -14,35 +15,39 @@ export default function RightSidebar({
   onLoadPublicAgents,
   onLoadMyAgents,
   onAddPublicAgent,
-  isBackendConnected
+  isBackendConnected,
+  isOpen = true
 }) {
 
   const { t } = useTranslation();
   return (
-    <div className="sidebar right">
+    <div className={`sidebar right ${isOpen ? 'sidebar-open' : 'sidebar-closed'}`} style={{
+      transform: isOpen ? 'translateX(0)' : 'translateX(100%)',
+      transition: 'transform 0.3s ease'
+    }}>
       <div className="button-group">
         <div className="button-group-title">{t('rightSidebar.addActors')}</div>
-        <button data-tour="add-actors" onClick={() => onAddActor('human')} className="discreet-button">
-          <i className="fas fa-user"></i> {t('rightSidebar.simpleHuman')}
+        <button data-tour="add-actors" onClick={() => onAddActor('human')} className="discreet-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+          <User size={16} /> {t('rightSidebar.simpleHuman')}
         </button>
-        <button onClick={() => onAddActor('ai')} className="discreet-button">
-          <i className="fas fa-robot"></i> {t('rightSidebar.simpleAI')}
+        <button onClick={() => onAddActor('ai')} className="discreet-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+          <Bot size={16} /> {t('rightSidebar.simpleAI')}
         </button>
-        <button data-tour="create-paia-agent" onClick={onCreateAgent} className="discreet-button" style={{ background: 'var(--primary-color) !important', color: 'white !important' }}>
-          <i className="fas fa-cog"></i> {t('rightSidebar.createPAIAAgent')}
+        <button data-tour="create-paia-agent" onClick={onCreateAgent} className="discreet-button" style={{ background: 'var(--primary-color) !important', color: 'white !important', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+          <Bot size={16} /> {t('rightSidebar.createPAIAAgent')}
         </button>
       </div>
 
       <div className="button-group">
         <div className="button-group-title">🔧 Tools</div>
-        <button onClick={onAddTelegram} className="discreet-button" style={{ background: '#0088cc', color: 'white' }}>
-          <i className="fas fa-paper-plane"></i> Telegram
+        <button onClick={onAddTelegram} className="discreet-button" style={{ background: '#0088cc', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+          <Send size={16} /> Telegram
         </button>
-        <button onClick={onAddCalendar} className="discreet-button" style={{ background: '#4285f4', color: 'white' }}>
-          <i className="fas fa-calendar"></i> Google Calendar
+        <button onClick={onAddCalendar} className="discreet-button" style={{ background: '#4285f4', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+          <Calendar size={16} /> Google Calendar
         </button>
-        <button onClick={() => onCreateAgent({ isNotesNode: true })} className="discreet-button">
-          📒 Create Notes Node
+        <button onClick={() => onCreateAgent({ isNotesNode: true })} className="discreet-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+          <StickyNote size={16} /> Create Notes Node
         </button>
       </div>
 
@@ -56,12 +61,12 @@ export default function RightSidebar({
       {isBackendConnected && (
         <div className="button-group">
           <div className="button-group-title">{t('rightSidebar.publicAgents')}</div>
-          <button 
+          <button
             onClick={onLoadPublicAgents}
             className="discreet-button"
-            style={{ marginBottom: '10px' }}
+            style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
           >
-            🌐 {t('rightSidebar.loadAvailableAgents')}
+            <Globe size={16} /> {t('rightSidebar.loadAvailableAgents')}
           </button>
 
           <button
@@ -69,10 +74,14 @@ export default function RightSidebar({
             className="discreet-button"
             style={{
               marginBottom: '10px',
-              background: 'rgba(72, 187, 120, 0.15)'
+              background: 'rgba(72, 187, 120, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
             }}
           >
-            📂 Load My Agents
+            <Bot size={16} /> Load My Agents
           </button>
 
           {publicAgents.length > 0 && (
@@ -100,16 +109,19 @@ export default function RightSidebar({
                   <button
                     onClick={() => onAddPublicAgent(agent)}
                     style={{
-                      padding: '2px 6px',
+                      padding: '4px 6px',
                       fontSize: '0.7em',
                       background: 'var(--primary-color)',
                       color: 'white',
                       border: 'none',
                       borderRadius: '3px',
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
                     }}
                   >
-                    +
+                    <Plus size={14} />
                   </button>
                 </div>
               ))}

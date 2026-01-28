@@ -7,6 +7,7 @@ import ReactFlow, {
   MarkerType,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import LeftSidebar from './LeftSidebar';
 import RightSidebar from './RightSidebar';
@@ -127,7 +128,12 @@ export default function PAIASimulator({ initialFlow }) {
   const [conversationTargetAgent, setConversationTargetAgent] = useState(null);
   const [isConversationActive, setIsConversationActive] = useState(false);
 
+  // Estados para sidebars colapsables
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(true);
+
   const simulationRef = useRef(null);
+  const reactFlowInstanceRef = useRef(null);
 
   // Backend integration
   const {
@@ -167,7 +173,8 @@ export default function PAIASimulator({ initialFlow }) {
     setActiveConnectionNodeId,
     setShowConnectUserModal,
     setShowConfigureCalendar,
-    createBackendAgent
+    createBackendAgent,
+    reactFlowInstance: reactFlowInstanceRef.current
   });
 
   // Comentado para no mostrar la guía automáticamente
@@ -224,7 +231,8 @@ export default function PAIASimulator({ initialFlow }) {
     useBackend,
     isConnected,
     simulateWithBackend,
-    userId
+    userId,
+    setStats
   });
 
   const onConnect = useCallback(
@@ -722,13 +730,12 @@ export default function PAIASimulator({ initialFlow }) {
   const resetSimulation = useCallback(() => {
     setNodes([]);
     setEdges([]);
-    setLogMessages([]);
-    setDecisions([{ id: 1, sender: 'System', message: 'Simulation reset', isSystem: true }]);
     actorIdRef.current = 1;
     setScenarioName('');
     setScenarioDesc('');
     addLogMessage('🔄 System reset');
-  }, [addLogMessage]);
+    addDecisionMessage('System', 'Simulation reset', true);
+  }, [addLogMessage, addDecisionMessage]);
 
   // Definir nodeTypes con props
   const nodeTypes = useMemo(() => ({
@@ -742,6 +749,32 @@ export default function PAIASimulator({ initialFlow }) {
     <div style={{ width: '100vw', height: '100vh', display: 'flex' }}>
       <UserHeader />
       <div style={{ width: '100%', height: '100%', display: 'flex', paddingTop: '60px' }}>
+        {/* Toggle button para left sidebar */}
+        <button
+          onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}
+          className="sidebar-toggle sidebar-toggle-left"
+          style={{
+            position: 'fixed',
+            left: leftSidebarOpen ? '280px' : '0',
+            top: '70px',
+            zIndex: 1001,
+            background: 'var(--primary-color)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '0 8px 8px 0',
+            padding: '12px 8px',
+            cursor: 'pointer',
+            transition: 'left 0.3s ease',
+            boxShadow: '2px 2px 8px rgba(0,0,0,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+          title={leftSidebarOpen ? 'Hide left panel' : 'Show left panel'}
+        >
+          {leftSidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+        </button>
+
         <LeftSidebar
           scenarioName={scenarioName}
           setScenarioName={setScenarioName}
@@ -763,21 +796,57 @@ export default function PAIASimulator({ initialFlow }) {
           onConnectUser={openSocialConnectionModal}
           onSaveFlow={() => setShowSaveFlow(true)}
           onShowFriends={() => setShowFriendsPanel(true)}
+          isOpen={leftSidebarOpen}
         />
 
-        <div style={{ flex: 1, margin: '0 280px', position: 'relative' }}>
+        <div style={{
+          flex: 1,
+          marginLeft: leftSidebarOpen ? '280px' : '0',
+          marginRight: rightSidebarOpen ? '280px' : '0',
+          position: 'relative',
+          transition: 'margin 0.3s ease'
+        }}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onInit={(instance) => {
+              reactFlowInstanceRef.current = instance;
+            }}
             nodeTypes={nodeTypes}
             fitView
           >
             <Controls />
           </ReactFlow>
         </div>
+
+        {/* Toggle button para right sidebar */}
+        <button
+          onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
+          className="sidebar-toggle sidebar-toggle-right"
+          style={{
+            position: 'fixed',
+            right: rightSidebarOpen ? '280px' : '0',
+            top: '70px',
+            zIndex: 1001,
+            background: 'var(--primary-color)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px 0 0 8px',
+            padding: '12px 8px',
+            cursor: 'pointer',
+            transition: 'right 0.3s ease',
+            boxShadow: '-2px 2px 8px rgba(0,0,0,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+          title={rightSidebarOpen ? 'Hide right panel' : 'Show right panel'}
+        >
+          {rightSidebarOpen ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+        </button>
 
         <RightSidebar
         onAddActor={addActor}
@@ -792,11 +861,12 @@ export default function PAIASimulator({ initialFlow }) {
         onLoadMyAgents={loadMyAgents}
         onAddPublicAgent={addPublicAgentToCanvas}
         isBackendConnected={isConnected}
+        isOpen={rightSidebarOpen}
       />
 
-      <StatsPanel stats={stats} />
+      <StatsPanel stats={stats} rightSidebarOpen={rightSidebarOpen} />
       
-      <LogPanel messages={logMessages} />
+      <LogPanel messages={logMessages} leftSidebarOpen={leftSidebarOpen} rightSidebarOpen={rightSidebarOpen} />
 
       {showGuide && (
         <GuideModal onClose={() => setShowGuide(false)} />

@@ -1,4 +1,4 @@
-export default function PublicAgentsTab({ publicAgents, loading, onUseAgent }) {
+export default function PublicAgentsTab({ agents, loading, onUseAgent }) {
   if (loading) {
     return (
       <div style={{
@@ -24,7 +24,7 @@ export default function PublicAgentsTab({ publicAgents, loading, onUseAgent }) {
     );
   }
 
-  if (!publicAgents || publicAgents.length === 0) {
+  if (!agents || agents.length === 0) {
     return (
       <div style={{
         display: 'flex',
@@ -75,7 +75,7 @@ export default function PublicAgentsTab({ publicAgents, loading, onUseAgent }) {
         maxWidth: '1200px',
         margin: '0 auto'
       }}>
-        {publicAgents.map(agent => (
+        {agents.map(agent => (
           <div
             key={agent.id}
             style={{

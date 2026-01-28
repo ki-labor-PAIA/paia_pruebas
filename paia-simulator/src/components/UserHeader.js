@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import Image from 'next/image'
+import { Library, ChevronDown, ChevronUp, GraduationCap, Bell, Users, Send, LogOut } from 'lucide-react'
 import TelegramPanel from './TelegramPanel'
 import NotificationPanel from './NotificationPanel'
 import FriendsPanel from './FriendsPanel'
@@ -15,6 +16,7 @@ export default function UserHeader() {
   const [showNotifications, setShowNotifications] = useState(false)
   const [showFriends, setShowFriends] = useState(false)
   const [showTutorial, setShowTutorial] = useState(false)
+  const [showUserMenu, setShowUserMenu] = useState(false)
 
   if (!session) return null
 
@@ -40,61 +42,12 @@ export default function UserHeader() {
           Personal AI Agent System
         </div>
       </div>
-      
-      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {session.user.image && (
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              border: '2px solid rgba(255,255,255,0.3)',
-              overflow: 'hidden',
-              position: 'relative'
-            }}>
-              <Image 
-                src={session.user.image} 
-                alt="Avatar"
-                width={32}
-                height={32}
-                style={{
-                  objectFit: 'cover'
-                }}
-                unoptimized={!session.user.image.startsWith('/')} // Only optimize local images
-              />
-            </div>
-          )}
-          <div>
-            <div style={{ fontSize: '14px', fontWeight: '500' }}>
-              {session.user.name || session.user.email}
-            </div>
-            <div style={{ fontSize: '12px', opacity: 0.8 }}>
-              {session.user.email}
-            </div>
-          </div>
-        </div>
-        
-        <button
-          onClick={() => setShowTutorial(true)}
-          style={{
-            background: 'rgba(255,255,255,0.2)',
-            border: '1px solid rgba(255,255,255,0.3)',
-            color: 'white',
-            padding: '8px 16px',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            transition: 'background 0.2s',
-            marginRight: '10px'
-          }}
-          onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
-          onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
-        >
-          🎓 Tutorial
-        </button>
 
+      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+        {/* Library Button */}
         <button
           onClick={() => router.push('/')}
+          className="header-button"
           style={{
             background: 'rgba(255,255,255,0.2)',
             border: '1px solid rgba(255,255,255,0.3)',
@@ -103,17 +56,21 @@ export default function UserHeader() {
             borderRadius: '6px',
             cursor: 'pointer',
             fontSize: '14px',
-            transition: 'background 0.2s',
-            marginRight: '10px'
+            fontWeight: '500',
+            transition: 'all 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
           }}
-          onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
-          onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
         >
-          📚 Library
+          <Library size={16} />
+          <span>Library</span>
         </button>
 
+        {/* Tutorial Button */}
         <button
-          onClick={() => setShowNotifications(!showNotifications)}
+          onClick={() => setShowTutorial(true)}
+          className="header-button"
           style={{
             background: 'rgba(255,255,255,0.2)',
             border: '1px solid rgba(255,255,255,0.3)',
@@ -122,86 +79,213 @@ export default function UserHeader() {
             borderRadius: '6px',
             cursor: 'pointer',
             fontSize: '14px',
-            transition: 'background 0.2s',
-            marginRight: '10px',
-            position: 'relative'
+            fontWeight: '500',
+            transition: 'all 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
           }}
-          onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
-          onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
         >
-          📢 Notifications
-          {/* Badge de notificaciones no leídas - TODO: conectar con API */}
-          <span style={{
-            position: 'absolute',
-            top: '-2px',
-            right: '-2px',
-            backgroundColor: '#EF4444',
-            color: 'white',
-            borderRadius: '50%',
-            width: '12px',
-            height: '12px',
-            fontSize: '8px',
-            display: 'none' // Se mostrará cuando haya notificaciones
-          }}>
-            !
-          </span>
+          <GraduationCap size={16} />
+          <span>Tutorial</span>
         </button>
-        
-        <button
-          onClick={() => setShowFriends(!showFriends)}
-          style={{
-            background: 'rgba(255,255,255,0.2)',
-            border: '1px solid rgba(255,255,255,0.3)',
-            color: 'white',
-            padding: '8px 16px',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            transition: 'background 0.2s',
-            marginRight: '10px'
-          }}
-          onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
-          onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
-        >
-          👥 Friends
-        </button>
-        
-        <button
-          onClick={() => setShowTelegramPanel(true)}
-          style={{
-            background: 'rgba(255,255,255,0.2)',
-            border: '1px solid rgba(255,255,255,0.3)',
-            color: 'white',
-            padding: '8px 16px',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            transition: 'background 0.2s',
-            marginRight: '10px'
-          }}
-          onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
-          onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
-        >
-          📱 Telegram
-        </button>
-        
-        <button
-          onClick={() => signOut()}
-          style={{
-            background: 'rgba(255,255,255,0.2)',
-            border: '1px solid rgba(255,255,255,0.3)',
-            color: 'white',
-            padding: '8px 16px',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            transition: 'background 0.2s'
-          }}
-          onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
-          onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
-        >
-          Log Out
-        </button>
+
+        {/* User Menu Dropdown */}
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            className="header-button user-menu-button"
+            style={{
+              background: 'rgba(255,255,255,0.2)',
+              border: '1px solid rgba(255,255,255,0.3)',
+              color: 'white',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}
+          >
+            {session.user.image && (
+              <div style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '50%',
+                border: '2px solid rgba(255,255,255,0.3)',
+                overflow: 'hidden',
+                position: 'relative'
+              }}>
+                <Image
+                  src={session.user.image}
+                  alt="Avatar"
+                  width={28}
+                  height={28}
+                  style={{ objectFit: 'cover' }}
+                  unoptimized={!session.user.image.startsWith('/')}
+                />
+              </div>
+            )}
+            <div style={{ textAlign: 'left' }}>
+              <div style={{ fontSize: '13px', fontWeight: '500', lineHeight: '1.2' }}>
+                {session.user.name || session.user.email}
+              </div>
+            </div>
+            {showUserMenu ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+
+          {/* Dropdown Menu */}
+          {showUserMenu && (
+            <>
+              <div
+                onClick={() => setShowUserMenu(false)}
+                style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  zIndex: 999
+                }}
+              />
+              <div className="user-dropdown-menu" style={{
+                position: 'absolute',
+                top: 'calc(100% + 8px)',
+                right: 0,
+                background: 'var(--card-bg)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                minWidth: '220px',
+                zIndex: 1000,
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  padding: '12px 16px',
+                  borderBottom: '1px solid var(--border-color)',
+                  background: 'rgba(62, 106, 225, 0.1)'
+                }}>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                    {session.user.name || 'User'}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                    {session.user.email}
+                  </div>
+                </div>
+
+                <div style={{ padding: '4px 0' }}>
+                  <button
+                    onClick={() => {
+                      setShowNotifications(!showNotifications);
+                      setShowUserMenu(false);
+                    }}
+                    className="dropdown-item"
+                    style={{
+                      width: '100%',
+                      padding: '10px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-primary)',
+                      fontSize: '14px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      transition: 'background 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                  >
+                    <Bell size={16} />
+                    Notifications
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowFriends(!showFriends);
+                      setShowUserMenu(false);
+                    }}
+                    className="dropdown-item"
+                    style={{
+                      width: '100%',
+                      padding: '10px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-primary)',
+                      fontSize: '14px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      transition: 'background 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                  >
+                    <Users size={16} />
+                    Friends
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowTelegramPanel(true);
+                      setShowUserMenu(false);
+                    }}
+                    className="dropdown-item"
+                    style={{
+                      width: '100%',
+                      padding: '10px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-primary)',
+                      fontSize: '14px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      transition: 'background 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                  >
+                    <Send size={16} />
+                    Telegram
+                  </button>
+
+                  <div style={{
+                    height: '1px',
+                    background: 'var(--border-color)',
+                    margin: '4px 0'
+                  }}></div>
+
+                  <button
+                    onClick={() => {
+                      signOut({ callbackUrl: '/auth/signin', redirect: true });
+                    }}
+                    className="dropdown-item"
+                    style={{
+                      width: '100%',
+                      padding: '10px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#EF4444',
+                      fontSize: '14px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      transition: 'background 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      fontWeight: '500'
+                    }}
+                  >
+                    <LogOut size={16} />
+                    Log Out
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
       
       {showTelegramPanel && (

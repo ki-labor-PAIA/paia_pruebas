@@ -28,7 +28,8 @@ const useFlowExecution = ({
   useBackend,
   isConnected,
   simulateWithBackend,
-  userId
+  userId,
+  setStats
 }) => {
   /**
    * Animar un edge durante la ejecución del flujo.
@@ -54,13 +55,24 @@ const useFlowExecution = ({
    */
   const runFlow = useCallback(async (options = {}) => {
     const { mode = 'once' } = options;
+    const startTime = Date.now();
+    let processedQueries = 0;
 
     // Validar flujo
     const validation = validateFlow(nodes, edges);
     if (!validation.isValid) {
       addLogMessage(validation.message);
+      setStats(prev => ({ ...prev, status: '❌ Error: Invalid flow' }));
       return;
     }
+
+    // Actualizar stats al iniciar
+    const activeAgents = nodes.filter(n => n.data.actorType === 'ai' || n.data.actorType === 'human').length;
+    setStats({
+      responseTime: 0,
+      queriesProcessed: 0,
+      status: mode === 'persistent' ? '🔄 Running (Persistent)' : '▶️ Running'
+    });
 
     if (mode === 'persistent') {
       addLogMessage('🔄 Activando flujo en modo persistente (siempre activo)...');
@@ -99,6 +111,16 @@ const useFlowExecution = ({
         // Animar edges durante la simulación
         for (const edge of edges) {
           animateEdge(edge.id, 3000);
+          processedQueries++;
+
+          // Actualizar stats durante la ejecución
+          const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(1);
+          setStats(prev => ({
+            ...prev,
+            responseTime: elapsedTime,
+            queriesProcessed: processedQueries
+          }));
+
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
@@ -138,6 +160,16 @@ const useFlowExecution = ({
             addMessageToNodeHistory(update.nodeId, update.message);
           });
 
+          processedQueries++;
+
+          // Actualizar stats durante la ejecución
+          const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(1);
+          setStats(prev => ({
+            ...prev,
+            responseTime: elapsedTime,
+            queriesProcessed: processedQueries
+          }));
+
           await new Promise(resolve => setTimeout(resolve, 2500));
         }
       }
@@ -146,7 +178,21 @@ const useFlowExecution = ({
     // Solo detener si no hay nodos de Telegram activos
     if (activeTelegramNodes.size === 0) {
       setIsRunning(false);
+      const finalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+      setStats(prev => ({
+        ...prev,
+        responseTime: finalTime,
+        status: '✅ Completed'
+      }));
       addLogMessage('✅ Flow completed');
+    } else {
+      // Modo persistente activo
+      const finalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+      setStats(prev => ({
+        ...prev,
+        responseTime: finalTime,
+        status: '🟢 Active (Persistent)'
+      }));
     }
   }, [
     nodes,
@@ -162,7 +208,8 @@ const useFlowExecution = ({
     addDecisionMessage,
     addMessageToNodeHistory,
     animateEdge,
-    userId
+    userId,
+    setStats
   ]);
 
   /**
@@ -173,8 +220,9 @@ const useFlowExecution = ({
     setNodes(updatedNodes);
     setActiveTelegramNodes(new Set());
     setIsRunning(false);
+    setStats(prev => ({ ...prev, status: '🛑 Stopped' }));
     addLogMessage('🛑 Flow stopped - Telegram disconnected');
-  }, [nodes, setNodes, setActiveTelegramNodes, setIsRunning, addLogMessage]);
+  }, [nodes, setNodes, setActiveTelegramNodes, setIsRunning, addLogMessage, setStats]);
 
   return {
     runFlow,
