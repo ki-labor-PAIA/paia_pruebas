@@ -1,42 +1,45 @@
-name: Deploy to EC2
+name: Deploy to Hostinger
 
-  on:
-    push:
-      branches:
-        - main
+on:
+  push:
+    branches:
+      - main
 
-  jobs:
-    deploy:
-      runs-on: ubuntu-latest
-      steps:
-        - name: Checkout repo
-          uses: actions/checkout@v3
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
-        - name: Deploy to EC2 and restart services
-          uses: appleboy/ssh-action@v0.1.7
-          with:
-            host: ${{ secrets.EC2_HOST }}
-            username: ${{ secrets.EC2_USER }}
-            key: ${{ secrets.EC2_KEY }}
-            script: |
-              cd ~/paia_pruebas
-              git pull origin main
+      - name: Deploy to Hostinger and restart services
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -e  # Detener si hay algún error
+            cd ~/paia_pruebas
+            git pull origin main
 
-              # Instalar dependencias Python
-              source ~/PAIA_GIT/bin/activate
-              pip install -r requirements.txt
+            # Instalar dependencias Python
+            source ~/paia_pruebas/venv/bin/activate
+            pip install -r requirements.txt
 
-              # Build frontend
-              cd paia-simulator
-              npm install
-              npm run build
-              cd ..
+            # Build frontend
+            cd paia-simulator
+            npm install
+            rm -rf .next
+            npm run build
+            cd ..
 
-              # Reiniciar servicios
-              sudo systemctl restart paia-backend
-              sudo systemctl restart paia-frontend
-              sudo systemctl reload nginx
+            # Reiniciar servicios
+            sudo systemctl restart paia-backend
+            sudo systemctl restart paia-frontend
+            sudo systemctl reload nginx
 
-              # Verificar estado
-              sudo systemctl status paia-backend --no-pager
-              sudo systemctl status paia-frontend --no-pager
+            # Verificar estado
+            sudo systemctl status paia-backend --no-pager
+            sudo systemctl status paia-frontend --no-pager

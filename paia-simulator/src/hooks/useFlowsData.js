@@ -90,6 +90,10 @@ const useFlowsData = () => {
     try {
       const response = await fetch(`${API_URL}/api/flows/${flowId}`, {
         method: 'DELETE',
+       headers: {
+          'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ user_id: userId }),
       });
 
       if (!response.ok) {
@@ -122,7 +126,7 @@ const useFlowsData = () => {
     setError(null);
 
     try {
-      const response = await fetch(`${API_URL}/api/flows`, {
+      const response = await fetch(`${API_URL}/api/flows/save`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -134,10 +138,14 @@ const useFlowsData = () => {
         throw new Error(`Failed to create flow: ${response.statusText}`);
       }
 
-      const newFlow = await response.json();
-      setFlows(prevFlows => [...prevFlows, newFlow]);
+      const result = await response.json();
 
-      return newFlow;
+      // Recargar flujos para obtener el flujo recién creado con todos sus campos
+      if (flowData.user_id) {
+        await loadFlows(flowData.user_id);
+      }
+
+      return result;
     } catch (err) {
       console.error('Error creating flow:', err);
       setError(err.message);
@@ -145,7 +153,7 @@ const useFlowsData = () => {
     } finally {
       setLoading(false);
     }
-  }, [API_URL]);
+  }, [API_URL, loadFlows]);
 
   const updateFlow = useCallback(async (flowId, flowData) => {
     if (!flowId || !flowData) {

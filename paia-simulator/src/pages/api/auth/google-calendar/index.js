@@ -4,7 +4,7 @@ import { createServiceSupabase } from '@/lib/supabase';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'your-client-id.apps.googleusercontent.com';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || 'your-client-secret';
-const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI0 || 'https://paia-pruebas.vercel.app/api/auth/google-calendar/callback';
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/mcp/oauth2callback';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -12,6 +12,8 @@ export default async function handler(req, res) {
   }
 
   const { userId, code } = req.body;
+
+  console.log('[Calendar Auth] userId recibido:', userId, 'code length:', code?.length);
 
   if (!userId || !code) {
     return res.status(400).json({ error: 'userId y code requeridos' });
@@ -33,7 +35,9 @@ export default async function handler(req, res) {
     }
     
     const expiresAt = tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : null;
-    
+
+    console.log('[Calendar Auth] Guardando token para userId:', userId);
+
     const { error } = await supabase
       .from('google_tokens')
       .upsert({
@@ -49,10 +53,12 @@ export default async function handler(req, res) {
     if (error) {
       throw error;
     }
-    
-    return res.json({ 
-      success: true, 
-      message: 'Autenticación completada exitosamente' 
+
+    console.log('[Calendar Auth] Token guardado exitosamente para userId:', userId);
+
+    return res.json({
+      success: true,
+      message: 'Autenticación completada exitosamente'
     });
     
   } catch (error) {

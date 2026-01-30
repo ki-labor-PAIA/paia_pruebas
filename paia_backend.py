@@ -269,10 +269,10 @@ async def init_paia_protocol():
         # 5. Conectar router con ws_handler
         paia_router.ws_manager = paia_ws_handler
 
-        # 6. Registrar agentes existentes en el protocolo
-        await register_existing_agents_in_paia()
+        # Nota: Los agentes se cargan bajo demanda (lazy loading)
+        # No es necesario registrar todos al inicio
 
-        print("[PAIA] Protocolo PAIA inicializado correctamente")
+        print("[PAIA] Protocolo PAIA inicializado correctamente (lazy loading habilitado)")
 
     except Exception as e:
         print(f"[PAIA] Error inicializando protocolo: {e}")
@@ -563,7 +563,8 @@ agents_router = create_agents_router(
     memory_manager=memory_manager,
     ensure_agent_loaded_func=ensure_agent_loaded,
     whatsapp_service=whatsapp_service,
-    telegram_default_chat_id=TELEGRAM_DEFAULT_CHAT_ID
+    telegram_default_chat_id=TELEGRAM_DEFAULT_CHAT_ID,
+    register_agent_in_paia_func=register_agent_in_paia  # Para registrar capabilities y autonomia
 )
 app.include_router(agents_router)
 

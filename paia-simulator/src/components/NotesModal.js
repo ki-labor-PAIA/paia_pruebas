@@ -21,7 +21,7 @@ export default function NotesModal({ onClose }) {
       texto,
       etiquetas: etiquetas.split(',').map(t => t.trim()).filter(Boolean)
     };
-    if (!texto) return alert("Escribe algo en la nota");
+    if (!texto) return alert("Write something in the note");
     if (editId) {
       await fetch("/api/notes/update", {
         method: "POST",
@@ -44,7 +44,7 @@ export default function NotesModal({ onClose }) {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("¿Eliminar esta nota?")) return;
+    if (!window.confirm("Delete this note?")) return;
     await fetch("/api/notes/delete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -54,7 +54,7 @@ export default function NotesModal({ onClose }) {
   };
 
   const handleCategorize = async () => {
-    if (!texto) return alert("Escribe algo primero");
+    if (!texto) return alert("Write something first");
     const out = await categorizeText({ texto });
     setEtiquetas((out.result?.etiquetas || []).join(", "));
   };
@@ -65,21 +65,21 @@ export default function NotesModal({ onClose }) {
     <div style={styles.overlay}>
       <div style={styles.modal}>
         <div style={styles.header}>
-          <h2 style={{ margin: 0 }}>📝 Notas</h2>
+          <h2 style={{ margin: 0 }}>📝 Notes</h2>
           <button onClick={onClose} style={styles.close}>✖</button>
         </div>
 
         {/* 🔍 Búsqueda */}
         <div style={styles.section}>
-          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar..." style={styles.input} />
-          <button onClick={fetchNotas} style={styles.btn}>Buscar</button>
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search..." style={styles.input} />
+          <button onClick={fetchNotas} style={styles.btn}>Search</button>
         </div>
 
         {/* 📒 Lista de notas */}
         <div style={styles.notesList}>
           {notas.map((n) => (
             <div key={n.id} style={styles.noteCard}>
-              <div><b>{n.titulo || "(sin título)"}</b></div>
+              <div><b>{n.titulo || "(untitled)"}</b></div>
               <div style={{ fontSize: "0.9em" }}>{n.texto}</div>
               <div style={styles.noteTags}>{(n.etiquetas || []).join(", ")}</div>
               <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
@@ -92,13 +92,13 @@ export default function NotesModal({ onClose }) {
 
         {/* ➕ Crear / Editar nota */}
         <div style={styles.section}>
-          <h4>{editId ? "Editar nota" : "Nueva nota"}</h4>
-          <input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Título" style={styles.input} />
-          <textarea value={texto} onChange={e => setTexto(e.target.value)} placeholder="Texto" style={styles.textarea} />
-          <input value={etiquetas} onChange={e => setEtiquetas(e.target.value)} placeholder="Etiquetas (coma separadas)" style={styles.input} />
+          <h4>{editId ? "Edit note" : "New note"}</h4>
+          <input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Title" style={styles.input} />
+          <textarea value={texto} onChange={e => setTexto(e.target.value)} placeholder="Text" style={styles.textarea} />
+          <input value={etiquetas} onChange={e => setEtiquetas(e.target.value)} placeholder="Tags (comma separated)" style={styles.input} />
           <div style={{ display: "flex", gap: "8px" }}>
-            <button onClick={handleSave} style={styles.btn}>{editId ? "Actualizar" : "Crear"}</button>
-            <button onClick={handleCategorize} style={styles.btn}>🏷️ Sugerir categorías</button>
+            <button onClick={handleSave} style={styles.btn}>{editId ? "Update" : "Create"}</button>
+            <button onClick={handleCategorize} style={styles.btn}>🏷️ Suggest categories</button>
           </div>
         </div>
       </div>

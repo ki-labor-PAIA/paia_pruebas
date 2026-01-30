@@ -30,6 +30,7 @@ export default async function handler(req, res) {
     
     const authUrl = auth.generateAuthUrl({
       access_type: 'offline',
+      prompt: 'consent', // Fuerza a Google a dar refresh_token siempre
       scope: SCOPES,
       state: userId,
       include_granted_scopes: true

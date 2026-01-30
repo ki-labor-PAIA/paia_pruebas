@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
-export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initialData }) {
+export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpdateAgent, editMode = false, agentToEdit = null }) {
   const { t } = useTranslation();
 
   const [formData, setFormData] = useState({
@@ -10,7 +10,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initi
     description: '',
     personality: 'Analítico',
     expertise: 'general',
-    is_capability_node: false,
+    is_public: false,
     customColor: '',
     whatsapp_phone_number: '',
     whatsapp_test_message: ''
@@ -24,11 +24,33 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initi
     message_result: ''
   });
 
+  // Pre-fill form when in edit mode
   useEffect(() => {
-    if (initialData) {
-      setFormData(prev => ({ ...prev, ...initialData }));
+    if (editMode && agentToEdit) {
+      setFormData({
+        name: agentToEdit.name || '',
+        description: agentToEdit.description || '',
+        personality: agentToEdit.personality || 'Analítico',
+        expertise: agentToEdit.expertise || 'general',
+        is_public: agentToEdit.is_public || false,
+        customColor: agentToEdit.customColor || '',
+        whatsapp_phone_number: agentToEdit.whatsapp_phone_number || '',
+        whatsapp_test_message: ''
+      });
+    } else if (!editMode) {
+      // Reset form when not in edit mode
+      setFormData({
+        name: '',
+        description: '',
+        personality: 'Analítico',
+        expertise: 'general',
+        is_public: false,
+        customColor: '',
+        whatsapp_phone_number: '',
+        whatsapp_test_message: ''
+      });
     }
-  }, [initialData]);
+  }, [editMode, agentToEdit, isOpen]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -36,18 +58,28 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initi
 
   const handleSubmit = () => {
     if (!formData.name.trim()) {
-      alert(t('createAgent.nameRequired'));
+      alert(t('createAgent.nameRequired') || 'Agent name is required');
       return;
     }
 
-    onCreateAgent(formData);
+    if (editMode && onUpdateAgent && agentToEdit) {
+      // Update existing agent
+      onUpdateAgent(agentToEdit.id, formData);
+    } else if (onCreateAgent) {
+      // Create new agent
+      onCreateAgent(formData);
+    }
+
+    // Reset form
     setFormData({
       name: '',
       description: '',
       personality: 'Analítico',
       expertise: 'general',
-      is_public: true,
-      is_capability_node: false
+      is_public: false,
+      customColor: '',
+      whatsapp_phone_number: '',
+      whatsapp_test_message: ''
     });
     onClose();
   };
@@ -59,7 +91,6 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initi
       personality: 'Analítico',
       expertise: 'general',
       is_public: true,
-      is_capability_node: false,
       whatsapp_phone_number: '',
       whatsapp_test_message: ''
     });
@@ -77,22 +108,22 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initi
     const phone = formData.whatsapp_phone_number.trim();
 
     if (!phone) {
-      alert(t('createAgent.phoneRequired') || 'Por favor ingresa un número de teléfono');
+      alert(t('createAgent.phoneRequired') || 'Please enter a phone number');
       return;
     }
 
     if (phone.length < 10) {
-      alert(t('createAgent.phoneInvalid') || 'El número debe tener al menos 10 dígitos');
+      alert(t('createAgent.phoneInvalid') || 'The number must have at least 10 digits');
       return;
     }
 
     // Verificar si el número ya está en uso
     try {
-      const checkResponse = await fetch(`http://localhost:8000/api/agents/check-whatsapp/${encodeURIComponent(phone)}`);
+      const checkResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agents/check-whatsapp/${encodeURIComponent(phone)}`);
       const checkResult = await checkResponse.json();
 
       if (!checkResult.available) {
-        const errorMsg = `Este número ya está en uso por el agente "${checkResult.agent_name}"`;
+        const errorMsg = `This number is already in use by agent "${checkResult.agent_name}"`;
         setWhatsappState(prev => ({
           ...prev,
           template_error: errorMsg
@@ -101,8 +132,8 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initi
         return;
       }
     } catch (error) {
-      console.error('Error verificando disponibilidad del número:', error);
-      const errorMsg = 'Error al verificar disponibilidad del número';
+      console.error('Error checking number availability:', error);
+      const errorMsg = 'Error checking number availability';
       setWhatsappState(prev => ({
         ...prev,
         template_error: errorMsg
@@ -119,7 +150,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initi
     }));
 
     try {
-      const response = await fetch('http://localhost:8000/api/whatsapp/send-template', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/whatsapp/send-template`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -140,12 +171,12 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initi
           sending_template: false,
           template_error: ''
         }));
-        alert(t('createAgent.templateSent') || '✅ Plantilla enviada correctamente');
+        alert(t('createAgent.templateSent') || '✅ Template sent successfully');
       } else {
         setWhatsappState(prev => ({
           ...prev,
           sending_template: false,
-          template_error: result.message || 'Error al enviar plantilla'
+          template_error: result.message || 'Error sending template'
         }));
         alert(`❌ Error: ${result.message}`);
       }
@@ -153,9 +184,9 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initi
       setWhatsappState(prev => ({
         ...prev,
         sending_template: false,
-        template_error: 'Error de conexión con el servidor'
+        template_error: 'Connection error with server'
       }));
-      alert(`❌ Error de conexión: ${error.message}`);
+      alert(`❌ Connection error: ${error.message}`);
     }
   };
 
@@ -164,7 +195,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initi
     const message = formData.whatsapp_test_message.trim();
 
     if (!message) {
-      alert(t('createAgent.messageRequired') || 'Por favor escribe un mensaje');
+      alert(t('createAgent.messageRequired') || 'Please write a message');
       return;
     }
 
@@ -175,7 +206,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initi
     }));
 
     try {
-      const response = await fetch('http://localhost:8000/api/whatsapp/send', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/whatsapp/send`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -207,9 +238,9 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initi
       setWhatsappState(prev => ({
         ...prev,
         sending_message: false,
-        message_result: '❌ Error de conexión'
+        message_result: '❌ Connection error'
       }));
-      alert(`❌ Error de conexión: ${error.message}`);
+      alert(`❌ Connection error: ${error.message}`);
     }
   };
 
@@ -219,7 +250,9 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initi
     <div className="modal-overlay">
       <div className="modal-content" style={{ maxWidth: '500px' }}>
         <div className="modal-header">
-          <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>{t('createAgent.title')}</h3>
+          <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>
+            {editMode ? 'Edit Agent' : (t('createAgent.title') || 'Create Agent')}
+          </h3>
         </div>
         
         <div className="modal-body" style={{ padding: '4px 0' }}>
@@ -302,18 +335,18 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initi
                 fontSize: '0.9em'
               }}
             >
-              <option value="Analítico" style={{ backgroundColor: "#1E2E57" }}>Analítico</option>
-              <option value="Creativo" style={{ backgroundColor: "#1E2E57" }}>Creativo</option>
-              <option value="Empático" style={{ backgroundColor: "#1E2E57" }}>Empático</option>
-              <option value="Pragmático" style={{ backgroundColor: "#1E2E57" }}>Pragmático</option>
-              <option value="Entusiasta" style={{ backgroundColor: "#1E2E57" }}>Entusiasta</option>
-              <option value="Metódico" style={{ backgroundColor: "#1E2E57" }}>Metódico</option>
-              <option value="Innovador" style={{ backgroundColor: "#1E2E57" }}>Innovador</option>
-              <option value="Colaborativo" style={{ backgroundColor: "#1E2E57" }}>Colaborativo</option>
-              <option value="Estratégico" style={{ backgroundColor: "#1E2E57" }}>Estratégico</option>
-              <option value="Aventurero" style={{ backgroundColor: "#1E2E57" }}>Aventurero</option>
-              <option value="Reflexivo" style={{ backgroundColor: "#1E2E57" }}>Reflexivo</option>
-              <option value="Dinámico" style={{ backgroundColor: "#1E2E57" }}>Dinámico</option>
+              <option value="Analítico" style={{ backgroundColor: "#1E2E57" }}>Analytical</option>
+              <option value="Creativo" style={{ backgroundColor: "#1E2E57" }}>Creative</option>
+              <option value="Empático" style={{ backgroundColor: "#1E2E57" }}>Empathetic</option>
+              <option value="Pragmático" style={{ backgroundColor: "#1E2E57" }}>Pragmatic</option>
+              <option value="Entusiasta" style={{ backgroundColor: "#1E2E57" }}>Enthusiastic</option>
+              <option value="Metódico" style={{ backgroundColor: "#1E2E57" }}>Methodical</option>
+              <option value="Innovador" style={{ backgroundColor: "#1E2E57" }}>Innovative</option>
+              <option value="Colaborativo" style={{ backgroundColor: "#1E2E57" }}>Collaborative</option>
+              <option value="Estratégico" style={{ backgroundColor: "#1E2E57" }}>Strategic</option>
+              <option value="Aventurero" style={{ backgroundColor: "#1E2E57" }}>Adventurous</option>
+              <option value="Reflexivo" style={{ backgroundColor: "#1E2E57" }}>Reflective</option>
+              <option value="Dinámico" style={{ backgroundColor: "#1E2E57" }}>Dynamic</option>
             </select>
           </div>
           
@@ -351,40 +384,6 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initi
             </select>
           </div>
 
-          {formData.expertise === 'notes' && (
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                fontSize: '0.9em',
-                fontWeight: '500',
-                color: 'var(--text-primary)',
-                cursor: 'pointer'
-              }}>
-                <input
-                  type="checkbox"
-                  checked={formData.is_capability_node}
-                  onChange={(e) => handleChange('is_capability_node', e.target.checked)}
-                  style={{
-                    width: '16px',
-                    height: '16px',
-                    cursor: 'pointer'
-                  }}
-                />
-                Nodo de Capacidades
-              </label>
-              <div style={{
-                fontSize: '0.75em',
-                color: 'var(--text-secondary)',
-                marginTop: '4px',
-                marginLeft: '24px'
-              }}>
-                Este agente actuará como un nodo de capacidades, proveyendo herramientas a otros agentes.
-              </div>
-            </div>
-          )}
-          
           <div style={{ marginBottom: '20px' }}>
             <label style={{
               display: 'flex',
@@ -434,7 +433,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initi
               alignItems: 'center',
               gap: '8px'
             }}>
-              📱 {t('createAgent.whatsappConfig') || 'Configuración de WhatsApp (Opcional)'}
+              📱 {t('createAgent.whatsappConfig') || 'WhatsApp Configuration (Optional)'}
             </h4>
 
             {/* Phone Number Input */}
@@ -446,13 +445,13 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initi
                 fontWeight: '500',
                 color: 'var(--text-primary)'
               }}>
-                {t('createAgent.whatsappPhone') || 'Número de WhatsApp'}
+                {t('createAgent.whatsappPhone') || 'WhatsApp Number'}
               </label>
               <input
                 type="text"
                 value={formData.whatsapp_phone_number}
                 onChange={(e) => handleChange('whatsapp_phone_number', e.target.value)}
-                placeholder={t('createAgent.whatsappPhonePlaceholder') || 'Ej: 524425498784'}
+                placeholder={t('createAgent.whatsappPhonePlaceholder') || 'Ex: 524425498784'}
                 style={{
                   width: '100%',
                   padding: '8px 12px',
@@ -489,17 +488,17 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initi
               {whatsappState.sending_template ? (
                 <>
                   <span>⏳</span>
-                  <span>{t('createAgent.sending') || 'Enviando...'}</span>
+                  <span>{t('createAgent.sending') || 'Sending...'}</span>
                 </>
               ) : whatsappState.template_sent ? (
                 <>
                   <span>✅</span>
-                  <span>{t('createAgent.templateSent') || 'Plantilla Enviada'}</span>
+                  <span>{t('createAgent.templateSent') || 'Template Sent'}</span>
                 </>
               ) : (
                 <>
                   <span>📤</span>
-                  <span>{t('createAgent.sendTemplate') || 'Enviar Plantilla de Inicio'}</span>
+                  <span>{t('createAgent.sendTemplate') || 'Send Starter Template'}</span>
                 </>
               )}
             </button>
@@ -518,7 +517,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initi
                   marginBottom: '12px',
                   lineHeight: '1.5'
                 }}>
-                  ⚠️ {t('createAgent.whatsappWarning') || 'Para enviar mensajes normales, el contacto debe responder primero a la plantilla en WhatsApp'}
+                  ⚠️ {t('createAgent.whatsappWarning') || 'To send normal messages, the contact must first respond to the template on WhatsApp'}
                 </div>
 
                 {/* Test Message Input */}
@@ -530,12 +529,12 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initi
                     fontWeight: '500',
                     color: 'var(--text-primary)'
                   }}>
-                    {t('createAgent.testMessage') || 'Mensaje de Prueba'}
+                    {t('createAgent.testMessage') || 'Test Message'}
                   </label>
                   <textarea
                     value={formData.whatsapp_test_message}
                     onChange={(e) => handleChange('whatsapp_test_message', e.target.value)}
-                    placeholder={t('createAgent.testMessagePlaceholder') || 'Hola! Soy tu asistente personal...'}
+                    placeholder={t('createAgent.testMessagePlaceholder') || 'Hello! I am your personal assistant...'}
                     rows="3"
                     style={{
                       width: '100%',
@@ -575,12 +574,12 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initi
                   {whatsappState.sending_message ? (
                     <>
                       <span>⏳</span>
-                      <span>{t('createAgent.sending') || 'Enviando...'}</span>
+                      <span>{t('createAgent.sending') || 'Sending...'}</span>
                     </>
                   ) : (
                     <>
                       <span>💬</span>
-                      <span>{t('createAgent.sendTestMessage') || 'Enviar Mensaje de Prueba'}</span>
+                      <span>{t('createAgent.sendTestMessage') || 'Send Test Message'}</span>
                     </>
                   )}
                 </button>
@@ -594,7 +593,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, initi
             {t('createAgent.cancel')}
           </button>
           <button onClick={handleSubmit} className="btn btn-primary">
-            {t('createAgent.create')}
+            {editMode ? 'Update Agent' : (t('createAgent.create') || 'Create Agent')}
           </button>
         </div>
       </div>

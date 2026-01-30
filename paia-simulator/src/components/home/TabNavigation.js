@@ -7,7 +7,9 @@ const TabNavigation = ({ activeTab, tabs, onTabChange }) => {
       gap: '12px',
       marginBottom: '32px',
       overflowX: 'auto',
-      padding: '4px'
+      padding: '4px',
+      justifyContent: 'center',
+      flexWrap: 'wrap'
     }}>
       {tabs.map((tab) => (
         <button

@@ -30,7 +30,7 @@ function createOAuth2Client() {
 
 // Obtener tokens de usuario desde Supabase
 async function getUserTokens(userId: string) {
-  console.log(`[MCP] Buscando tokens para usuario: ${userId}`);
+  console.log(`[MCP getUserTokens] Buscando tokens para usuario: ${userId}`);
   const supabase = createServiceSupabase();
 
   const { data, error } = await supabase
@@ -49,7 +49,7 @@ async function getUserTokens(userId: string) {
     throw error;
   }
 
-  console.log(`[MCP] Tokens encontrados para ${userId}, expires_at: ${data.expires_at}`);
+  console.log(`[MCP getUserTokens] Tokens encontrados:`, !!data, 'para userId:', userId, 'expires_at:', data?.expires_at);
 
   // Verificar si el token está expirado
   if (data.expires_at && new Date() >= new Date(data.expires_at)) {
@@ -176,6 +176,7 @@ function getServerWithContext(userId: string): McpServer {
 
       const authUrl = auth.generateAuthUrl({
         access_type: 'offline',
+        prompt: 'consent', // Fuerza a Google a dar refresh_token siempre
         scope: SCOPES,
         state: userId,
         include_granted_scopes: true

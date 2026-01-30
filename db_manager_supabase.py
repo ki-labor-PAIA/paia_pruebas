@@ -121,10 +121,21 @@ class DatabaseManager:
         return [self._dict_to_agent(row) for row in result.data]
 
     async def get_agent_by_whatsapp_phone(self, phone_number: str) -> Optional[DBAgent]:
-        """Obtener un agente por su número de WhatsApp asociado"""
-        result = self.client.table("agents").select("*").eq("whatsapp_phone_number", phone_number).execute()
-        if result.data:
-            return self._dict_to_agent(result.data[0])
+        """
+        Obtener agente por número de WhatsApp, intentando variantes normalizadas.
+        Maneja automáticamente las diferencias de formato de México y USA/Canadá.
+        """
+        from routers.phone_normalization import normalize_whatsapp_phone  # Cambiar nombre
+    
+        phone_variants = normalize_whatsapp_phone(phone_number)  # Cambiar nombre
+    
+        for phone in phone_variants:
+            result = self.client.table("agents").select("*").eq("whatsapp_phone_number", phone).execute()
+            if result.data:
+                if phone != phone_number:
+                    print(f"[DB] Agente encontrado con formato alternativo: {phone_number} -> {phone}")
+                return self._dict_to_agent(result.data[0])
+    
         return None
 
     async def update_agent(self, agent_id: str, updates: Dict) -> bool:
@@ -375,6 +386,69 @@ class DatabaseManager:
 
         result = query.execute()
         return len(result.data) > 0
+
+    async def update_flow_status(self, flow_id: str, is_active: bool) -> bool:
+        """Actualizar el estado activo/inactivo de un flujo"""
+        updates = {
+            "is_active": is_active,
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        result = self.client.table("saved_flows").update(updates).eq("id", flow_id).execute()
+        return len(result.data) > 0
+
+    async def get_friends_active_flows(self, user_id: str) -> List[Dict]:
+        """Obtener flujos activos y públicos de amigos conectados"""
+        try:
+            # 1. Get accepted connections for this user
+            connections = await self.get_user_connections(user_id, status='accepted')
+
+            if not connections:
+                return []
+
+            # 2. Extract friend user IDs
+            friend_ids = []
+            for conn in connections:
+                if conn.get('user1_id') == user_id:
+                    friend_ids.append(conn.get('user2_id'))
+                elif conn.get('user2_id') == user_id:
+                    friend_ids.append(conn.get('user1_id'))
+
+            if not friend_ids:
+                return []
+
+            # 3. Query flows from friends that are active and public
+            flows_result = self.client.table("saved_flows").select(
+                "id, name, description, user_id, is_public, is_active, version, created_at, updated_at, flow_data, tags, metadata"
+            ).in_("user_id", friend_ids).eq("is_active", True).eq("is_public", True).order("updated_at", desc=True).execute()
+
+            flows = flows_result.data
+
+            # 4. Enrich with owner information
+            enriched_flows = []
+            for flow in flows:
+                # Get owner information
+                owner_result = self.client.table("users").select("name, email, image").eq("id", flow['user_id']).execute()
+
+                if owner_result.data:
+                    owner = owner_result.data[0]
+                    flow['owner_name'] = owner.get('name', 'Unknown')
+                    flow['owner_email'] = owner.get('email', '')
+                    flow['owner_image'] = owner.get('image', '')
+                else:
+                    flow['owner_name'] = 'Unknown'
+                    flow['owner_email'] = ''
+                    flow['owner_image'] = ''
+
+                # Add activated_at (use updated_at as proxy for when it was activated)
+                flow['activated_at'] = flow.get('updated_at')
+
+                enriched_flows.append(flow)
+
+            return enriched_flows
+
+        except Exception as e:
+            print(f"Error getting friends active flows: {e}")
+            return []
 
     # =============== INITIALIZATION ===============
     async def init_db(self):

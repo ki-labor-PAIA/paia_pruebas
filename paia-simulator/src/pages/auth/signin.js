@@ -25,7 +25,7 @@ export default function SignIn() {
       })
 
       if (result?.error) {
-        setError('Credenciales inválidas')
+        setError('Invalid credentials')
       } else {
         router.push('/')
       }
@@ -52,10 +52,10 @@ export default function SignIn() {
             router.push('/')
           }
         } else {
-          setError(data.message || 'Error al registrarse')
+          setError(data.message || 'Registration error')
         }
       } catch (error) {
-        setError('Error de conexión')
+        setError('Connection error')
       }
     }
 
@@ -69,7 +69,7 @@ export default function SignIn() {
   return (
     <>
       <Head>
-        <title>{`${isLogin ? 'Iniciar Sesión' : 'Registrarse'} - PAIA`}</title>
+        <title>{isLogin ? 'Sign In' : 'Sign Up'} - PAIA</title>
       </Head>
 
       <div style={{
@@ -121,7 +121,7 @@ export default function SignIn() {
           <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
             <h1 style={{ color: '#fff', marginBottom: '0.5rem', fontSize: '2rem', fontWeight: '700' }}>PAIA</h1>
             <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.95rem' }}>
-              {isLogin ? 'Bienvenido de vuelta' : 'Crear cuenta nueva'}
+              {isLogin ? 'Welcome back' : 'Create new account'}
             </p>
           </div>
 
@@ -166,7 +166,7 @@ export default function SignIn() {
 
             <div style={{ marginBottom: '1.5rem' }}>
               <label style={{ display: 'block', marginBottom: '0.5rem', color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.9rem', fontWeight: '500' }}>
-                Contraseña
+                Password
               </label>
               <input
                 type="password"
@@ -209,24 +209,24 @@ export default function SignIn() {
               onMouseEnter={(e) => !loading && (e.target.style.boxShadow = '0 0 30px rgba(214, 107, 255, 0.8)')}
               onMouseLeave={(e) => !loading && (e.target.style.boxShadow = '0 0 20px rgba(214, 107, 255, 0.5)')}
             >
-              {loading ? 'Cargando...' : (isLogin ? 'Iniciar Sesión' : 'Registrarse')}
+              {loading ? 'Loading...' : (isLogin ? 'Sign In' : 'Sign Up')}
             </button>
           </form>
 
           <div style={{ textAlign: 'center', margin: '1.5rem 0' }}>
-            <span style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '0.9rem' }}>o continuar con</span>
+            <span style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '0.9rem' }}>or continue with</span>
           </div>
 
           <div style={{
             display: 'flex',
-            justifyContent: 'space-between',
+            justifyContent: 'center',
             gap: '10px',
             marginBottom: '1.5rem'
           }}>
             <button
               onClick={handleGoogleSignIn}
               style={{
-                width: '48%',
+                width: '100%',
                 padding: '10px',
                 background: '#252547',
                 color: '#fff',
@@ -259,6 +259,7 @@ export default function SignIn() {
               Google
             </button>
 
+            {/* Microsoft - Comentado temporalmente
             <button
               onClick={() => alert('Login con Microsoft próximamente')}
               style={{
@@ -294,6 +295,7 @@ export default function SignIn() {
               </svg>
               Microsoft
             </button>
+            */}
           </div>
 
           <div style={{ textAlign: 'center' }}>
@@ -311,7 +313,7 @@ export default function SignIn() {
               onMouseEnter={(e) => e.target.style.color = '#9f5fff'}
               onMouseLeave={(e) => e.target.style.color = '#d66bff'}
             >
-              {isLogin ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}
+              {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
             </button>
           </div>
         </div>

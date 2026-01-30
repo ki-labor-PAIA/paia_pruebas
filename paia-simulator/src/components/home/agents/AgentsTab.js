@@ -9,7 +9,7 @@ const AgentsTab = ({ agents, loading, onCreateNew, onAgentAction }) => {
   };
 
   const handleDelete = (agent) => {
-    if (!confirm(`¿Estas seguro de que quieres eliminar el agente "${agent.name}"?`)) {
+    if (!confirm(`Are you sure you want to delete the agent "${agent.name}"?`)) {
       return;
     }
 
@@ -28,16 +28,27 @@ const AgentsTab = ({ agents, loading, onCreateNew, onAgentAction }) => {
     return (
       <div
         style={{
-          textAlign: 'center',
-          padding: '60px',
-          fontSize: '18px',
-          color: 'var(--text-secondary)',
-          backgroundColor: 'var(--card-bg)',
-          borderRadius: '16px',
-          border: '1px solid var(--border-color)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '400px',
         }}
       >
-        Cargando agentes...
+        <div
+          style={{
+            textAlign: 'center',
+            padding: '60px',
+            fontSize: '18px',
+            color: 'var(--text-secondary)',
+            backgroundColor: 'var(--card-bg)',
+            borderRadius: '16px',
+            border: '1px solid var(--border-color)',
+            maxWidth: '600px',
+            width: '100%',
+          }}
+        >
+          Loading agents...
+        </div>
       </div>
     );
   }
@@ -47,13 +58,14 @@ const AgentsTab = ({ agents, loading, onCreateNew, onAgentAction }) => {
       <div
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
+          flexDirection: 'column',
           alignItems: 'center',
           marginBottom: '24px',
+          gap: '16px',
         }}
       >
-        <h2 style={{ fontSize: '24px', fontWeight: '700', margin: 0 }}>
-          Mis Agentes Creados
+        <h2 style={{ fontSize: '24px', fontWeight: '700', margin: 0, textAlign: 'center' }}>
+          My Created Agents
         </h2>
         <button
           onClick={() => onCreateNew && onCreateNew()}
@@ -80,20 +92,31 @@ const AgentsTab = ({ agents, loading, onCreateNew, onAgentAction }) => {
             e.currentTarget.style.boxShadow = 'none';
           }}
         >
-          Crear Nuevo Agente
+          Create New Agent
         </button>
       </div>
 
       {agents.length === 0 ? (
         <div
           style={{
-            textAlign: 'center',
-            padding: '80px 40px',
-            backgroundColor: 'var(--card-bg)',
-            borderRadius: '16px',
-            border: '1px solid var(--border-color)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '400px',
           }}
         >
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '80px 40px',
+              backgroundColor: 'var(--card-bg)',
+              borderRadius: '16px',
+              border: '1px solid var(--border-color)',
+              maxWidth: '600px',
+              width: '100%',
+            }}
+          >
           <div style={{ fontSize: '64px', marginBottom: '20px' }}>🤖</div>
           <h3
             style={{
@@ -103,7 +126,7 @@ const AgentsTab = ({ agents, loading, onCreateNew, onAgentAction }) => {
               color: 'var(--text-primary)',
             }}
           >
-            Crea tu primer agente
+            Create your first agent
           </h3>
           <p
             style={{
@@ -113,9 +136,9 @@ const AgentsTab = ({ agents, loading, onCreateNew, onAgentAction }) => {
               lineHeight: '1.5',
             }}
           >
-            Disena agentes especializados con personalidades y expertise unicos.
+            Design specialized agents with unique personalities and expertise.
             <br />
-            Usalos en tus flujos o compartelos con amigos.
+            Use them in your flows or share them with friends.
           </p>
           <button
             onClick={() => onCreateNew && onCreateNew()}
@@ -139,8 +162,9 @@ const AgentsTab = ({ agents, loading, onCreateNew, onAgentAction }) => {
               e.currentTarget.style.boxShadow = 'none';
             }}
           >
-            Crear Mi Primer Agente
+            Create My First Agent
           </button>
+        </div>
         </div>
       ) : (
         <div
@@ -148,6 +172,8 @@ const AgentsTab = ({ agents, loading, onCreateNew, onAgentAction }) => {
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
             gap: '24px',
+            maxWidth: '1200px',
+            margin: '0 auto',
           }}
         >
           {agents.map((agent) => (
@@ -171,7 +197,7 @@ const AgentsTab = ({ agents, loading, onCreateNew, onAgentAction }) => {
             color: 'var(--text-secondary)',
           }}
         >
-          Total de agentes: {agents.length}
+          Total agents: {agents.length}
         </div>
       )}
     </div>

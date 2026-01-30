@@ -3,9 +3,11 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Head from "next/head";
 import AuthGuard from '@/components/AuthGuard';
+import UserHeader from '@/components/UserHeader';
 import NotificationPanel from '@/components/NotificationPanel';
 import ConnectUserModal from '@/components/ConnectUserModal';
 import CreateAgentModal from '@/components/CreateAgentModal';
+import ConfigureAgentModal from '@/components/ConfigureAgentModal';
 import TutorialModal from '@/components/tutorial/TutorialModal';
 import useModals from '@/hooks/useModals';
 import useFlowsData from '@/hooks/useFlowsData';
@@ -30,9 +32,6 @@ export default function Home() {
       ? (router?.asPath || router?.pathname || window.location.pathname || '')
       : (router?.asPath || router?.pathname || '');
 
-  // Mostrar siempre el botón del tutorial
-  const showTutorialBtn = true;
-
   // Estados principales
   const [activeTab, setActiveTab] = useState('flows');
   const [loading, setLoading] = useState(false);
@@ -43,18 +42,24 @@ export default function Home() {
     flows: myFlows,
     loadFlows,
     toggleFlowStatus,
-    deleteFlow
+    deleteFlow,
+    createFlow
   } = useFlowsData();
 
   const {
     agents: myAgents,
     loadAgents,
-    createAgent
+    createAgent,
+    updateAgent,
+    deleteAgent,
+    configureAgent
   } = useAgentsData();
 
   const {
     friends,
-    loadFriends
+    loadFriends,
+    acceptFriendRequest,
+    rejectFriendRequest
   } = useFriendsData();
 
   const {
@@ -63,6 +68,11 @@ export default function Home() {
     loadActiveFlows,
     loadPublicAgents
   } = usePublicData();
+
+  // Agent edit and configure state
+  const [editingAgent, setEditingAgent] = useState(null);
+  const [configuringAgent, setConfiguringAgent] = useState(null);
+  const [showConfigureAgent, setShowConfigureAgent] = useState(false);
 
   // Modals hook
   const {
@@ -114,27 +124,66 @@ export default function Home() {
     }
   }, [session, loadInitialData]);
 
+  // Habilitar scroll y estilos para esta página
+  useEffect(() => {
+    document.body.classList.add('library-page');
+    return () => {
+      document.body.classList.remove('library-page');
+    };
+  }, []);
+
   const handleFlowStatusToggle = async (flowId, currentStatus) => {
     try {
       const success = await toggleFlowStatus(flowId, currentStatus);
       if (!success) {
-        setError('Error actualizando flujo');
+        setError('Error updating flow');
       }
     } catch (err) {
-      setError(`Error actualizando flujo: ${err.message}`);
+      setError(`Error updating flow: ${err.message}`);
     }
   };
 
   const handleDeleteFlow = async (flowId) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar este flujo?')) return;
+    if (!confirm('Are you sure you want to delete this flow?')) return;
 
     try {
       const success = await deleteFlow(flowId, session.user.id);
       if (!success) {
-        setError('Error eliminando flujo');
+        setError('Error deleting flow');
       }
     } catch (err) {
-      setError(`Error eliminando flujo: ${err.message}`);
+      setError(`Error deleting flow: ${err.message}`);
+    }
+  };
+
+  const handleDuplicateFlow = async (flowId) => {
+    try {
+      // Encontrar el flujo a duplicar
+      const flowToDuplicate = myFlows.find(f => f.id === flowId);
+      if (!flowToDuplicate) {
+        setError('Flow not found');
+        return;
+      }
+
+      // Preparar los datos del flujo duplicado en el formato que espera el backend
+      const duplicatedFlowData = {
+        user_id: session.user.id,
+        name: `${flowToDuplicate.name} (Copy)`,
+        flow_data: flowToDuplicate.flow_data || {}, // El contenido del flujo (nodes, edges, etc.)
+        description: flowToDuplicate.description || '',
+        is_public: false, // Los flujos duplicados son privados por defecto
+        metadata: flowToDuplicate.metadata || {}
+      };
+
+      const result = await createFlow(duplicatedFlowData);
+      if (result) {
+        console.log('Flow duplicated successfully');
+      } else {
+        setError('Error duplicating flow');
+      }
+    } catch (err) {
+      console.error('Error duplicating flow:', err);
+      setError(`Error duplicating flow: ${err.message}`);
     }
   };
 
@@ -151,6 +200,38 @@ export default function Home() {
     }
   };
 
+  const handleAcceptFriendRequest = async (friend) => {
+    try {
+      const success = await acceptFriendRequest(friend.connection_id);
+      if (success) {
+        console.log('Friend request accepted');
+        // Reload friends to get updated status
+        await loadFriends(session.user.id);
+      } else {
+        setError('Error accepting friend request');
+      }
+    } catch (err) {
+      console.error('Error accepting friend request:', err);
+      setError(`Error accepting friend request: ${err.message}`);
+    }
+  };
+
+  const handleRejectFriendRequest = async (friend) => {
+    try {
+      const success = await rejectFriendRequest(friend.connection_id);
+      if (success) {
+        console.log('Friend request rejected');
+        // Reload friends to get updated list
+        await loadFriends(session.user.id);
+      } else {
+        setError('Error rejecting friend request');
+      }
+    } catch (err) {
+      console.error('Error rejecting friend request:', err);
+      setError(`Error rejecting friend request: ${err.message}`);
+    }
+  };
+
   const handleAgentCreated = async (agentData) => {
     try {
       const result = await createAgent(agentData, session.user.id);
@@ -158,43 +239,131 @@ export default function Home() {
         console.log('Agent created successfully:', result);
         setShowCreateAgent(false);
       } else {
-        setError('Error creando agente');
+        setError('Error creating agent');
       }
     } catch (err) {
       console.error('Error creating agent:', err);
-      setError(`Error creando agente: ${err.message}`);
+      setError(`Error creating agent: ${err.message}`);
     }
+  };
+
+  const handleAgentAction = async (action, agent) => {
+    switch (action) {
+      case 'edit':
+        setEditingAgent(agent);
+        setShowCreateAgent(true);
+        break;
+
+      case 'delete':
+        try {
+          const success = await deleteAgent(agent.id, session.user.id);
+          if (!success) {
+            setError('Error deleting agent');
+          }
+        } catch (err) {
+          setError(`Error deleting agent: ${err.message}`);
+        }
+        break;
+
+      case 'configure':
+        setConfiguringAgent(agent);
+        setShowConfigureAgent(true);
+        break;
+
+      default:
+        console.log('Unknown action:', action);
+    }
+  };
+
+  const handleUpdateAgent = async (agentId, agentData) => {
+    try {
+      const success = await updateAgent(agentId, agentData, session.user.id);
+      if (success) {
+        console.log('Agent updated successfully');
+        setShowCreateAgent(false);
+        setEditingAgent(null);
+      } else {
+        setError('Error updating agent');
+      }
+    } catch (err) {
+      console.error('Error updating agent:', err);
+      setError(`Error updating agent: ${err.message}`);
+    }
+  };
+
+  const handleCloseAgentModal = () => {
+    setShowCreateAgent(false);
+    setEditingAgent(null);
+  };
+
+  const handleConfigureAgent = async (agentId, configData) => {
+    try {
+      const success = await configureAgent(agentId, configData, session.user.id);
+      if (success) {
+        console.log('Agent configured successfully');
+        setShowConfigureAgent(false);
+        setConfiguringAgent(null);
+      } else {
+        setError('Error configuring agent');
+      }
+    } catch (err) {
+      console.error('Error configuring agent:', err);
+      setError(`Error configuring agent: ${err.message}`);
+    }
+  };
+
+  const handleCloseConfigureModal = () => {
+    setShowConfigureAgent(false);
+    setConfiguringAgent(null);
   };
 
   return (
     <>
       <Head>
-        <title>PAIA - Biblioteca de Agentes</title>
-        <meta name="description" content="Gestiona tus agentes, flujos y conexiones PAIA" />
+        <title>PAIA - Agent Library</title>
+        <meta name="description" content="Manage your agents, flows and PAIA connections" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
       <AuthGuard>
-        <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
-          <Header
-            session={session}
-            showTutorialBtn={showTutorialBtn}
-            onCreateFlow={() => navigateToCreate()}
-            onToggleNotifications={() => setShowNotifications(!showNotifications)}
-            onShowTutorial={() => setShowTutorial(true)}
-          />
+        <UserHeader />
 
-          <div style={{ paddingTop: '90px', padding: '30px' }}>
+        <div style={{
+          minHeight: '100vh',
+          backgroundColor: 'var(--bg-primary)',
+          paddingTop: '60px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center'
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: '1400px',
+            padding: '30px 40px 20px 40px'
+          }}>
+            <Header
+              title={`Welcome, ${session?.user?.name || session?.user?.email || 'User'}`}
+              subtitle=""
+              showNotifications={false}
+              showTutorialButton={false}
+            />
+          </div>
+
+          <div style={{
+            width: '100%',
+            maxWidth: '1400px',
+            padding: '0 40px 30px 40px'
+          }}>
             <TabNavigation
               activeTab={activeTab}
               onTabChange={setActiveTab}
               tabs={[
-                { key: 'flows', label: 'Mis Flujos', desc: 'Workflows', count: myFlows.length },
-                { key: 'agents', label: 'Mis Agentes', desc: 'Asistentes IA', count: myAgents.length },
-                { key: 'friends', label: 'Amigos', desc: 'Conexiones', count: friends.length },
-                { key: 'active-flows', label: 'Flujos Activos', desc: 'De amigos', count: friendsActiveFlows.length },
-                { key: 'public-agents', label: 'Agentes Publicos', desc: 'Comunidad', count: publicAgents.length }
+                { key: 'flows', label: 'My Flows', desc: 'Workflows', count: myFlows.length },
+                { key: 'agents', label: 'My Agents', desc: 'AI Assistants', count: myAgents.length },
+                { key: 'friends', label: 'Friends', desc: 'Connections', count: friends.length },
+                { key: 'active-flows', label: 'Active Flows', desc: 'From friends', count: friendsActiveFlows.length },
+                { key: 'public-agents', label: 'Public Agents', desc: 'Community', count: publicAgents.length }
               ]}
             />
 
@@ -222,7 +391,7 @@ export default function Home() {
                 borderRadius: '16px',
                 border: '1px solid var(--border-color)'
               }}>
-                Cargando...
+                Loading...
               </div>
             ) : (
               <div>
@@ -243,11 +412,10 @@ export default function Home() {
                           handleDeleteFlow(flowId);
                           break;
                         case 'duplicate':
-                          // TODO: implementar duplicacion de flujo
-                          console.log('Duplicar flujo:', flowId);
+                          handleDuplicateFlow(flowId);
                           break;
                         default:
-                          console.warn('Accion desconocida:', action);
+                          console.warn('Unknown action:', action);
                       }
                     }}
                   />
@@ -256,14 +424,19 @@ export default function Home() {
                 {activeTab === 'agents' && (
                   <AgentsTab
                     agents={myAgents}
+                    loading={loading}
                     onCreateNew={() => setShowCreateAgent(true)}
+                    onAgentAction={handleAgentAction}
                   />
                 )}
 
                 {activeTab === 'friends' && (
                   <FriendsTab
                     friends={friends}
+                    loading={loading}
                     onAddFriend={() => setShowConnectUser(true)}
+                    onAcceptRequest={handleAcceptFriendRequest}
+                    onRejectRequest={handleRejectFriendRequest}
                   />
                 )}
 
@@ -296,8 +469,11 @@ export default function Home() {
           {showCreateAgent && (
             <CreateAgentModal
               isOpen={showCreateAgent}
-              onClose={() => setShowCreateAgent(false)}
+              onClose={handleCloseAgentModal}
               onCreateAgent={handleAgentCreated}
+              onUpdateAgent={handleUpdateAgent}
+              editMode={!!editingAgent}
+              agentToEdit={editingAgent}
             />
           )}
 
@@ -309,32 +485,41 @@ export default function Home() {
             />
           )}
 
+          {showConfigureAgent && (
+            <ConfigureAgentModal
+              isOpen={showConfigureAgent}
+              onClose={handleCloseConfigureModal}
+              onConfigure={handleConfigureAgent}
+              agent={configuringAgent}
+            />
+          )}
+
           {showTutorial && (
             <TutorialModal
               steps={[
                 {
-                  title: 'Bienvenido a PAIA',
-                  description: 'PAIA es tu plataforma para crear y gestionar agentes de IA personalizados. Aquí puedes diseñar flujos de trabajo, conectar con amigos y compartir agentes.',
+                  title: 'Welcome to PAIA',
+                  description: 'PAIA is your platform to create and manage custom AI agents. Here you can design workflows, connect with friends and share agents.',
                   image: null
                 },
                 {
-                  title: 'Mis Flujos',
-                  description: 'En esta sección puedes ver, crear y gestionar tus flujos de trabajo. Los flujos te permiten conectar múltiples agentes y servicios para automatizar tareas complejas.',
+                  title: 'My Flows',
+                  description: 'In this section you can view, create and manage your workflows. Flows allow you to connect multiple agents and services to automate complex tasks.',
                   image: null
                 },
                 {
-                  title: 'Mis Agentes',
-                  description: 'Crea agentes personalizados con diferentes personalidades y áreas de expertise. Puedes hacerlos públicos para compartirlos con la comunidad.',
+                  title: 'My Agents',
+                  description: 'Create custom agents with different personalities and areas of expertise. You can make them public to share with the community.',
                   image: null
                 },
                 {
-                  title: 'Conecta con Amigos',
-                  description: 'Agrega amigos para compartir flujos y agentes. Colabora en proyectos y accede a los recursos compartidos por tu red.',
+                  title: 'Connect with Friends',
+                  description: 'Add friends to share flows and agents. Collaborate on projects and access resources shared by your network.',
                   image: null
                 },
                 {
-                  title: '¡Comienza a Crear!',
-                  description: 'Ahora estás listo para crear tu primer flujo o agente. Haz clic en "Crear Flujo" o navega a la pestaña de Agentes para comenzar.',
+                  title: 'Start Creating!',
+                  description: 'Now you are ready to create your first flow or agent. Click "Create Flow" or navigate to the Agents tab to get started.',
                   image: null
                 }
               ]}

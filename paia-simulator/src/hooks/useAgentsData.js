@@ -89,12 +89,13 @@ export default function useAgentsData() {
    * Update an existing agent
    * @param {string} agentId - The agent ID to update
    * @param {Object} agentData - The updated agent data
-   * @returns {Object} The updated agent or null if failed
+   * @param {string} userId - The user ID who owns the agent
+   * @returns {boolean} True if successful, false otherwise
    */
-  const updateAgent = useCallback(async (agentId, agentData) => {
-    if (!agentId || !agentData) {
-      setError('Agent ID and data are required');
-      return null;
+  const updateAgent = useCallback(async (agentId, agentData, userId) => {
+    if (!agentId || !agentData || !userId) {
+      setError('Agent ID, data, and user ID are required');
+      return false;
     }
 
     setLoading(true);
@@ -106,26 +107,28 @@ export default function useAgentsData() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(agentData)
+        body: JSON.stringify({
+          ...agentData,
+          user_id: userId
+        })
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to update agent: ${response.statusText}`);
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `Failed to update agent: ${response.statusText}`);
       }
 
-      const updatedAgent = await response.json();
-      setAgents(prev => prev.map(agent =>
-        agent.id === agentId ? updatedAgent : agent
-      ));
-      return updatedAgent;
+      // Reload agents after update to get fresh data
+      await loadAgents(userId);
+      return true;
     } catch (err) {
       console.error('Error updating agent:', err);
       setError(err.message);
-      return null;
+      return false;
     } finally {
       setLoading(false);
     }
-  }, [API_URL]);
+  }, [API_URL, loadAgents]);
 
   /**
    * Delete an agent
@@ -143,8 +146,12 @@ export default function useAgentsData() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_URL}/api/agents/${agentId}?user_id=${userId}`, {
-        method: 'DELETE'
+      const response = await fetch(`${API_URL}/api/agents/${agentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: userId })
       });
 
       if (!response.ok) {
@@ -163,46 +170,49 @@ export default function useAgentsData() {
   }, [API_URL]);
 
   /**
-   * Configure an agent with specific settings
+   * Configure an agent with specific settings (communication and behavior)
    * @param {string} agentId - The agent ID to configure
    * @param {Object} configData - The configuration data
-   * @returns {Object} The configured agent or null if failed
+   * @param {string} userId - The user ID who owns the agent
+   * @returns {boolean} True if successful, false otherwise
    */
-  const configureAgent = useCallback(async (agentId, configData) => {
-    if (!agentId || !configData) {
-      setError('Agent ID and configuration data are required');
-      return null;
+  const configureAgent = useCallback(async (agentId, configData, userId) => {
+    if (!agentId || !configData || !userId) {
+      setError('Agent ID, configuration data, and user ID are required');
+      return false;
     }
 
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`${API_URL}/api/agents/${agentId}/configure`, {
-        method: 'POST',
+      const response = await fetch(`${API_URL}/api/agents/${agentId}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(configData)
+        body: JSON.stringify({
+          ...configData,
+          user_id: userId
+        })
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to configure agent: ${response.statusText}`);
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `Failed to configure agent: ${response.statusText}`);
       }
 
-      const configuredAgent = await response.json();
-      setAgents(prev => prev.map(agent =>
-        agent.id === agentId ? configuredAgent : agent
-      ));
-      return configuredAgent;
+      // Reload agents after configuration to get fresh data
+      await loadAgents(userId);
+      return true;
     } catch (err) {
       console.error('Error configuring agent:', err);
       setError(err.message);
-      return null;
+      return false;
     } finally {
       setLoading(false);
     }
-  }, [API_URL]);
+  }, [API_URL, loadAgents]);
 
   return {
     agents,

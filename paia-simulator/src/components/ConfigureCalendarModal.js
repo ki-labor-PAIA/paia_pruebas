@@ -25,17 +25,40 @@ export default function ConfigureCalendarModal({ isOpen, onClose, onConfigureCal
       if (event.data?.type === 'GOOGLE_AUTH_SUCCESS') {
         try {
           setIsLoading(true);
-          
-          // La autenticación ya se completó en el callback
-          // Solo actualizar el estado local
-          setFormData(prev => ({ 
-            ...prev, 
+
+          const { userId, code } = event.data.data;
+          console.log('[ConfigureCalendarModal] Recibido postMessage con code, guardando token para userId:', userId);
+
+          // Guardar el token llamando al endpoint
+          const response = await fetch('/api/auth/google-calendar', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId,
+              code
+            })
+          });
+
+          const result = await response.json();
+
+          if (!response.ok) {
+            throw new Error(result.error || 'Error guardando token');
+          }
+
+          console.log('[ConfigureCalendarModal] Token guardado exitosamente:', result);
+
+          // Actualizar el estado local
+          setFormData(prev => ({
+            ...prev,
             isAuthenticated: true,
             userEmail: session?.user?.email || ''
           }));
           setStep('success');
-          
+
         } catch (err) {
+          console.error('[ConfigureCalendarModal] Error guardando token:', err);
           setError(err.message);
           setStep('config');
         } finally {
@@ -54,7 +77,9 @@ export default function ConfigureCalendarModal({ isOpen, onClose, onConfigureCal
 
   const checkAuthStatus = async () => {
     if (!session?.user?.id) return;
-    
+
+    console.log('[ConfigureCalendarModal] Verificando auth para userId:', session.user.id);
+
     try {
       const response = await fetch('/api/auth/google-calendar/status', {
         method: 'POST',
@@ -83,11 +108,13 @@ export default function ConfigureCalendarModal({ isOpen, onClose, onConfigureCal
 
   const generateAuthUrl = async () => {
     if (!session?.user?.id) return;
-    
+
+    console.log('[ConfigureCalendarModal] Generando auth URL para userId:', session.user.id);
+
     try {
       setIsLoading(true);
       setError('');
-      
+
       const response = await fetch('/api/auth/google-calendar/auth-url', {
         method: 'POST',
         headers: {
@@ -173,7 +200,7 @@ export default function ConfigureCalendarModal({ isOpen, onClose, onConfigureCal
       <div className="modal-content" style={{ maxWidth: '500px' }}>
         <div className="modal-header">
           <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>
-            📅 Configurar Google Calendar
+            📅 Configure Google Calendar
           </h3>
         </div>
         
@@ -186,9 +213,9 @@ export default function ConfigureCalendarModal({ isOpen, onClose, onConfigureCal
                   marginBottom: '8px', 
                   fontSize: '0.9em', 
                   fontWeight: '500',
-                  color: 'var(--text-primary)' 
+                  color: 'var(--text-primary)'
                 }}>
-                  Nombre del nodo
+                  Node name
                 </label>
                 <input
                   type="text"
@@ -274,11 +301,11 @@ export default function ConfigureCalendarModal({ isOpen, onClose, onConfigureCal
                             borderRadius: '50%',
                             animation: 'spin 1s linear infinite'
                           }}></div>
-                          Conectando...
+                          Connecting...
                         </>
                       ) : (
                         <>
-                          🔗 Conectar Google Calendar
+                          🔗 Connect Google Calendar
                         </>
                       )}
                     </button>
@@ -310,14 +337,14 @@ export default function ConfigureCalendarModal({ isOpen, onClose, onConfigureCal
                 marginBottom: '8px',
                 color: 'var(--text-primary)'
               }}>
-                Autenticando con Google...
+                Authenticating with Google...
               </h4>
-              <p style={{ 
-                color: 'var(--text-secondary)', 
+              <p style={{
+                color: 'var(--text-secondary)',
                 marginBottom: '24px',
                 fontSize: '0.9em'
               }}>
-                Se abrió una nueva ventana. Autoriza el acceso a Google Calendar.
+                A new window has opened. Authorize access to Google Calendar.
               </p>
               <div style={{
                 width: '32px',
@@ -339,13 +366,13 @@ export default function ConfigureCalendarModal({ isOpen, onClose, onConfigureCal
                 marginBottom: '8px',
                 color: '#10b981'
               }}>
-                ¡Conectado exitosamente!
+                Connected successfully!
               </h4>
-              <p style={{ 
+              <p style={{
                 color: 'var(--text-secondary)',
                 fontSize: '0.9em'
               }}>
-                Google Calendar está listo para usar.
+                Google Calendar is ready to use.
               </p>
             </div>
           )}
@@ -364,9 +391,9 @@ export default function ConfigureCalendarModal({ isOpen, onClose, onConfigureCal
               fontSize: '0.9em'
             }}
           >
-            Cancelar
+            Cancel
           </button>
-          <button 
+          <button
             onClick={handleSubmit}
             disabled={!formData.isAuthenticated}
             style={{
@@ -380,7 +407,7 @@ export default function ConfigureCalendarModal({ isOpen, onClose, onConfigureCal
               fontWeight: '500'
             }}
           >
-            Crear Nodo
+            Create Node
           </button>
         </div>
 

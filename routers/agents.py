@@ -18,7 +18,8 @@ def create_agents_router(
     memory_manager: Any,
     ensure_agent_loaded_func: Any,
     whatsapp_service: Optional[Any],
-    telegram_default_chat_id: str
+    telegram_default_chat_id: str,
+    register_agent_in_paia_func: Any = None  # Funcion para registrar en protocolo PAIA
 ) -> APIRouter:
     """
     Create agents router with dependencies.
@@ -57,14 +58,8 @@ def create_agents_router(
 
             whatsapp_phone = agent_data.get('whatsapp_phone_number')
             if whatsapp_phone and whatsapp_phone.strip():
+                # La normalización ahora ocurre dentro de get_agent_by_whatsapp_phone
                 existing_agent = await db_manager.get_agent_by_whatsapp_phone(whatsapp_phone)
-
-                if not existing_agent and whatsapp_phone.startswith("521") and len(whatsapp_phone) >= 12:
-                    alt_phone = "52" + whatsapp_phone[3:]
-                    existing_agent = await db_manager.get_agent_by_whatsapp_phone(alt_phone)
-                elif not existing_agent and whatsapp_phone.startswith("52") and len(whatsapp_phone) >= 12 and not whatsapp_phone.startswith("521"):
-                    alt_phone = "521" + whatsapp_phone[2:]
-                    existing_agent = await db_manager.get_agent_by_whatsapp_phone(alt_phone)
 
                 if existing_agent:
                     print(f"[Create Agent] Error: WhatsApp {whatsapp_phone} ya asignado a '{existing_agent.name}'")
@@ -75,9 +70,22 @@ def create_agents_router(
 
             agent = await manager.create_agent(agent_data)
 
+            # Registrar en protocolo PAIA (capabilities y autonomia)
+            if register_agent_in_paia_func:
+                try:
+                    await register_agent_in_paia_func(agent.id, {
+                        'id': agent.id,
+                        'user_id': agent.user_id,
+                        'name': agent.name,
+                        'expertise': agent.expertise,
+                        'is_public': getattr(agent, 'is_public', True)
+                    })
+                except Exception as paia_err:
+                    print(f"[PAIA] Warning: No se pudo registrar agente en PAIA: {paia_err}")
+
             whatsapp_phone = agent_data.get('whatsapp_phone_number')
             if whatsapp_phone and whatsapp_phone.strip():
-                print(f"[WhatsApp] Número guardado en Supabase para agente '{agent.name}': {whatsapp_phone}")
+                print(f"[WhatsApp] Numero guardado en Supabase para agente '{agent.name}': {whatsapp_phone}")
 
             agent_dict = asdict(agent)
             agent_dict.pop('llm_instance', None)
@@ -177,17 +185,52 @@ def create_agents_router(
             if not db_agent or db_agent.user_id != user_id:
                 raise HTTPException(status_code=404, detail="Agente no encontrado o no autorizado")
 
+            # Verificar WhatsApp duplicado si se está actualizando el número
+            whatsapp_phone = update_data.get('whatsapp_phone_number')
+            if whatsapp_phone and whatsapp_phone.strip():
+                existing_agent = await db_manager.get_agent_by_whatsapp_phone(whatsapp_phone)
+                # Solo permitir si no existe o si es el mismo agente
+                if existing_agent and existing_agent.id != agent_id:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"El numero de WhatsApp {whatsapp_phone} ya esta asignado al agente '{existing_agent.name}'"
+                    )
+
             updates = {}
+            # Campos básicos del agente (CreateAgentModal)
+            if 'name' in update_data:
+                updates['name'] = update_data['name']
+            if 'description' in update_data:
+                updates['description'] = update_data['description']
+            if 'personality' in update_data:
+                updates['personality'] = update_data['personality']
+            if 'expertise' in update_data:
+                updates['expertise'] = update_data['expertise']
+            if 'is_public' in update_data:
+                updates['is_public'] = update_data['is_public']
+            if 'whatsapp_phone_number' in update_data:
+                updates['whatsapp_phone_number'] = update_data['whatsapp_phone_number']
+
+            # Campos de configuración (ConfigureAgentModal)
             if 'is_persistent' in update_data:
                 updates['is_persistent'] = update_data['is_persistent']
             if 'auto_start' in update_data:
                 updates['auto_start'] = update_data['auto_start']
             if 'status' in update_data:
                 updates['status'] = update_data['status']
+            if 'telegram_chat_id' in update_data:
+                updates['telegram_chat_id'] = update_data['telegram_chat_id']
 
             success = await db_manager.update_agent(agent_id, updates)
             if not success:
                 raise HTTPException(status_code=500, detail="Error actualizando agente")
+
+            # Actualizar el agente en memoria si existe
+            if agent_id in agents_store:
+                agent_in_memory = agents_store[agent_id]
+                for key, value in updates.items():
+                    if hasattr(agent_in_memory, key):
+                        setattr(agent_in_memory, key, value)
 
             return {"message": f"Agente {db_agent.name} actualizado exitosamente"}
         except HTTPException:
@@ -332,17 +375,8 @@ def create_agents_router(
             if not phone_number or not phone_number.strip():
                 return {"available": True}
 
+            # La normalización ahora ocurre automáticamente en db_manager
             existing = await db_manager.get_agent_by_whatsapp_phone(phone_number)
-
-            if not existing and phone_number.startswith("521") and len(phone_number) >= 12:
-                alt_phone = "52" + phone_number[3:]
-                print(f"[Check WhatsApp] Intentando variante sin 1: {alt_phone}")
-                existing = await db_manager.get_agent_by_whatsapp_phone(alt_phone)
-
-            if not existing and phone_number.startswith("52") and len(phone_number) >= 12 and not phone_number.startswith("521"):
-                alt_phone = "521" + phone_number[2:]
-                print(f"[Check WhatsApp] Intentando variante con 1: {alt_phone}")
-                existing = await db_manager.get_agent_by_whatsapp_phone(alt_phone)
 
             if existing:
                 print(f"[Check WhatsApp] Numero {phone_number} ya en uso por agente: {existing.name}")

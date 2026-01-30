@@ -41,6 +41,14 @@ export default function Library() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
 
+  // Habilitar scroll para esta página
+  useEffect(() => {
+    document.body.classList.add('library-page');
+    return () => {
+      document.body.classList.remove('library-page');
+    };
+  }, []);
+
   // Redirigir si no está autenticado
   useEffect(() => {
     if (status === 'loading') return;
@@ -197,14 +205,14 @@ export default function Library() {
 
   if (status === 'loading') {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
         height: '100vh',
         fontSize: '18px'
       }}>
-        Cargando...
+        Loading...
       </div>
     );
   }
@@ -214,7 +222,10 @@ export default function Library() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: 'var(--bg-primary)'
+    }}>
       {/* Header con funciones movidas */}
       <div style={{
         position: 'fixed',
@@ -321,7 +332,11 @@ export default function Library() {
       </div>
 
       {/* Contenido principal */}
-      <div style={{ paddingTop: '80px', padding: '20px' }}>
+      <div style={{
+        marginTop: '60px',
+        padding: '20px',
+        minHeight: 'calc(100vh - 60px)'
+      }}>
         {/* Pestañas de navegación */}
         <div style={{ 
           display: 'flex', 
@@ -331,10 +346,10 @@ export default function Library() {
           paddingBottom: '10px'
         }}>
           {[
-            { key: 'flows', label: 'Mis Flujos', icon: Zap, count: myFlows.length },
-            { key: 'agents', label: 'Mis Agentes', icon: Bot, count: myAgents.length },
-            { key: 'active-flows', label: 'Flujos Activos de Amigos', icon: Globe, count: friendsActiveFlows.length },
-            { key: 'public-agents', label: 'Agentes Públicos', icon: Link2, count: publicAgents.length }
+            { key: 'flows', label: 'My Flows', icon: Zap, count: myFlows.length },
+            { key: 'agents', label: 'My Agents', icon: Bot, count: myAgents.length },
+            { key: 'active-flows', label: 'Friends Active Flows', icon: Globe, count: friendsActiveFlows.length },
+            { key: 'public-agents', label: 'Public Agents', icon: Link2, count: publicAgents.length }
           ].map(tab => {
             const IconComponent = tab.icon;
             return (
@@ -392,7 +407,7 @@ export default function Library() {
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: '40px', fontSize: '16px', color: 'var(--text-secondary)' }}>
-            🔄 Cargando...
+            🔄 Loading...
           </div>
         ) : (
           <div>
@@ -406,7 +421,7 @@ export default function Library() {
                   marginBottom: '20px'
                 }}>
                   <h2 style={{ fontSize: '20px', fontWeight: '600', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Zap size={20} /> Mis Flujos Guardados
+                    <Zap size={20} /> My Saved Flows
                   </h2>
                   <button
                     onClick={() => navigateToSimulator()}
@@ -421,7 +436,7 @@ export default function Library() {
                       fontWeight: '500'
                     }}
                   >
-                    <Plus size={16} /> Crear Nuevo Flujo
+                    <Plus size={16} /> Create New Flow
                   </button>
                 </div>
 
@@ -435,10 +450,10 @@ export default function Library() {
                   }}>
                     <div style={{ marginBottom: '16px' }}><Zap size={48} strokeWidth={1.5} /></div>
                     <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
-                      No tienes flujos guardados
+                      You have no saved flows
                     </h3>
                     <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>
-                      Crea tu primer flujo en el simulador y guárdalo para poder compartirlo con amigos.
+                      Create your first flow in the simulator and save it to share with friends.
                     </p>
                     <button
                       onClick={() => navigateToSimulator()}
@@ -453,7 +468,7 @@ export default function Library() {
                         fontWeight: '500'
                       }}
                     >
-                      <Zap size={16} /> Crear Mi Primer Flujo
+                      <Zap size={16} /> Create My First Flow
                     </button>
                   </div>
                 ) : (
@@ -521,7 +536,7 @@ export default function Library() {
                           margin: '0 0 16px 0',
                           lineHeight: '1.4'
                         }}>
-                          {flow.description || 'Sin descripción'}
+                          {flow.description || 'No description'}
                         </p>
 
                         <div style={{
@@ -637,7 +652,7 @@ export default function Library() {
                   marginBottom: '20px'
                 }}>
                   <h2 style={{ fontSize: '20px', fontWeight: '600', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Bot size={20} /> Mis Agentes Creados
+                    <Bot size={20} /> My Created Agents
                   </h2>
                   <button
                     onClick={() => setShowCreateAgent(true)}
@@ -652,7 +667,7 @@ export default function Library() {
                       fontWeight: '500'
                     }}
                   >
-                    <Plus size={16} /> Crear Nuevo Agente
+                    <Plus size={16} /> Create New Agent
                   </button>
                 </div>
 
@@ -666,10 +681,10 @@ export default function Library() {
                   }}>
                     <div style={{ marginBottom: '16px' }}><Bot size={48} strokeWidth={1.5} /></div>
                     <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
-                      No tienes agentes creados
+                      You have no created agents
                     </h3>
                     <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>
-                      Crea tu primer agente especializado con personalidad y expertise únicos.
+                      Create your first specialized agent with unique personality and expertise.
                     </p>
                     <button
                       onClick={() => setShowCreateAgent(true)}
@@ -684,7 +699,7 @@ export default function Library() {
                         fontWeight: '500'
                       }}
                     >
-                      <Bot size={16} /> Crear Mi Primer Agente
+                      <Bot size={16} /> Create My First Agent
                     </button>
                   </div>
                 ) : (
@@ -765,7 +780,7 @@ export default function Library() {
             {activeTab === 'active-flows' && (
               <div>
                 <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Globe size={20} /> Flujos Activos de Amigos
+                  <Globe size={20} /> Friends Active Flows
                 </h2>
 
                 {friendsActiveFlows.length === 0 ? (
@@ -778,10 +793,10 @@ export default function Library() {
                   }}>
                     <div style={{ marginBottom: '16px' }}><Globe size={48} strokeWidth={1.5} /></div>
                     <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
-                      No hay flujos activos de amigos
+                      No active flows from friends
                     </h3>
                     <p style={{ color: 'var(--text-secondary)' }}>
-                      Los flujos activos de tus amigos aparecerán aquí cuando estén ejecutándose.
+                      Active flows from your friends will appear here when they are running.
                     </p>
                   </div>
                 ) : (
@@ -823,7 +838,7 @@ export default function Library() {
                             backgroundColor: '#10B981'
                           }} />
                           <span style={{ fontSize: '12px', color: '#10B981', fontWeight: '500' }}>
-                            Activo
+                            Active
                           </span>
                         </div>
                         
@@ -832,11 +847,11 @@ export default function Library() {
                         </h3>
                         
                         <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: '0 0 12px 0' }}>
-                          {flow.description || 'Sin descripción'}
+                          {flow.description || 'No description'}
                         </p>
 
                         <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                          Actualizado: {new Date(flow.updated_at).toLocaleDateString()}
+                          Updated: {new Date(flow.updated_at).toLocaleDateString()}
                         </div>
                       </div>
                     ))}
@@ -849,7 +864,7 @@ export default function Library() {
             {activeTab === 'public-agents' && (
               <div>
                 <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Link2 size={20} /> Agentes Públicos de Amigos
+                  <Link2 size={20} /> Friends Public Agents
                 </h2>
 
                 {publicAgents.length === 0 ? (
@@ -862,10 +877,10 @@ export default function Library() {
                   }}>
                     <div style={{ marginBottom: '16px' }}><Link2 size={48} strokeWidth={1.5} /></div>
                     <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
-                      No hay agentes públicos disponibles
+                      No public agents available
                     </h3>
                     <p style={{ color: 'var(--text-secondary)' }}>
-                      Los agentes públicos de tus amigos aparecerán aquí para que puedas usarlos en tus flujos.
+                      Public agents from your friends will appear here so you can use them in your flows.
                     </p>
                   </div>
                 ) : (
@@ -887,7 +902,7 @@ export default function Library() {
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                           <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-                            Por {agent.owner_name}
+                            By {agent.owner_name}
                           </span>
                         </div>
                         
@@ -896,7 +911,7 @@ export default function Library() {
                         </h3>
                         
                         <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: '0 0 8px 0' }}>
-                          <strong>Personalidad:</strong> {agent.personality}
+                          <strong>Personality:</strong> {agent.personality}
                         </p>
                         <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: '0 0 12px 0' }}>
                           <strong>Expertise:</strong> {agent.expertise}
@@ -921,7 +936,7 @@ export default function Library() {
                             width: '100%'
                           }}
                         >
-                          <Plus size={14} /> Usar en Flujo
+                          <Plus size={14} /> Use in Flow
                         </button>
                       </div>
                     ))}

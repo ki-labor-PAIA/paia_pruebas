@@ -109,7 +109,7 @@ const AgentCard = ({ agent, onEdit, onDelete, onConfigure }) => {
               fontWeight: '500',
             }}
           >
-            Personalidad:
+            Personality:
           </span>
           <span
             style={{
@@ -183,7 +183,7 @@ const AgentCard = ({ agent, onEdit, onDelete, onConfigure }) => {
               fontWeight: '600',
             }}
           >
-            Publico
+            Public
           </span>
         )}
       </div>
@@ -217,7 +217,7 @@ const AgentCard = ({ agent, onEdit, onDelete, onConfigure }) => {
             e.currentTarget.style.background = 'var(--primary-color)';
           }}
         >
-          Editar
+          Edit
         </button>
 
         <button
@@ -241,7 +241,7 @@ const AgentCard = ({ agent, onEdit, onDelete, onConfigure }) => {
             e.currentTarget.style.background = '#3B82F6';
           }}
         >
-          Configurar
+          Configure
         </button>
 
         <button
@@ -266,7 +266,7 @@ const AgentCard = ({ agent, onEdit, onDelete, onConfigure }) => {
             e.currentTarget.style.color = '#EF4444';
           }}
         >
-          Eliminar
+          Delete
         </button>
       </div>
 
@@ -279,7 +279,7 @@ const AgentCard = ({ agent, onEdit, onDelete, onConfigure }) => {
             textAlign: 'right',
           }}
         >
-          Creado: {new Date(agent.created_at).toLocaleDateString()}
+          Created: {new Date(agent.created_at).toLocaleDateString()}
         </div>
       )}
     </div>

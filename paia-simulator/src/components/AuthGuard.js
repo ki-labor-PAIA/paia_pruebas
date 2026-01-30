@@ -24,7 +24,7 @@ export default function AuthGuard({ children }) {
         height: '100vh',
         fontFamily: 'Inter, sans-serif'
       }}>
-        <div>Cargando...</div>
+        <div>Loading...</div>
       </div>
     )
   }

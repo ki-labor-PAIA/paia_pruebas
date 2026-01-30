@@ -83,4 +83,13 @@ def create_flows_router(db_manager: Any) -> APIRouter:
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
+    @router.get('/api/flows/friends/{user_id}/active')
+    async def get_friends_active_flows(user_id: str) -> Dict[str, Any]:
+        """Get active flows from connected friends"""
+        try:
+            flows = await db_manager.get_friends_active_flows(user_id)
+            return {'active_flows': flows}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
+
     return router

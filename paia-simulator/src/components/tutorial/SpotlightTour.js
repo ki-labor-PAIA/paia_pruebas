@@ -257,7 +257,7 @@ export default function SpotlightTour({ steps = [], forceOpen = false, onClose }
         </div>
         <div style={{ marginBottom: 4, opacity: 0.95 }}>{step?.description}</div>
         <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 12 }}>
-          Paso {index + 1} de {steps.length}
+          Step {index + 1} of {steps.length}
         </div>
 
         <div style={btnRow}>
@@ -272,7 +272,7 @@ export default function SpotlightTour({ steps = [], forceOpen = false, onClose }
             onMouseEnter={(e) => { if (index !== 0) e.target.style.background = 'rgba(255,255,255,0.3)' }}
             onMouseLeave={(e) => { if (index !== 0) e.target.style.background = 'rgba(255,255,255,0.2)' }}
           >
-            ← Anterior
+            ← Previous
           </button>
           {index < steps.length - 1 ? (
             <button
@@ -281,7 +281,7 @@ export default function SpotlightTour({ steps = [], forceOpen = false, onClose }
               onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
               onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
             >
-              Siguiente →
+              Next →
             </button>
           ) : (
             <button
@@ -290,7 +290,7 @@ export default function SpotlightTour({ steps = [], forceOpen = false, onClose }
               onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
               onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
             >
-              ✓ Finalizar
+              ✓ Finish
             </button>
           )}
           <button
@@ -299,7 +299,7 @@ export default function SpotlightTour({ steps = [], forceOpen = false, onClose }
             onMouseEnter={(e) => e.target.style.background = 'rgba(239, 68, 68, 0.3)'}
             onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
           >
-            Saltar
+            Skip
           </button>
         </div>
       </div>

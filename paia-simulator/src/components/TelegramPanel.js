@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 export default function TelegramPanel({ onClose }) {
   const { data: session } = useSession();
   const [telegramChatId, setTelegramChatId] = useState('');
-  const [testMessage, setTestMessage] = useState('Hola desde PAIA! 👋');
+  const [testMessage, setTestMessage] = useState('Hello from PAIA! 👋');
   const [updates, setUpdates] = useState([]);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
@@ -17,13 +17,13 @@ export default function TelegramPanel({ onClose }) {
       const data = await response.json();
       
       if (data.success && data.updates) {
-        setUpdates(data.updates.slice(-5)); // Últimas 5 actualizaciones
-        setStatus('Actualizaciones obtenidas correctamente');
+        setUpdates(data.updates.slice(-5)); // Last 5 updates
+        setStatus('Updates retrieved successfully');
       } else {
-        setStatus('No hay actualizaciones disponibles');
+        setStatus('No updates available');
       }
     } catch (error) {
-      setStatus('Error obteniendo actualizaciones: ' + error.message);
+      setStatus('Error getting updates: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -32,7 +32,7 @@ export default function TelegramPanel({ onClose }) {
   // Enviar mensaje de prueba
   const sendTestMessage = async () => {
     if (!telegramChatId.trim()) {
-      setStatus('Por favor ingresa un Chat ID');
+      setStatus('Please enter a Chat ID');
       return;
     }
 
@@ -50,12 +50,12 @@ export default function TelegramPanel({ onClose }) {
       const data = await response.json();
       
       if (data.success) {
-        setStatus('✅ Mensaje enviado correctamente!');
+        setStatus('✅ Message sent successfully!');
       } else {
         setStatus('❌ Error: ' + data.message);
       }
     } catch (error) {
-      setStatus('❌ Error enviando mensaje: ' + error.message);
+      setStatus('❌ Error sending message: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -96,7 +96,7 @@ export default function TelegramPanel({ onClose }) {
           borderBottom: '1px solid #e5e7eb',
           paddingBottom: '15px'
         }}>
-          <h2 style={{ margin: 0, color: '#333' }}>📱 Configuración de Telegram</h2>
+          <h2 style={{ margin: 0, color: '#333' }}>📱 Telegram Configuration</h2>
           <button
             onClick={onClose}
             style={{
@@ -112,16 +112,16 @@ export default function TelegramPanel({ onClose }) {
         </div>
 
         <div style={{ marginBottom: '25px' }}>
-          <h3 style={{ color: '#4f46e5', marginBottom: '10px' }}>🔍 Encontrar tu Chat ID</h3>
+          <h3 style={{ color: '#4f46e5', marginBottom: '10px' }}>🔍 Find Your Chat ID</h3>
           <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '8px', marginBottom: '15px' }}>
             <p style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#64748b' }}>
-              Para usar Telegram con PAIA:
+              To use Telegram with PAIA:
             </p>
             <ol style={{ margin: 0, paddingLeft: '20px', fontSize: '14px', color: '#64748b' }}>
-              <li>Busca el bot de PAIA en Telegram</li>
-              <li>Envía cualquier mensaje al bot</li>
-              <li>Haz clic en Obtener Actualizaciones abajo</li>
-              <li>Copia tu Chat ID y úsalo para configurar</li>
+              <li>Search for the PAIA bot on Telegram</li>
+              <li>Send any message to the bot</li>
+              <li>Click on Get Updates below</li>
+              <li>Copy your Chat ID and use it to configure</li>
             </ol>
           </div>
           
@@ -138,13 +138,13 @@ export default function TelegramPanel({ onClose }) {
               opacity: loading ? 0.6 : 1
             }}
           >
-            {loading ? 'Obteniendo...' : '🔄 Obtener Actualizaciones'}
+            {loading ? 'Getting...' : '🔄 Get Updates'}
           </button>
         </div>
 
         {updates.length > 0 && (
           <div style={{ marginBottom: '25px' }}>
-            <h4 style={{ color: '#333', marginBottom: '10px' }}>Últimas actualizaciones:</h4>
+            <h4 style={{ color: '#333', marginBottom: '10px' }}>Latest updates:</h4>
             <div style={{ 
               background: '#f1f5f9', 
               padding: '15px', 
@@ -162,8 +162,8 @@ export default function TelegramPanel({ onClose }) {
                 }}>
                   <strong>Chat ID: {update.message?.chat?.id}</strong><br/>
                   <span style={{ color: '#666' }}>
-                    De: {update.message?.from?.first_name} (@{update.message?.from?.username})<br/>
-                    Mensaje: {update.message?.text}
+                    From: {update.message?.from?.first_name} (@{update.message?.from?.username})<br/>
+                    Message: {update.message?.text}
                   </span>
                 </div>
               ))}
@@ -172,7 +172,7 @@ export default function TelegramPanel({ onClose }) {
         )}
 
         <div style={{ marginBottom: '25px' }}>
-          <h3 style={{ color: '#4f46e5', marginBottom: '15px' }}>📤 Probar Envío de Mensaje</h3>
+          <h3 style={{ color: '#4f46e5', marginBottom: '15px' }}>📤 Test Message Sending</h3>
           
           <div style={{ marginBottom: '15px' }}>
             <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>
@@ -182,7 +182,7 @@ export default function TelegramPanel({ onClose }) {
               type="text"
               value={telegramChatId}
               onChange={(e) => setTelegramChatId(e.target.value)}
-              placeholder="Ejemplo: 123456789"
+              placeholder="Example: 123456789"
               style={{
                 width: '100%',
                 padding: '10px',
@@ -195,7 +195,7 @@ export default function TelegramPanel({ onClose }) {
 
           <div style={{ marginBottom: '15px' }}>
             <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>
-              Mensaje de prueba:
+              Test message:
             </label>
             <textarea
               value={testMessage}
@@ -227,7 +227,7 @@ export default function TelegramPanel({ onClose }) {
               fontWeight: '500'
             }}
           >
-            {loading ? 'Enviando...' : '📤 Enviar Mensaje de Prueba'}
+            {loading ? 'Sending...' : '📤 Send Test Message'}
           </button>
         </div>
 
@@ -251,9 +251,9 @@ export default function TelegramPanel({ onClose }) {
           fontSize: '14px',
           color: '#64748b'
         }}>
-          <strong>💡 Tip:</strong> Una vez que tengas tu Chat ID configurado, 
-          los agentes podrán enviarte notificaciones automáticamente por Telegram 
-          cuando completen tareas o necesiten tu atención.
+          <strong>💡 Tip:</strong> Once you have your Chat ID configured,
+          agents will be able to send you automatic notifications via Telegram
+          when they complete tasks or need your attention.
         </div>
       </div>
     </div>

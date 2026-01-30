@@ -124,33 +124,12 @@ def create_communication_tools(
             Response from the queried agent
         """
         try:
-            # IMPROVEMENT: Intelligent auto-activation of agents
+            # Cargar agente automaticamente (lazy loading desde BD si es necesario)
+            print(f"[INTER-PAIA] Cargando agente {target_agent_id}...")
             target_agent = await ensure_agent_loaded_func(target_agent_id)
 
             if not target_agent:
-                print(f"[AUTO-WAKE] Attempting to activate agent {target_agent_id}...")
-
-                # Search agent in database
-                db_agent = await db_manager.get_agent(target_agent_id)
-                if not db_agent:
-                    return f"❌ El agente con ID '{target_agent_id}' no existe en el sistema."
-
-                # Try to load agent with their user_id
-                target_agent = await ensure_agent_loaded_func(target_agent_id, db_agent.user_id)
-
-                if target_agent:
-                    # Mark as active and log activation
-                    await db_manager.update_agent(target_agent_id, {"status": "online"})
-                    print(f"[AUTO-WAKE] ✅ Agente '{db_agent.name}' (usuario: {db_agent.user_id}) activado automáticamente")
-
-                    # Add small delay to ensure agent is fully initialized
-                    import asyncio
-                    await asyncio.sleep(0.5)
-                else:
-                    return f"❌ No se pudo activar el agente '{target_agent_id}'. El usuario propietario podría no estar disponible."
-
-            if not target_agent:
-                return f"❌ El agente con ID '{target_agent_id}' no está disponible en este momento."
+                return f"El agente con ID '{target_agent_id}' no existe o no esta disponible."
 
             # Build intelligent message
             sender_agent = agents_store.get(agent_id)

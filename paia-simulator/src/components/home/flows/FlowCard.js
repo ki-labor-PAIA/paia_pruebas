@@ -86,7 +86,7 @@ const FlowCard = ({
             marginRight: '12px',
           }}
         >
-          {flow.name || 'Sin nombre'}
+          {flow.name || 'Untitled'}
         </h3>
         <div
           style={{
@@ -111,7 +111,7 @@ const FlowCard = ({
               fontWeight: '500',
             }}
           >
-            {flow.is_active ? 'Activo' : 'Inactivo'}
+            {flow.is_active ? 'Active' : 'Inactive'}
           </span>
         </div>
       </div>
@@ -125,7 +125,7 @@ const FlowCard = ({
           minHeight: '42px',
         }}
       >
-        {flow.description || 'Sin descripción'}
+        {flow.description || 'No description'}
       </p>
 
       <div
@@ -159,7 +159,7 @@ const FlowCard = ({
               fontWeight: '600',
             }}
           >
-            Público
+            Public
           </span>
         )}
         {flow.created_at && (
@@ -173,7 +173,7 @@ const FlowCard = ({
               fontWeight: '500',
             }}
           >
-            Creado: {formatDate(flow.created_at)}
+            Created: {formatDate(flow.created_at)}
           </span>
         )}
       </div>
@@ -210,7 +210,7 @@ const FlowCard = ({
             onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
             onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
           >
-            Editar
+            Edit
           </button>
           <button
             onClick={handleToggleStatus}
@@ -228,7 +228,7 @@ const FlowCard = ({
             onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
             onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
           >
-            {flow.is_active ? 'Desactivar' : 'Activar'}
+            {flow.is_active ? 'Deactivate' : 'Activate'}
           </button>
           {onDuplicate && (
             <button
@@ -253,7 +253,7 @@ const FlowCard = ({
                 e.currentTarget.style.color = 'var(--primary-color)';
               }}
             >
-              Duplicar
+              Duplicate
             </button>
           )}
         </div>
@@ -281,7 +281,7 @@ const FlowCard = ({
             e.currentTarget.style.color = '#EF4444';
           }}
         >
-          Eliminar
+          Delete
         </button>
       </div>
 
@@ -295,7 +295,7 @@ const FlowCard = ({
             borderTop: '1px solid var(--border-color)',
           }}
         >
-          Actualizado: {formatDate(flow.updated_at)}
+          Updated: {formatDate(flow.updated_at)}
         </div>
       )}
     </div>

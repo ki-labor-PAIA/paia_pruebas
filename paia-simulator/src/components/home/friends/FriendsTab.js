@@ -70,13 +70,13 @@ export default function FriendsTab({
   const FriendCard = ({ friend, isPending = false }) => {
     const getConnectionStatusBadge = (status) => {
       if (status === 'accepted') {
-        return { text: 'Amigo', icon: '✓', color: '#10B981' };
+        return { text: 'Friend', icon: '✓', color: '#10B981' };
       } else if (status === 'pending_sent') {
-        return { text: 'Solicitud Enviada', icon: '⏳', color: '#F59E0B' };
+        return { text: 'Request Sent', icon: '⏳', color: '#F59E0B' };
       } else if (status === 'pending_received') {
-        return { text: 'Solicitud Recibida', icon: '📩', color: '#3B82F6' };
+        return { text: 'Request Received', icon: '📩', color: '#3B82F6' };
       }
-      return { text: 'Desconocido', icon: '?', color: '#6B7280' };
+      return { text: 'Unknown', icon: '?', color: '#6B7280' };
     };
 
     const statusBadge = getConnectionStatusBadge(friend.status);
@@ -217,7 +217,7 @@ export default function FriendsTab({
                   e.target.style.background = '#10B981';
                 }}
               >
-                Aceptar
+                Accept
               </button>
               <button
                 onClick={() => onRejectRequest(friend)}
@@ -241,7 +241,7 @@ export default function FriendsTab({
                   e.target.style.color = '#EF4444';
                 }}
               >
-                Rechazar
+                Reject
               </button>
             </div>
           )}
@@ -253,7 +253,7 @@ export default function FriendsTab({
             color: 'var(--text-secondary)',
             marginTop: '12px'
           }}>
-            Conectado desde {new Date(friend.connected_since).toLocaleDateString()}
+            Connected since {new Date(friend.connected_since).toLocaleDateString()}
           </div>
         )}
       </div>
@@ -263,15 +263,24 @@ export default function FriendsTab({
   if (loading) {
     return (
       <div style={{
-        textAlign: 'center',
-        padding: '60px',
-        fontSize: '18px',
-        color: 'var(--text-secondary)',
-        backgroundColor: 'var(--card-bg)',
-        borderRadius: '16px',
-        border: '1px solid var(--border-color)'
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '400px'
       }}>
-        Cargando amigos...
+        <div style={{
+          textAlign: 'center',
+          padding: '60px',
+          fontSize: '18px',
+          color: 'var(--text-secondary)',
+          backgroundColor: 'var(--card-bg)',
+          borderRadius: '16px',
+          border: '1px solid var(--border-color)',
+          maxWidth: '600px',
+          width: '100%'
+        }}>
+          Loading friends...
+        </div>
       </div>
     );
   }
@@ -280,12 +289,13 @@ export default function FriendsTab({
     <div>
       <div style={{
         display: 'flex',
-        justifyContent: 'space-between',
+        flexDirection: 'column',
         alignItems: 'center',
-        marginBottom: '24px'
+        marginBottom: '24px',
+        gap: '16px'
       }}>
-        <h2 style={{ fontSize: '24px', fontWeight: '700', margin: 0 }}>
-          Mis Amigos
+        <h2 style={{ fontSize: '24px', fontWeight: '700', margin: 0, textAlign: 'center' }}>
+          My Friends
         </h2>
         <button
           onClick={onAddFriend}
@@ -312,23 +322,33 @@ export default function FriendsTab({
             e.target.style.boxShadow = 'none';
           }}
         >
-          + Agregar Amigo
+          + Add Friend
         </button>
       </div>
 
       {friends.length === 0 ? (
-        <EmptyState
-          icon="👥"
-          title="¡Conecta con amigos!"
-          description={
-            <>
-              Busca y conecta con otros usuarios para compartir flujos y agentes.<br/>
-              Colabora en proyectos y accede a recursos compartidos.
-            </>
-          }
-          actionLabel="Buscar Amigos"
-          onAction={onAddFriend}
-        />
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '400px'
+        }}>
+          <div style={{ maxWidth: '600px', width: '100%' }}>
+            <EmptyState
+              icon="👥"
+              title="Connect with friends!"
+              description={
+                <>
+                  Search and connect with other users to share flows and agents.<br/>
+                  Collaborate on projects and access shared resources.
+                </>
+              }
+              actionLabel="Search Friends"
+              onAction={onAddFriend}
+            />
+          </div>
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
           {pendingRequests.length > 0 && (
@@ -347,7 +367,7 @@ export default function FriendsTab({
                   margin: 0,
                   color: 'var(--text-primary)'
                 }}>
-                  Solicitudes Pendientes
+                  Pending Requests
                 </h3>
                 <span style={{
                   background: '#F59E0B',
@@ -363,7 +383,9 @@ export default function FriendsTab({
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                gap: '20px'
+                gap: '20px',
+                maxWidth: '1200px',
+                margin: '0 auto'
               }}>
                 {pendingRequests.map(friend => (
                   <FriendCard
@@ -392,7 +414,7 @@ export default function FriendsTab({
                   margin: 0,
                   color: 'var(--text-primary)'
                 }}>
-                  Amigos Aceptados
+                  Accepted Friends
                 </h3>
                 <span style={{
                   background: '#10B981',
@@ -408,7 +430,9 @@ export default function FriendsTab({
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                gap: '20px'
+                gap: '20px',
+                maxWidth: '1200px',
+                margin: '0 auto'
               }}>
                 {acceptedFriends.map(friend => (
                   <FriendCard
@@ -434,7 +458,7 @@ export default function FriendsTab({
                 fontSize: '14px',
                 margin: 0
               }}>
-                No tienes amigos aceptados aún. Acepta las solicitudes pendientes o busca nuevos amigos.
+                You don't have any accepted friends yet. Accept pending requests or search for new friends.
               </p>
             </div>
           )}

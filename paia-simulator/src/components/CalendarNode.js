@@ -159,9 +159,9 @@ export default function CalendarNode({ data, isConnectable }) {
         }}
         className="calendar-tooltip"
       >
-        Google Calendar Conectado
+        Google Calendar Connected
         {data.userEmail && <br />}
-        {data.userEmail && `Usuario: ${data.userEmail}`}
+        {data.userEmail && `User: ${data.userEmail}`}
       </div>
 
     </div>

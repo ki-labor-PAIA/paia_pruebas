@@ -57,8 +57,8 @@ export default function useFlowSave({
             }
 
             const result = await response.json();
-            addLogMessage(`💾 Flujo '${flowData.name}' guardado exitosamente`);
-            addDecisionMessage('Sistema', `Flujo guardado con ID: ${result.flow_id}`, true);
+            addLogMessage(`💾 Flow '${flowData.name}' saved successfully`);
+            addDecisionMessage('Sistema', `Flow saved with ID: ${result.flow_id}`, true);
 
             if (!currentFlowId) {
                 setCurrentFlowId(result.flow_id);
@@ -82,8 +82,8 @@ export default function useFlowSave({
         try {
             const flowData = {
                 user_id: userId,
-                name: scenarioName || `Flujo ${new Date().toLocaleDateString()}`,
-                description: scenarioDesc || 'Auto-guardado',
+                name: scenarioName || `Flow ${new Date().toLocaleDateString()}`,
+                description: scenarioDesc || 'Auto-saved',
                 is_public: false,
                 tags: ['auto-save'],
                 flow_data: {
@@ -128,7 +128,7 @@ export default function useFlowSave({
                     setCurrentFlowId(result.flow_id);
                 }
                 setLastSaved(new Date());
-                console.log('💾 Flujo auto-guardado');
+                console.log('💾 Flow auto-saved');
             }
         } catch (error) {
             console.error('❌ Error en auto-guardado:', {

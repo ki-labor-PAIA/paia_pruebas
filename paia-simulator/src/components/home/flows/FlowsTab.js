@@ -71,7 +71,7 @@ const FlowsTab = ({
               fontWeight: '500',
             }}
           >
-            Cargando flujos...
+            Loading flows...
           </p>
         </div>
         <style>
@@ -91,10 +91,9 @@ const FlowsTab = ({
       <div
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
+          flexDirection: 'column',
           alignItems: 'center',
           marginBottom: '24px',
-          flexWrap: 'wrap',
           gap: '16px',
         }}
       >
@@ -105,9 +104,10 @@ const FlowsTab = ({
             fontWeight: '700',
             margin: 0,
             color: 'var(--text-primary)',
+            textAlign: 'center',
           }}
         >
-          Mis Flujos Guardados
+          My Saved Flows
         </h2>
         <button
           onClick={handleCreateNew}
@@ -128,23 +128,23 @@ const FlowsTab = ({
           onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
           onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
         >
-          Crear Nuevo Flujo
+          Create New Flow
         </button>
       </div>
 
       {flows.length === 0 ? (
         <EmptyState
           icon="⚡"
-          title="Crea tu primer flujo"
+          title="Create your first flow"
           description={
             <>
-              Diseña flujos de agentes inteligentes y guárdalos para compartir con amigos.
+              Design intelligent agent flows and save them to share with friends.
               <br />
-              Conecta humanos, IAs y servicios externos de forma visual.
+              Connect humans, AIs and external services visually.
             </>
           }
           action={{
-            label: 'Crear Mi Primer Flujo',
+            label: 'Create My First Flow',
             onClick: handleCreateNew,
           }}
         />
@@ -154,6 +154,8 @@ const FlowsTab = ({
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
             gap: '24px',
+            maxWidth: '1200px',
+            margin: '0 auto',
           }}
         >
           {flows.map((flow) => (
@@ -183,7 +185,7 @@ const FlowsTab = ({
               fontWeight: '500',
             }}
           >
-            {flows.length} {flows.length === 1 ? 'flujo guardado' : 'flujos guardados'}
+            {flows.length} {flows.length === 1 ? 'saved flow' : 'saved flows'}
           </p>
         </div>
       )}

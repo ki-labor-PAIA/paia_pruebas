@@ -15,7 +15,7 @@ export default function NotificationPanel({ userId, isOpen, onClose }) {
 
   const loadNotifications = async () => {
     if (!userId) {
-      setError('No se pudo obtener el ID del usuario');
+      setError('Could not get user ID');
       setLoading(false);
       return;
     }
@@ -43,7 +43,7 @@ export default function NotificationPanel({ userId, isOpen, onClose }) {
       setNotifications(data.notifications || []);
     } catch (err) {
       console.error('Error loading notifications:', err);
-      setError(`Error cargando notificaciones: ${err.message}`);
+      setError(`Error loading notifications: ${err.message}`);
       setNotifications([]);
     } finally {
       setLoading(false);
@@ -136,11 +136,11 @@ export default function NotificationPanel({ userId, isOpen, onClose }) {
       } else {
         const errorData = await apiResponse.json();
         console.error('Error responding to connection:', errorData);
-        alert(`Error al ${response === 'accept' ? 'aceptar' : 'rechazar'} la conexión`);
+        alert(`Error ${response === 'accept' ? 'accepting' : 'rejecting'} the connection`);
       }
     } catch (err) {
       console.error('Error handling connection response:', err);
-      alert('Error de conexión. Intenta de nuevo.');
+      alert('Connection error. Try again.');
     }
   };
 
@@ -173,12 +173,12 @@ export default function NotificationPanel({ userId, isOpen, onClose }) {
     const diffDays = Math.floor(diffHours / 24);
 
     if (diffDays > 0) {
-      return `hace ${diffDays} día${diffDays > 1 ? 's' : ''}`;
+      return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
     } else if (diffHours > 0) {
-      return `hace ${diffHours} hora${diffHours > 1 ? 's' : ''}`;
+      return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
     } else {
       const diffMinutes = Math.floor(diffMs / (1000 * 60));
-      return `hace ${Math.max(1, diffMinutes)} min`;
+      return `${Math.max(1, diffMinutes)} min ago`;
     }
   };
 
@@ -218,7 +218,7 @@ export default function NotificationPanel({ userId, isOpen, onClose }) {
             margin: 0,
             marginBottom: '4px'
           }}>
-            📢 Notificaciones
+            📢 Notifications
             {unreadCount > 0 && (
               <span style={{
                 marginLeft: '8px',
@@ -255,7 +255,7 @@ export default function NotificationPanel({ userId, isOpen, onClose }) {
                   transition: 'all 0.2s ease'
                 }}
               >
-                {filterType === 'all' ? 'Todas' : filterType === 'unread' ? 'No leídas' : 'Leídas'}
+                {filterType === 'all' ? 'All' : filterType === 'unread' ? 'Unread' : 'Read'}
               </button>
             ))}
           </div>
@@ -275,7 +275,7 @@ export default function NotificationPanel({ userId, isOpen, onClose }) {
                 borderRadius: '4px',
                 fontWeight: '500'
               }}
-              title="Marcar todas como leídas"
+              title="Mark all as read"
             >
               ✓ Todas
             </button>
@@ -293,7 +293,7 @@ export default function NotificationPanel({ userId, isOpen, onClose }) {
               borderRadius: '4px',
               fontWeight: '500'
             }}
-            title="Crear notificación de prueba"
+            title="Create test notification"
           >
             🧪 Test
           </button>
@@ -332,7 +332,7 @@ export default function NotificationPanel({ userId, isOpen, onClose }) {
             color: 'var(--text-secondary)',
             fontSize: '14px'
           }}>
-            🔄 Cargando notificaciones...
+            🔄 Loading notifications...
           </div>
         )}
 
@@ -356,7 +356,7 @@ export default function NotificationPanel({ userId, isOpen, onClose }) {
             color: 'var(--text-secondary)',
             fontSize: '14px'
           }}>
-            {filter === 'unread' ? '🎉 No tienes notificaciones pendientes' : '📭 No hay notificaciones'}
+            {filter === 'unread' ? '🎉 No pending notifications' : '📭 No notifications'}
           </div>
         )}
 
@@ -466,7 +466,7 @@ export default function NotificationPanel({ userId, isOpen, onClose }) {
                       onMouseEnter={(e) => e.target.style.backgroundColor = '#059669'}
                       onMouseLeave={(e) => e.target.style.backgroundColor = '#10B981'}
                     >
-                      ✅ Aceptar
+                      ✅ Accept
                     </button>
                     
                     <button
@@ -492,7 +492,7 @@ export default function NotificationPanel({ userId, isOpen, onClose }) {
                       onMouseEnter={(e) => e.target.style.backgroundColor = '#DC2626'}
                       onMouseLeave={(e) => e.target.style.backgroundColor = '#EF4444'}
                     >
-                      ❌ Rechazar
+                      ❌ Reject
                     </button>
                   </div>
                 )}
@@ -516,7 +516,7 @@ export default function NotificationPanel({ userId, isOpen, onClose }) {
                     alignItems: 'center',
                     gap: '4px'
                   }}>
-                    {notification.metadata.response_given === 'accept' ? '✅ Aceptada' : '❌ Rechazada'}
+                    {notification.metadata.response_given === 'accept' ? '✅ Accepted' : '❌ Rejected'}
                     <span style={{ fontSize: '11px', opacity: 0.7 }}>
                       • {getTimeAgo(notification.metadata.responded_at)}
                     </span>
@@ -561,7 +561,7 @@ export default function NotificationPanel({ userId, isOpen, onClose }) {
               fontWeight: '500'
             }}
           >
-            🔄 Actualizar
+            🔄 Refresh
           </button>
         </div>
       )}

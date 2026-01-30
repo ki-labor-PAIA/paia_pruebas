@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { HelpCircle, Save, Users, Search, UserPlus, Bell, Play, Infinity, Square, RotateCcw } from 'lucide-react';
 
 export default function LeftSidebar({
   scenarioName,
@@ -13,21 +14,25 @@ export default function LeftSidebar({
   onAddConnectionNode,
   onSaveFlow,
   onConnectUser,
-  onShowFriends
+  onShowFriends,
+  isOpen = true
 }) {
   const { t } = useTranslation();
 
   return (
-    <div className="sidebar left">
+    <div className={`sidebar left ${isOpen ? 'sidebar-open' : 'sidebar-closed'}`} style={{
+      transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
+      transition: 'transform 0.3s ease'
+    }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2>⚙️ PAIA Builder</h2>
-        <button 
-          onClick={onShowGuide} 
-          className="discreet-button" 
-          style={{ width: 'auto', padding: '6px 8px' }} 
-          title="Mostrar guía"
+        <button
+          onClick={onShowGuide}
+          className="discreet-button"
+          style={{ width: 'auto', padding: '6px 8px' }}
+          title="Show guide"
         >
-          <i className="fas fa-question"></i>
+          <HelpCircle size={16} />
         </button>
       </div>
 
@@ -49,25 +54,29 @@ export default function LeftSidebar({
 
 
       <div className="button-group">
-        <div className="button-group-title">💾 Archivo</div>
+        <div className="button-group-title">💾 File</div>
         <button data-tour="save-flow" onClick={onSaveFlow} className="discreet-button" style={{
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           color: 'white',
           fontWeight: '600',
-          border: 'none'
+          border: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px'
         }}>
-          <i className="fas fa-save"></i> Guardar Flujo
+          <Save size={16} /> Save Flow
         </button>
       </div>
 
 
       <div className="button-group">
-        <div className="button-group-title">🔗 Conexiones</div>
-        <button 
-          onClick={onShowFriends} 
+        <div className="button-group-title">🔗 Connections</div>
+        <button
+          onClick={onShowFriends}
           className="discreet-button"
-          style={{ 
-            fontSize: '0.85em', 
+          style={{
+            fontSize: '0.85em',
             fontWeight: '500',
             display: 'flex',
             alignItems: 'center',
@@ -78,13 +87,13 @@ export default function LeftSidebar({
             marginBottom: '8px'
           }}
         >
-          <i className="fas fa-users"></i> Amigos
+          <Users size={16} /> Friends
         </button>
-        <button 
-          onClick={onConnectUser} 
+        <button
+          onClick={onConnectUser}
           className="discreet-button"
-          style={{ 
-            fontSize: '0.85em', 
+          style={{
+            fontSize: '0.85em',
             fontWeight: '500',
             display: 'flex',
             alignItems: 'center',
@@ -94,13 +103,13 @@ export default function LeftSidebar({
             justifyContent: 'center'
           }}
         >
-          <i className="fas fa-search"></i> Buscar Usuario
+          <Search size={16} /> Search User
         </button>
-        <button 
-          onClick={() => onAddConnectionNode && onAddConnectionNode('user')} 
+        <button
+          onClick={() => onAddConnectionNode && onAddConnectionNode('user')}
           className="discreet-button"
-          style={{ 
-            fontSize: '0.85em', 
+          style={{
+            fontSize: '0.85em',
             fontWeight: '500',
             display: 'flex',
             alignItems: 'center',
@@ -108,13 +117,13 @@ export default function LeftSidebar({
             padding: '8px 12px'
           }}
         >
-          👤 Añadir Nodo Conexión
+          <UserPlus size={16} /> Add Connection Node
         </button>
-        <button 
-          onClick={() => onAddConnectionNode && onAddConnectionNode('notification')} 
+        <button
+          onClick={() => onAddConnectionNode && onAddConnectionNode('notification')}
           className="discreet-button"
-          style={{ 
-            fontSize: '0.85em', 
+          style={{
+            fontSize: '0.85em',
             fontWeight: '500',
             display: 'flex',
             alignItems: 'center',
@@ -122,21 +131,21 @@ export default function LeftSidebar({
             padding: '8px 12px'
           }}
         >
-          📢 Notificaciones
+          <Bell size={16} /> Notifications
         </button>
       </div>
 
       <div className="button-group">
-        <div className="button-group-title">▶️ Ejecutar Flujo</div>
+        <div className="button-group-title">▶️ Run Flow</div>
         {!isRunning ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <button
               data-tour="start-simulation"
               onClick={() => onRun({ mode: 'once' })}
               className="discreet-button simulation-button"
-              style={{ fontSize: '0.9em', fontWeight: '600' }}
+              style={{ fontSize: '0.9em', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
             >
-              <i className="fas fa-play"></i>
+              <Play size={16} />
               Run Once
             </button>
             <button
@@ -146,10 +155,14 @@ export default function LeftSidebar({
                 fontSize: '0.9em',
                 fontWeight: '600',
                 backgroundColor: '#10B981',
-                color: 'white'
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
               }}
             >
-              <i className="fas fa-infinity"></i>
+              <Infinity size={16} />
               Keep Active
             </button>
           </div>
@@ -157,14 +170,14 @@ export default function LeftSidebar({
           <button
             onClick={onStop}
             className="discreet-button simulation-button"
-            style={{ fontSize: '0.9em', fontWeight: '600', backgroundColor: '#ef4444', color: 'white' }}
+            style={{ fontSize: '0.9em', fontWeight: '600', backgroundColor: '#ef4444', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
           >
-            <i className="fas fa-stop"></i>
+            <Square size={16} />
             Stop
           </button>
         )}
-        <button onClick={onReset} className="discreet-button reset-button">
-          <i className="fas fa-redo"></i> {t('nav.reset')}
+        <button onClick={onReset} className="discreet-button reset-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+          <RotateCcw size={16} /> {t('nav.reset')}
         </button>
       </div>
     </div>

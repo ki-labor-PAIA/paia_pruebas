@@ -14,7 +14,7 @@ const Header = ({
   onCreateAgentClick
 }) => {
   return (
-    <div style={{
+    <div className="library-header" style={{
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
@@ -22,9 +22,11 @@ const Header = ({
       padding: '24px',
       backgroundColor: 'var(--card-bg)',
       borderRadius: '16px',
-      border: '1px solid var(--border-color)'
+      border: '1px solid var(--border-color)',
+      flexWrap: 'wrap',
+      gap: '16px'
     }}>
-      <div>
+      <div style={{ flex: '1 1 auto', minWidth: '200px' }}>
         <h1 style={{
           fontSize: '32px',
           fontWeight: '800',
@@ -46,7 +48,7 @@ const Header = ({
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
         {showNotifications && (
           <button
             onClick={onNotificationsClick}
@@ -65,7 +67,7 @@ const Header = ({
               gap: '8px'
             }}
           >
-            Notificaciones
+            Notifications
             {notificationCount > 0 && (
               <span style={{
                 position: 'absolute',
@@ -123,7 +125,7 @@ const Header = ({
               gap: '8px'
             }}
           >
-            Conectar Usuario
+            Connect User
           </button>
         )}
 
@@ -144,7 +146,7 @@ const Header = ({
               gap: '8px'
             }}
           >
-            Crear Agente
+            Create Agent
           </button>
         )}
       </div>

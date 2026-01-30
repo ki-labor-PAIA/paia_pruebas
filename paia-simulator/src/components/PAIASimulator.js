@@ -7,6 +7,7 @@ import ReactFlow, {
   MarkerType,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import LeftSidebar from './LeftSidebar';
 import RightSidebar from './RightSidebarV2';
@@ -127,7 +128,12 @@ export default function PAIASimulator({ initialFlow }) {
   const [conversationTargetAgent, setConversationTargetAgent] = useState(null);
   const [isConversationActive, setIsConversationActive] = useState(false);
 
+  // Estados para sidebars colapsables
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(true);
+
   const simulationRef = useRef(null);
+  const reactFlowInstanceRef = useRef(null);
 
   // Backend integration
   const {
@@ -167,7 +173,8 @@ export default function PAIASimulator({ initialFlow }) {
     setActiveConnectionNodeId,
     setShowConnectUserModal,
     setShowConfigureCalendar,
-    createBackendAgent
+    createBackendAgent,
+    reactFlowInstance: reactFlowInstanceRef.current
   });
 
   // Comentado para no mostrar la guía automáticamente
@@ -224,7 +231,8 @@ export default function PAIASimulator({ initialFlow }) {
     useBackend,
     isConnected,
     simulateWithBackend,
-    userId
+    userId,
+    setStats
   });
 
   const onConnect = useCallback(
@@ -253,12 +261,12 @@ export default function PAIASimulator({ initialFlow }) {
               type: 'direct'
             });
 
-            addLogMessage(`🔗 Conexión creada en backend: ${sourceNode.data.label} → ${targetNode.data.label}`);
-            addDecisionMessage('Sistema', `Conexión backend establecida entre ${sourceNode.data.label} y ${targetNode.data.label}`, true);
+            addLogMessage(`🔗 Backend connection created: ${sourceNode.data.label} → ${targetNode.data.label}`);
+            addDecisionMessage('System', `Backend connection established between ${sourceNode.data.label} and ${targetNode.data.label}`, true);
           }
         } catch (error) {
           console.error('Error creating backend connection:', error);
-          addLogMessage(`❌ Error creando conexión en backend: ${error.message}`);
+          addLogMessage(`❌ Error creating backend connection: ${error.message}`);
         }
       }
     },
@@ -279,7 +287,7 @@ export default function PAIASimulator({ initialFlow }) {
       // Para humanos: mostrar configuración + historial de mensajes recibidos
       const systemMessage = {
         sender: 'system',
-        content: `Configurando ${agent.data.label}. Escribe el mensaje que este humano enviará durante la simulación. Mensaje actual: "${agent.data.customMessage || 'Sin mensaje configurado'}"`,
+        content: `Configuring ${agent.data.label}. Write the message this human will send during simulation. Current message: "${agent.data.customMessage || 'No message configured'}"`,
         timestamp: new Date().toLocaleTimeString()
       };
 
@@ -308,7 +316,7 @@ export default function PAIASimulator({ initialFlow }) {
     addLogMessage(`📝 Mensaje actualizado para ${nodes.find(n => n.id === nodeId)?.data.label}: "${newMessage}"`);
   }, [nodes, addLogMessage]);
 
-  // Función para iniciar conversación entre agentes
+  // Funcion para iniciar conversacion entre agentes
   const startAgentConversation = useCallback(async (sourceAgentNode, targetAgentNode, userRequest) => {
     // Cerrar el chat actual
     setShowChat(false);
@@ -332,24 +340,82 @@ export default function PAIASimulator({ initialFlow }) {
     setShowAgentConversation(true);
     setIsConversationActive(true);
 
-    // Generar conversación de demostración
-    const demoMessages = generateMeetingConversation(sourceAgent.id, targetAgent.id);
+    // Add user message
+    const userMessage = {
+      id: `msg-${Date.now()}`,
+      sender: 'user',
+      agentName: 'You',
+      content: userRequest,
+      timestamp: new Date().toLocaleTimeString()
+    };
+    setAgentConversationMessages(prev => [...prev, userMessage]);
 
-    // Simular envío progresivo de mensajes
-    await simulateConversation(
-      demoMessages,
-      (message) => {
-        setAgentConversationMessages(prev => [...prev, message]);
-      },
-      2500 // 2.5 segundos entre mensajes
-    );
+    try {
+      // Add "thinking" message from source agent
+      const thinkingMessage = {
+        id: `msg-thinking-${Date.now()}`,
+        sender: sourceAgent.id,
+        agentName: sourceAgent.name,
+        content: `Consulting ${targetAgent.name}...`,
+        timestamp: new Date().toLocaleTimeString(),
+        isThinking: true
+      };
+      setAgentConversationMessages(prev => [...prev, thinkingMessage]);
+
+      // Llamar a la API real - enviar mensaje al agente origen
+      const response = await PAIAApi.sendMessage(
+        sourceAgent.id,
+        userRequest,
+        session?.user?.id || null
+      );
+
+      // Remover mensaje de "pensando"
+      setAgentConversationMessages(prev => prev.filter(m => !m.isThinking));
+
+      if (response && response.response) {
+        // Add agent response
+        const agentResponse = {
+          id: `msg-${Date.now()}-response`,
+          sender: sourceAgent.id,
+          agentName: sourceAgent.name,
+          content: response.response,
+          timestamp: new Date().toLocaleTimeString()
+        };
+        setAgentConversationMessages(prev => [...prev, agentResponse]);
+      } else {
+        // Error or no response
+        const errorMessage = {
+          id: `msg-${Date.now()}-error`,
+          sender: 'system',
+          agentName: 'System',
+          content: 'Could not get response from agent.',
+          timestamp: new Date().toLocaleTimeString(),
+          isError: true
+        };
+        setAgentConversationMessages(prev => [...prev, errorMessage]);
+      }
+    } catch (error) {
+      console.error('Error in agent conversation:', error);
+      // Remove "thinking" message if exists
+      setAgentConversationMessages(prev => prev.filter(m => !m.isThinking));
+
+      const errorMessage = {
+        id: `msg-${Date.now()}-error`,
+        sender: 'system',
+        agentName: 'System',
+        content: `Error: ${error.message || 'Unknown error'}`,
+        timestamp: new Date().toLocaleTimeString(),
+        isError: true
+      };
+      setAgentConversationMessages(prev => [...prev, errorMessage]);
+    }
 
     setIsConversationActive(false);
 
-    // Log del evento
-    addLogMessage(`🤝 Conversación completada entre ${sourceAgent.name} y ${targetAgent.name}`);
-    addDecisionMessage('Sistema', `Los agentes han coordinado exitosamente`, true);
-  }, [addLogMessage, addDecisionMessage, setShowChat]);
+    // Log event
+    addLogMessage(`Conversation between ${sourceAgent.name} and ${targetAgent.name}`);
+    addDecisionMessage('System', `Inter-agent communication completed`, true);
+  }, [addLogMessage, addDecisionMessage, setShowChat, session]);
 
   const sendChatMessage = useCallback(async (message) => {
     console.log(' sendChatMessage llamado con:', message);
@@ -664,13 +730,12 @@ export default function PAIASimulator({ initialFlow }) {
   const resetSimulation = useCallback(() => {
     setNodes([]);
     setEdges([]);
-    setLogMessages([]);
-    setDecisions([{ id: 1, sender: 'Sistema', message: 'Simulación reiniciada', isSystem: true }]);
     actorIdRef.current = 1;
     setScenarioName('');
     setScenarioDesc('');
-    addLogMessage('🔄 Sistema reiniciado');
-  }, [addLogMessage]);
+    addLogMessage('🔄 System reset');
+    addDecisionMessage('System', 'Simulation reset', true);
+  }, [addLogMessage, addDecisionMessage]);
 
   // Definir nodeTypes con props
   const nodeTypes = useMemo(() => ({
@@ -684,6 +749,32 @@ export default function PAIASimulator({ initialFlow }) {
     <div style={{ width: '100vw', height: '100vh', display: 'flex' }}>
       <UserHeader />
       <div style={{ width: '100%', height: '100%', display: 'flex', paddingTop: '60px' }}>
+        {/* Toggle button para left sidebar */}
+        <button
+          onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}
+          className="sidebar-toggle sidebar-toggle-left"
+          style={{
+            position: 'fixed',
+            left: leftSidebarOpen ? '280px' : '0',
+            top: '70px',
+            zIndex: 1001,
+            background: 'var(--primary-color)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '0 8px 8px 0',
+            padding: '12px 8px',
+            cursor: 'pointer',
+            transition: 'left 0.3s ease',
+            boxShadow: '2px 2px 8px rgba(0,0,0,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+          title={leftSidebarOpen ? 'Hide left panel' : 'Show left panel'}
+        >
+          {leftSidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+        </button>
+
         <LeftSidebar
           scenarioName={scenarioName}
           setScenarioName={setScenarioName}
@@ -705,21 +796,57 @@ export default function PAIASimulator({ initialFlow }) {
           onConnectUser={openSocialConnectionModal}
           onSaveFlow={() => setShowSaveFlow(true)}
           onShowFriends={() => setShowFriendsPanel(true)}
+          isOpen={leftSidebarOpen}
         />
 
-        <div style={{ flex: 1, margin: '0 280px', position: 'relative' }}>
+        <div style={{
+          flex: 1,
+          marginLeft: leftSidebarOpen ? '280px' : '0',
+          marginRight: rightSidebarOpen ? '280px' : '0',
+          position: 'relative',
+          transition: 'margin 0.3s ease'
+        }}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onInit={(instance) => {
+              reactFlowInstanceRef.current = instance;
+            }}
             nodeTypes={nodeTypes}
             fitView
           >
             <Controls />
           </ReactFlow>
         </div>
+
+        {/* Toggle button para right sidebar */}
+        <button
+          onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
+          className="sidebar-toggle sidebar-toggle-right"
+          style={{
+            position: 'fixed',
+            right: rightSidebarOpen ? '280px' : '0',
+            top: '70px',
+            zIndex: 1001,
+            background: 'var(--primary-color)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px 0 0 8px',
+            padding: '12px 8px',
+            cursor: 'pointer',
+            transition: 'right 0.3s ease',
+            boxShadow: '-2px 2px 8px rgba(0,0,0,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+          title={rightSidebarOpen ? 'Hide right panel' : 'Show right panel'}
+        >
+          {rightSidebarOpen ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+        </button>
 
         <RightSidebar
           onAddActor={addActor}
@@ -734,11 +861,12 @@ export default function PAIASimulator({ initialFlow }) {
           onLoadMyAgents={loadMyAgents}
           onAddPublicAgent={addPublicAgentToCanvas}
           isBackendConnected={isConnected}
+          isOpen={rightSidebarOpen}
         />
 
-        <StatsPanel stats={stats} />
+        <StatsPanel stats={stats} rightSidebarOpen={rightSidebarOpen} />
 
-        <LogPanel messages={logMessages} />
+        <LogPanel messages={logMessages} leftSidebarOpen={leftSidebarOpen} rightSidebarOpen={rightSidebarOpen} />
 
         {showGuide && (
           <GuideModal onClose={() => setShowGuide(false)} />

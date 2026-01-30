@@ -210,7 +210,7 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
         # Crear herramientas de WhatsApp
         whatsapp_tools_list = create_whatsapp_tools(self.whatsapp_service)
 
-        # Crear herramientas de comunicación
+        # Crear herramientas de comunicacion
         communication_tools_list = create_communication_tools(
             agent_id=agent_id,
             agents_store=self.agents_store,
@@ -221,7 +221,7 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
             db_manager=self.db_manager,
             auth_manager=self.auth_manager,
             agent_manager=self,
-            ensure_agent_loaded_func=None,  # Se inyectará después
+            ensure_agent_loaded_func=self.ensure_agent_loaded,
             gmail_service=self.gmail_service,
             AgentMessage=AgentMessage
         )
@@ -319,16 +319,35 @@ Responde de manera útil según tu especialidad."""
         Args:
             agent1_id: ID del primer agente
             agent2_id: ID del segundo agente
-            connection_type: Tipo de conexión (direct, broadcast, etc.)
+            connection_type: Tipo de conexion (direct, broadcast, etc.)
 
         Returns:
-            AgentConnection: Conexión creada
+            AgentConnection: Conexion creada
 
         Raises:
-            HTTPException: Si algún agente no existe
+            HTTPException: Si algun agente no existe
         """
-        if agent1_id not in self.agents_store or agent2_id not in self.agents_store:
-            raise HTTPException(status_code=404, detail="Uno o ambos agentes no encontrados")
+        # Cargar agentes si no estan en memoria (lazy loading)
+        agent1 = await self.ensure_agent_loaded(agent1_id)
+        agent2 = await self.ensure_agent_loaded(agent2_id)
+
+        if not agent1 or not agent2:
+            missing = []
+            if not agent1:
+                missing.append(agent1_id)
+            if not agent2:
+                missing.append(agent2_id)
+            raise HTTPException(
+                status_code=404,
+                detail=f"Agentes no encontrados: {', '.join(missing)}"
+            )
+
+        # Verificar si ya existe una conexion entre estos agentes
+        for conn in self.connections_store.values():
+            if (conn.agent1 == agent1_id and conn.agent2 == agent2_id) or \
+               (conn.agent1 == agent2_id and conn.agent2 == agent1_id):
+                print(f"[Connection] Conexion ya existe entre {agent1.name} y {agent2.name}")
+                return conn
 
         connection = AgentConnection(
             id=str(uuid.uuid4())[:8],
@@ -340,6 +359,7 @@ Responde de manera útil según tu especialidad."""
         )
 
         self.connections_store[connection.id] = connection
+        print(f"[Connection] Nueva conexion creada: {agent1.name} <-> {agent2.name}")
         return connection
 
     def _add_capability_to_agent(self, agent: PAIAAgent, expertise: str):
@@ -427,6 +447,90 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
         response = await self._generate_agent_response(from_agent_id, to_agent_id, conversation_id)
 
         return response
+
+    async def ensure_agent_loaded(self, agent_id: str) -> Optional[PAIAAgent]:
+        """
+        Asegurar que un agente este cargado en memoria.
+        Si no esta en memoria, lo carga desde la BD.
+
+        Args:
+            agent_id: ID del agente
+
+        Returns:
+            PAIAAgent o None si no existe
+        """
+        # Si ya esta en memoria, retornarlo
+        if agent_id in self.agents_store:
+            return self.agents_store[agent_id]
+
+        # Intentar cargar desde la BD
+        try:
+            db_agent = await self.db_manager.get_agent(agent_id)
+            if not db_agent:
+                print(f"[AgentManager] Agente {agent_id} no encontrado en BD")
+                return None
+
+            print(f"[AgentManager] Cargando agente {db_agent.name} desde BD...")
+
+            # Crear herramientas base del agente
+            base_tools = self._create_agent_tools(db_agent.id, db_agent.expertise)
+
+            # Obtener herramientas MCP si estan disponibles
+            user_id = db_agent.user_id or 'usuario-anonimo'
+            all_tools = base_tools
+
+            user_mcp_client = await self.get_mcp_client_func(user_id)
+            if user_mcp_client:
+                try:
+                    mcp_tools = await user_mcp_client.get_tools()
+                    all_tools = base_tools + mcp_tools
+                except Exception as e:
+                    print(f"[AgentManager] Error obteniendo herramientas MCP: {e}")
+
+            # Construir datos del agente para el prompt
+            agent_data = {
+                'name': db_agent.name,
+                'personality': db_agent.personality,
+                'expertise': db_agent.expertise
+            }
+
+            # Crear instancia del agente
+            agent_llm = create_react_agent(
+                self.llm,
+                all_tools,
+                prompt=self._build_agent_prompt(agent_data, user_id)
+            )
+
+            agent = PAIAAgent(
+                id=db_agent.id,
+                name=db_agent.name,
+                description=db_agent.description,
+                personality=db_agent.personality,
+                expertise=db_agent.expertise,
+                status=db_agent.status,
+                created=db_agent.created_at.isoformat(),
+                mcp_endpoint=db_agent.mcp_endpoint or f"http://localhost:{3000 + len(self.agents_store)}/mcp",
+                user_id=db_agent.user_id,
+                is_public=db_agent.is_public,
+                telegram_chat_id=db_agent.telegram_chat_id or TELEGRAM_DEFAULT_CHAT_ID,
+                llm_instance=agent_llm,
+                tools=all_tools,
+                conversation_history=[]
+            )
+
+            # Vincular perfil de memoria
+            memory_profile_id = f"user:{db_agent.user_id}|persona:{db_agent.name}"
+            self.memory_manager.bind_profile(db_agent.id, memory_profile_id)
+
+            self.agents_store[db_agent.id] = agent
+            print(f"[AgentManager] Agente {db_agent.name} cargado exitosamente")
+            return agent
+
+        except Exception as e:
+            print(f"[AgentManager] Error cargando agente {agent_id}: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
 
     def get_agent(self, agent_id: str) -> Optional[PAIAAgent]:
         """

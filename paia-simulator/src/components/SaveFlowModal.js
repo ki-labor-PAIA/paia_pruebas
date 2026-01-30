@@ -10,7 +10,7 @@ export default function SaveFlowModal({ isOpen, onClose, onSave, currentFlow }) 
 
   const handleSave = async () => {
     if (!name.trim()) {
-      setError('El nombre del flujo es requerido');
+      setError('Flow name is required');
       return;
     }
 
@@ -28,7 +28,7 @@ export default function SaveFlowModal({ isOpen, onClose, onSave, currentFlow }) 
       await onSave(flowData);
       onClose();
     } catch (err) {
-      setError(err.message || 'Error guardando el flujo');
+      setError(err.message || 'Error saving flow');
     } finally {
       setLoading(false);
     }
@@ -73,7 +73,7 @@ export default function SaveFlowModal({ isOpen, onClose, onSave, currentFlow }) 
             color: 'var(--text-primary)',
             margin: 0
           }}>
-            💾 Guardar Flujo
+            💾 Save Flow
           </h2>
           
           <button
@@ -109,13 +109,13 @@ export default function SaveFlowModal({ isOpen, onClose, onSave, currentFlow }) 
               color: 'var(--text-primary)',
               marginBottom: '8px'
             }}>
-              Nombre del flujo *
+              Flow name *
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ej: Mi flujo de atención al cliente"
+              placeholder="Ex: My customer service flow"
               style={{
                 width: '100%',
                 padding: '12px 16px',
@@ -141,12 +141,12 @@ export default function SaveFlowModal({ isOpen, onClose, onSave, currentFlow }) 
               color: 'var(--text-primary)',
               marginBottom: '8px'
             }}>
-              Descripción (opcional)
+              Description (optional)
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe qué hace este flujo y cómo funciona..."
+              placeholder="Describe what this flow does and how it works..."
               rows={3}
               style={{
                 width: '100%',
@@ -181,7 +181,7 @@ export default function SaveFlowModal({ isOpen, onClose, onSave, currentFlow }) 
               type="text"
               value={tags}
               onChange={(e) => setTags(e.target.value)}
-              placeholder="atención, cliente, automatización, ventas"
+              placeholder="support, customer, automation, sales"
               style={{
                 width: '100%',
                 padding: '12px 16px',
@@ -202,7 +202,7 @@ export default function SaveFlowModal({ isOpen, onClose, onSave, currentFlow }) 
               marginTop: '4px',
               fontStyle: 'italic'
             }}>
-              Separa los tags con comas
+              Separate tags with commas
             </p>
           </div>
 
@@ -227,7 +227,7 @@ export default function SaveFlowModal({ isOpen, onClose, onSave, currentFlow }) 
                   cursor: 'pointer'
                 }}
               />
-              Hacer público para amigos
+              Make public for friends
             </label>
             <p style={{
               fontSize: '12px',
@@ -236,7 +236,7 @@ export default function SaveFlowModal({ isOpen, onClose, onSave, currentFlow }) 
               marginLeft: '24px',
               fontStyle: 'italic'
             }}>
-              Si está marcado, tus amigos podrán ver y conectarse a este flujo cuando esté activo
+              If checked, your friends will be able to see and connect to this flow when it's active
             </p>
           </div>
         </div>
@@ -278,7 +278,7 @@ export default function SaveFlowModal({ isOpen, onClose, onSave, currentFlow }) 
               opacity: loading ? 0.6 : 1
             }}
           >
-            Cancelar
+            Cancel
           </button>
           
           <button
@@ -302,11 +302,11 @@ export default function SaveFlowModal({ isOpen, onClose, onSave, currentFlow }) 
           >
             {loading ? (
               <>
-                ⏳ Guardando...
+                ⏳ Saving...
               </>
             ) : (
               <>
-                💾 Guardar Flujo
+                💾 Save Flow
               </>
             )}
           </button>

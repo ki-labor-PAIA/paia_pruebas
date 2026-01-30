@@ -9,7 +9,7 @@ export default function FriendsPanel({ userId, isOpen, onClose }) {
 
   const loadConnections = useCallback(async () => {
     if (!userId) {
-      setError('No se pudo obtener el ID del usuario');
+      setError('Could not get user ID');
       return;
     }
 
@@ -29,7 +29,7 @@ export default function FriendsPanel({ userId, isOpen, onClose }) {
 
     } catch (err) {
       console.error('Error loading connections:', err);
-      setError(`Error cargando conexiones: ${err.message}`);
+      setError(`Error loading connections: ${err.message}`);
       setFriends([]);
       setPendingRequests([]);
     } finally {
@@ -49,7 +49,7 @@ export default function FriendsPanel({ userId, isOpen, onClose }) {
       loadConnections(); // Refresh lists after responding
     } catch (err) {
       console.error(`Error responding to request: ${err}`);
-      setError(`Error al responder a la solicitud: ${err.message}`);
+      setError(`Error responding to request: ${err.message}`);
     }
   };
 
@@ -63,8 +63,8 @@ export default function FriendsPanel({ userId, isOpen, onClose }) {
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{request.requester.email}</div>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={() => handleRespondToRequest(request.connection_id, 'accept')} className="discreet-button" style={{ color: 'var(--success-color)', fontWeight: 'bold' }}>Aceptar</button>
-          <button onClick={() => handleRespondToRequest(request.connection_id, 'reject')} className="discreet-button" style={{ color: 'var(--danger-color)' }}>Rechazar</button>
+          <button onClick={() => handleRespondToRequest(request.connection_id, 'accept')} className="discreet-button" style={{ color: 'var(--success-color)', fontWeight: 'bold' }}>Accept</button>
+          <button onClick={() => handleRespondToRequest(request.connection_id, 'reject')} className="discreet-button" style={{ color: 'var(--danger-color)' }}>Reject</button>
         </div>
       </div>
     </div>
@@ -88,26 +88,26 @@ export default function FriendsPanel({ userId, isOpen, onClose }) {
   return (
     <div style={{ position: 'fixed', top: '60px', right: '280px', width: '350px', maxHeight: 'calc(100vh - 80px)', backgroundColor: 'var(--card-bg)', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', border: '1px solid var(--border-color)', zIndex: 1000, display: 'flex', flexDirection: 'column' }}>
       <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>Amigos y Solicitudes</h3>
+        <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>Friends and Requests</h3>
         <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: 'var(--text-secondary)' }}>✕</button>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        {loading && <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>Cargando...</div>}
+        {loading && <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading...</div>}
         {error && <div style={{ padding: '20px', color: 'var(--danger-color)', textAlign: 'center' }}>{error}</div>}
         
         {!loading && !error && (
           <>
             {pendingRequests.length > 0 && (
               <div style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <h4 style={{ fontSize: '12px', fontWeight:'bold', color: 'var(--text-secondary)', padding: '12px 16px 8px', margin: 0, textTransform: 'uppercase' }}>Solicitudes Pendientes ({pendingRequests.length})</h4>
+                <h4 style={{ fontSize: '12px', fontWeight:'bold', color: 'var(--text-secondary)', padding: '12px 16px 8px', margin: 0, textTransform: 'uppercase' }}>Pending Requests ({pendingRequests.length})</h4>
                 {pendingRequests.map(renderPendingRequest)}
               </div>
             )}
 
             {friends.length > 0 && (
               <div>
-                <h4 style={{ fontSize: '12px', fontWeight:'bold', color: 'var(--text-secondary)', padding: '12px 16px 8px', margin: 0, textTransform: 'uppercase' }}>Amigos ({friends.length})</h4>
+                <h4 style={{ fontSize: '12px', fontWeight:'bold', color: 'var(--text-secondary)', padding: '12px 16px 8px', margin: 0, textTransform: 'uppercase' }}>Friends ({friends.length})</h4>
                 {friends.map(renderFriend)}
               </div>
             )}
@@ -115,15 +115,15 @@ export default function FriendsPanel({ userId, isOpen, onClose }) {
             {!pendingRequests.length && !friends.length && (
               <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
                 <div style={{ fontSize: '32px' }}>👋</div>
-                <div>No tienes amigos ni solicitudes.</div>
-                <div style={{ fontSize: '12px', marginTop: '8px' }}>Usa "Buscar Usuario" para conectar con otros.</div>
+                <div>You have no friends or requests.</div>
+                <div style={{ fontSize: '12px', marginTop: '8px' }}>Use "Search User" to connect with others.</div>
               </div>
             )}
           </>
         )}
       </div>
       <div style={{ padding: '12px', borderTop: '1px solid var(--border-color)', textAlign: 'center' }}>
-          <button onClick={loadConnections} className="discreet-button">🔄 Actualizar</button>
+          <button onClick={loadConnections} className="discreet-button">🔄 Refresh</button>
       </div>
     </div>
   );

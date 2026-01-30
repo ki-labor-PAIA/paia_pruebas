@@ -1,56 +1,75 @@
-export default function ActiveFlowsTab({ friendsActiveFlows = [], loading = false, onConnectToFlow }) {
+export default function ActiveFlowsTab({ flows = [], loading = false, onConnectToFlow }) {
   if (loading) {
     return (
       <div style={{
-        textAlign: 'center',
-        padding: '60px',
-        fontSize: '18px',
-        color: 'var(--text-secondary)',
-        backgroundColor: 'var(--card-bg)',
-        borderRadius: '16px',
-        border: '1px solid var(--border-color)'
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '400px'
       }}>
-        Cargando flujos activos...
+        <div style={{
+          textAlign: 'center',
+          padding: '60px',
+          fontSize: '18px',
+          color: 'var(--text-secondary)',
+          backgroundColor: 'var(--card-bg)',
+          borderRadius: '16px',
+          border: '1px solid var(--border-color)',
+          maxWidth: '600px',
+          width: '100%'
+        }}>
+          Loading active flows...
+        </div>
       </div>
     );
   }
 
-  if (friendsActiveFlows.length === 0) {
+  if (flows.length === 0) {
     return (
       <div style={{
-        textAlign: 'center',
-        padding: '80px 40px',
-        backgroundColor: 'var(--card-bg)',
-        borderRadius: '16px',
-        border: '1px solid var(--border-color)'
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '400px'
       }}>
         <div style={{
-          fontSize: '64px',
-          marginBottom: '20px',
-          filter: 'grayscale(0.3) opacity(0.8)'
-        }}>
-          🌐
-        </div>
-        <h3 style={{
-          fontSize: '22px',
-          fontWeight: '600',
-          marginBottom: '12px',
-          color: 'var(--text-primary)'
-        }}>
-          No hay flujos activos
-        </h3>
-        <p style={{
-          color: 'var(--text-secondary)',
-          marginBottom: '24px',
-          fontSize: '16px',
-          lineHeight: '1.5',
+          textAlign: 'center',
+          padding: '80px 40px',
+          backgroundColor: 'var(--card-bg)',
+          borderRadius: '16px',
+          border: '1px solid var(--border-color)',
           maxWidth: '600px',
-          margin: '0 auto'
+          width: '100%'
         }}>
-          Cuando tus amigos activen sus flujos, aparecerán aquí.
-          <br/>
-          Podrás conectarte y colaborar en tiempo real.
-        </p>
+          <div style={{
+            fontSize: '64px',
+            marginBottom: '20px',
+            filter: 'grayscale(0.3) opacity(0.8)'
+          }}>
+            🌐
+          </div>
+          <h3 style={{
+            fontSize: '22px',
+            fontWeight: '600',
+            marginBottom: '12px',
+            color: 'var(--text-primary)'
+          }}>
+            No active flows
+          </h3>
+          <p style={{
+            color: 'var(--text-secondary)',
+            marginBottom: '24px',
+            fontSize: '16px',
+            lineHeight: '1.5',
+            maxWidth: '600px',
+            margin: '0 auto'
+          }}>
+            When your friends activate their flows, they will appear here.
+            <br/>
+            You'll be able to connect and collaborate in real-time.
+          </p>
+        </div>
       </div>
     );
   }
@@ -64,13 +83,13 @@ export default function ActiveFlowsTab({ friendsActiveFlows = [], loading = fals
     const diffDays = Math.floor(diffHours / 24);
 
     if (diffDays > 0) {
-      return `${diffDays} día${diffDays > 1 ? 's' : ''}`;
+      return `${diffDays} day${diffDays > 1 ? 's' : ''}`;
     } else if (diffHours > 0) {
-      return `${diffHours} hora${diffHours > 1 ? 's' : ''}`;
+      return `${diffHours} hour${diffHours > 1 ? 's' : ''}`;
     } else if (diffMins > 0) {
       return `${diffMins} min${diffMins > 1 ? 's' : ''}`;
     } else {
-      return 'Ahora mismo';
+      return 'Right now';
     }
   };
 
@@ -78,17 +97,19 @@ export default function ActiveFlowsTab({ friendsActiveFlows = [], loading = fals
     <div>
       <div style={{
         display: 'flex',
-        justifyContent: 'space-between',
+        flexDirection: 'column',
         alignItems: 'center',
-        marginBottom: '24px'
+        marginBottom: '24px',
+        gap: '12px'
       }}>
         <h2 style={{
           fontSize: '24px',
           fontWeight: '700',
           margin: 0,
-          color: 'var(--text-primary)'
+          color: 'var(--text-primary)',
+          textAlign: 'center'
         }}>
-          Flujos Activos de Amigos
+          Friends' Active Flows
         </h2>
         <div style={{
           fontSize: '14px',
@@ -104,16 +125,18 @@ export default function ActiveFlowsTab({ friendsActiveFlows = [], loading = fals
             backgroundColor: '#10B981',
             animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
           }} />
-          <span>{friendsActiveFlows.length} flujo{friendsActiveFlows.length !== 1 ? 's' : ''} en vivo</span>
+          <span>{flows.length} flow{flows.length !== 1 ? 's' : ''} live</span>
         </div>
       </div>
 
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-        gap: '24px'
+        gap: '24px',
+        maxWidth: '1200px',
+        margin: '0 auto'
       }}>
-        {friendsActiveFlows.map(flow => (
+        {flows.map(flow => (
           <div
             key={`${flow.user_id}-${flow.id}`}
             style={{
@@ -173,7 +196,7 @@ export default function ActiveFlowsTab({ friendsActiveFlows = [], loading = fals
                   fontWeight: '600',
                   whiteSpace: 'nowrap'
                 }}>
-                  En vivo
+                  Live
                 </span>
               </div>
             </div>
@@ -232,7 +255,7 @@ export default function ActiveFlowsTab({ friendsActiveFlows = [], loading = fals
                     fontSize: '11px',
                     color: 'var(--text-secondary)'
                   }}>
-                    Propietario
+                    Owner
                   </div>
                 </div>
               </div>
@@ -251,7 +274,7 @@ export default function ActiveFlowsTab({ friendsActiveFlows = [], loading = fals
               textOverflow: 'ellipsis',
               minHeight: '63px'
             }}>
-              {flow.description || 'Sin descripción disponible'}
+              {flow.description || 'No description available'}
             </p>
 
             {/* Badges de versión y visibilidad */}
@@ -283,7 +306,7 @@ export default function ActiveFlowsTab({ friendsActiveFlows = [], loading = fals
                   fontSize: '12px',
                   fontWeight: '600'
                 }}>
-                  Público
+                  Public
                 </span>
               )}
             </div>
@@ -326,7 +349,7 @@ export default function ActiveFlowsTab({ friendsActiveFlows = [], loading = fals
                 }}
               >
                 <span style={{ fontSize: '14px' }}>🔌</span>
-                Conectar
+                Connect
               </button>
 
               <div style={{
@@ -338,7 +361,7 @@ export default function ActiveFlowsTab({ friendsActiveFlows = [], loading = fals
                 minWidth: 0
               }}>
                 <div style={{ fontWeight: '500', color: 'var(--text-primary)' }}>
-                  Activo hace:
+                  Active for:
                 </div>
                 <div style={{
                   overflow: 'hidden',

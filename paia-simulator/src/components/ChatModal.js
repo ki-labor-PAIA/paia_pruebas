@@ -66,10 +66,10 @@ export default function ChatModal({
             </div>
             <div>
               <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.1em' }}>
-                Chat con {agent.data.label}
+                Chat with {agent.data.label}
               </h3>
               <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.8em' }}>
-                {agent.data.actorType === 'ai' ? 'Asistente IA' : 'Usuario Humano'}
+                {agent.data.actorType === 'ai' ? 'AI Assistant' : 'Human User'}
                 {agent.data.expertise && ` • ${agent.data.expertise}`}
               </p>
             </div>
@@ -110,7 +110,7 @@ export default function ChatModal({
               <div style={{ fontSize: '24px', marginBottom: '8px' }}>
                 {agent.data.emoji}
               </div>
-              <p>¡Hola! Soy {agent.data.label}. ¿En qué puedo ayudarte?</p>
+              <p>Hello! I'm {agent.data.label}. How can I help you?</p>
             </div>
           )}
 
@@ -154,7 +154,7 @@ export default function ChatModal({
                     gap: '4px'
                   }}>
                     <i className="fas fa-info-circle"></i>
-                    Sistema
+                    System
                   </div>
                 )}
                 {msg.sender === 'human' && (
@@ -184,7 +184,7 @@ export default function ChatModal({
                     marginBottom: '4px',
                     fontWeight: '500'
                   }}>
-                    📨 Mensaje de {msg.from}
+                    📨 Message from {msg.from}
                   </div>
                 )}
                 <div style={{ fontSize: '0.9em', lineHeight: '1.4' }}>
@@ -260,9 +260,9 @@ export default function ChatModal({
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={agent.data.actorType === 'human' 
-                ? `Escribe como ${agent.data.label}...` 
-                : "Escribe tu mensaje..."}
+              placeholder={agent.data.actorType === 'human'
+                ? `Write as ${agent.data.label}...`
+                : "Write your message..."}
               rows="1"
               style={{
                 flex: 1,

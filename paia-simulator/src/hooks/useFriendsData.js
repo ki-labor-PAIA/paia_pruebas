@@ -19,8 +19,27 @@ const useFriendsData = () => {
       }
 
       const data = await response.json();
-      setFriends(data.connections || []);
-      return data.connections || [];
+
+      // Transform backend data to match frontend expectations
+      const transformedFriends = (data.connections || []).map(connection => {
+        // Determine who is the "friend" (the other user who is not the current user)
+        const isRequester = connection.requester.id === userId;
+        const friendData = isRequester ? connection.recipient : connection.requester;
+
+        return {
+          connection_id: connection.connection_id,
+          friend_id: friendData.id,
+          friend_name: friendData.name || 'Unknown User',
+          friend_email: friendData.email || '',
+          friend_image: friendData.image || null,
+          status: connection.status,
+          connection_type: connection.connection_type || 'friend',
+          connected_since: connection.created_at
+        };
+      });
+
+      setFriends(transformedFriends);
+      return transformedFriends;
     } catch (err) {
       setError(err.message);
       throw err;
