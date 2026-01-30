@@ -27,7 +27,8 @@ export default function RightSidebar({
   const handleConnectGmail = async () => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      const res = await fetch(`${apiUrl}/api/auth/google/authorize-url?user_id=${session?.user?.id}`)
+      const currentPath = window.location.pathname;
+      const res = await fetch(`${apiUrl}/api/auth/google/authorize-url?user_id=${session?.user?.id}&redirect_to=${currentPath}`)
       const data = await res.json()
       if (data.url) {
         window.location.href = data.url
