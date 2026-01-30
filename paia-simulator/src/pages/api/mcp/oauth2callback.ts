@@ -13,12 +13,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Parsear el state para obtener el user_id
     // El backend envía state = json.dumps({"user_id": user_id})
     let userId;
+    let redirectTo = '/';
     try {
       const stateObj = JSON.parse(state as string);
       userId = stateObj.user_id;
+      redirectTo = stateObj.redirect_to || '/';
     } catch (e) {
       console.error("Error parsing state JSON:", e);
-      // Fallback: asumir que state es directamente el user_id (por compatibilidad)
       userId = state;
     }
 
@@ -43,8 +44,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       throw new Error(`Error del backend al conectar Gmail: ${response.statusText}`);
     }
 
-    // Éxito! Redirigir al usuario al home con un flag de éxito
-    res.redirect('/?gmail_connected=true');
+    // Asegurarse de que redirectTo tenga el flag de éxito
+    const separator = redirectTo.includes('?') ? '&' : '?';
+    const finalRedirect = `${redirectTo}${separator}gmail_connected=true`;
+
+    // Éxito! Redirigir al usuario
+    res.redirect(finalRedirect);
 
   } catch (error: any) {
     console.error('OAuth Callback Error:', error);

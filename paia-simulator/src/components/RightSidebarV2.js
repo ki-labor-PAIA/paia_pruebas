@@ -33,7 +33,8 @@ export default function RightSidebarV2({
             }
 
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-            const targetUrl = `${apiUrl}/api/auth/google/authorize-url?user_id=${userId}`;
+            const currentPath = window.location.pathname;
+            const targetUrl = `${apiUrl}/api/auth/google/authorize-url?user_id=${userId}&redirect_to=${currentPath}`;
             console.log(`DEBUG: Fetching ${targetUrl}`);
 
             const res = await fetch(targetUrl);

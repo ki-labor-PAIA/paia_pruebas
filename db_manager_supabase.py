@@ -490,14 +490,6 @@ class DatabaseManager:
             print(f"Error obteniendo usuario {user_id}: {e}")
             return None
 
-    async def get_user_by_id(self, user_id: str) -> Optional[Dict]:
-        """Obtener un usuario por ID"""
-        try:
-            result = self.client.table("users").select("*").eq("id", user_id).single().execute()
-            return result.data
-        except Exception as e:
-            print(f"Error obteniendo usuario {user_id}: {e}")
-            return None
 
     # =============== USER CONNECTIONS ===============
     async def create_user_connection_request(self, requester_id: str, recipient_id: str,

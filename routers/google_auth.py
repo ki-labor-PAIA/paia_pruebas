@@ -35,15 +35,16 @@ def create_google_auth_router(db_manager: DatabaseManager) -> APIRouter:
     os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 
     @router.get("/api/auth/google/authorize-url")
-    async def get_authorize_url(user_id: str) -> Dict[str, str]:
+    async def get_authorize_url(user_id: str, redirect_to: str = "/") -> Dict[str, str]:
         """
         Generar URL de autorización para conectar Gmail.
         
         Args:
             user_id: ID del usuario que está conectando su cuenta
+            redirect_to: Ruta a la que redirigir tras el éxito
         """
         try:
-            print(f"[AUTH] Generating URL for user_id: {user_id}")
+            print(f"[AUTH] Generating URL for user_id: {user_id}, redirect_to: {redirect_to}")
             flow = Flow.from_client_config(
                 {
                     "web": {
@@ -59,8 +60,11 @@ def create_google_auth_router(db_manager: DatabaseManager) -> APIRouter:
             flow.redirect_uri = REDIRECT_URI
             
             # Generar URL y state
-            # Incluimos user_id en el state para recuperarlo en el callback
-            state_data = json.dumps({"user_id": user_id})
+            # Incluimos user_id y la ruta destino en el state
+            state_data = json.dumps({
+                "user_id": user_id,
+                "redirect_to": redirect_to
+            })
             authorization_url, state = flow.authorization_url(
                 access_type='offline',
                 include_granted_scopes='true',
@@ -144,6 +148,9 @@ def create_google_auth_router(db_manager: DatabaseManager) -> APIRouter:
                 if not success:
                     print(f"[AUTH ERROR] Failed to save credentials to DB (Operation returned False)")
                     raise HTTPException(status_code=500, detail="Failed to save credentials database record")
+            except HTTPException as db_he:
+                # Re-raise HTTP exceptions from the inner block
+                raise db_he
             except Exception as db_error:
                 print(f"[AUTH ERROR] DB Error saving credentials: {db_error}")
                 # Check for foreign key violation message
