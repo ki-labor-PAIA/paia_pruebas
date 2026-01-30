@@ -18,6 +18,8 @@ export default function UserHeader() {
   const [showTutorial, setShowTutorial] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
 
+
+
   if (!session) return null
 
   return (
@@ -287,17 +289,17 @@ export default function UserHeader() {
           )}
         </div>
       </div>
-      
+
       {showTelegramPanel && (
         <TelegramPanel onClose={() => setShowTelegramPanel(false)} />
       )}
-      
-      <NotificationPanel 
+
+      <NotificationPanel
         userId={session?.user?.id}
         isOpen={showNotifications}
         onClose={() => setShowNotifications(false)}
       />
-      
+
       <FriendsPanel
         userId={session?.user?.id}
         isOpen={showFriends}

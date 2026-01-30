@@ -481,6 +481,24 @@ class DatabaseManager:
             print(f"Error buscando usuarios: {e}")
             return []
 
+    async def get_user_by_id(self, user_id: str) -> Optional[Dict]:
+        """Obtener un usuario por ID"""
+        try:
+            result = self.client.table("users").select("*").eq("id", user_id).single().execute()
+            return result.data
+        except Exception as e:
+            print(f"Error obteniendo usuario {user_id}: {e}")
+            return None
+
+    async def get_user_by_id(self, user_id: str) -> Optional[Dict]:
+        """Obtener un usuario por ID"""
+        try:
+            result = self.client.table("users").select("*").eq("id", user_id).single().execute()
+            return result.data
+        except Exception as e:
+            print(f"Error obteniendo usuario {user_id}: {e}")
+            return None
+
     # =============== USER CONNECTIONS ===============
     async def create_user_connection_request(self, requester_id: str, recipient_id: str,
                                            connection_type: str = "friend") -> str:
@@ -765,3 +783,66 @@ class DatabaseManager:
             result = self.client.table("autonomy_settings").insert(data).execute()
 
         return len(result.data) > 0
+
+    # =============== OAUTH CREDENTIALS ===============
+
+    async def save_user_credentials(self, user_id: str, provider: str, credentials_data: Dict) -> bool:
+        """
+        Guardar credenciales OAuth de un usuario.
+        
+        Args:
+            user_id: ID del usuario
+            provider: 'google', 'microsoft', etc.
+            credentials_data: Diccionario con tokens (access_token, refresh_token, etc.)
+        """
+        try:
+            now = datetime.utcnow()
+            
+            # Verificar si ya existen credenciales para este proveedor
+            existing = await self.get_user_credentials(user_id, provider)
+            
+            data = {
+                "user_id": user_id,
+                "provider": provider,
+                "credentials": credentials_data,
+                "updated_at": now.isoformat()
+            }
+            
+            if existing:
+                # Actualizar
+                result = self.client.table("user_credentials").update(data).eq(
+                    "user_id", user_id
+                ).eq("provider", provider).execute()
+            else:
+                # Insertar nuevo
+                data["created_at"] = now.isoformat()
+                result = self.client.table("user_credentials").insert(data).execute()
+                
+            return len(result.data) > 0
+            
+        except Exception as e:
+            print(f"[DB] Error saving user credentials: {e}")
+            return False
+
+    async def get_user_credentials(self, user_id: str, provider: str) -> Optional[Dict]:
+        """Obtener credenciales OAuth de un usuario"""
+        try:
+            result = self.client.table("user_credentials").select("*").eq(
+                "user_id", user_id
+            ).eq("provider", provider).execute()
+            
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"[DB] Error getting user credentials: {e}")
+            return None
+
+    async def delete_user_credentials(self, user_id: str, provider: str) -> bool:
+        """Eliminar credenciales OAuth"""
+        try:
+            result = self.client.table("user_credentials").delete().eq(
+                "user_id", user_id
+            ).eq("provider", provider).execute()
+            return len(result.data) > 0
+        except Exception as e:
+            print(f"[DB] Error deleting user credentials: {e}")
+            return False

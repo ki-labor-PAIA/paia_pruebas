@@ -33,7 +33,8 @@ class PAIAAgentManager:
         telegram_service,
         whatsapp_service,
         auth_manager,
-        get_mcp_client_func
+        get_mcp_client_func,
+        gmail_service: Optional[any] = None # Nuevo servicio
     ):
         """
         Inicializar el gestor de agentes.
@@ -45,6 +46,7 @@ class PAIAAgentManager:
             whatsapp_service: Servicio de WhatsApp
             auth_manager: Gestor de autenticación
             get_mcp_client_func: Función para obtener cliente MCP por usuario
+            gmail_service: Servicio de Gmail
         """
         self.llm = ChatGoogleGenerativeAI(model=LLM_MODEL, temperature=LLM_TEMPERATURE)
         self.db_manager = db_manager
@@ -53,6 +55,7 @@ class PAIAAgentManager:
         self.whatsapp_service = whatsapp_service
         self.auth_manager = auth_manager
         self.get_mcp_client_func = get_mcp_client_func
+        self.gmail_service = gmail_service
 
         # Stores compartidos (inyectados desde el main)
         self.agents_store: Dict[str, PAIAAgent] = {}
@@ -219,6 +222,7 @@ IMPORTANTE: Para usar una herramienta, responde con el formato JSON correcto. Ma
             auth_manager=self.auth_manager,
             agent_manager=self,
             ensure_agent_loaded_func=self.ensure_agent_loaded,
+            gmail_service=self.gmail_service,
             AgentMessage=AgentMessage
         )
 

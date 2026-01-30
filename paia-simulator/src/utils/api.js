@@ -256,18 +256,19 @@ class PAIAApi {
     }
   }
 
-  async getEmails() {
-    const response = await fetch(`${this.baseUrl}/emails`);
+  async getEmails(userId) {
+    const url = userId ? `${this.baseUrl}/emails?user_id=${userId}` : `${this.baseUrl}/emails`;
+    const response = await fetch(url);
     if (!response.ok) throw new Error('Error al obtener emails');
     return await response.json();
   }
-  
+
   async getEventos() {
     const response = await fetch(`${this.baseUrl}/eventos`);
     if (!response.ok) throw new Error('Error al obtener eventos');
     return await response.json();
   }
-  
+
   async getNotas() {
     const response = await fetch(`${this.baseUrl}/notas`);
     if (!response.ok) throw new Error('Error al obtener notas');

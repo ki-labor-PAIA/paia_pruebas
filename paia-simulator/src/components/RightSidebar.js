@@ -1,6 +1,7 @@
 
 import { useTranslation } from 'react-i18next';
-import { User, Bot, Send, Calendar, StickyNote, Globe, Plus } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { User, Bot, Send, Calendar, StickyNote, Globe, Plus, Mail } from 'lucide-react';
 
 
 export default function RightSidebar({
@@ -19,12 +20,46 @@ export default function RightSidebar({
   isOpen = true
 }) {
 
+
   const { t } = useTranslation();
+  const { data: session } = useSession();
+
+  const handleConnectGmail = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const res = await fetch(`${apiUrl}/api/auth/google/authorize-url?user_id=${session?.user?.id}`)
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url
+      }
+    } catch (error) {
+      console.error("Error connecting Gmail:", error)
+      alert("Error iniciando conexión con Gmail")
+    }
+  }
+
   return (
     <div className={`sidebar right ${isOpen ? 'sidebar-open' : 'sidebar-closed'}`} style={{
       transform: isOpen ? 'translateX(0)' : 'translateX(100%)',
       transition: 'transform 0.3s ease'
     }}>
+      <div className="button-group">
+        <div className="button-group-title">Email Integration</div>
+        <button
+          onClick={handleConnectGmail}
+          className="discreet-button"
+          style={{
+            background: 'linear-gradient(135deg, #EA4335 0%, #c5221f 100%)',
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}
+        >
+          <Mail size={16} /> Connect Gmail
+        </button>
+      </div>
       <div className="button-group">
         <div className="button-group-title">{t('rightSidebar.addActors')}</div>
         <button data-tour="add-actors" onClick={() => onAddActor('human')} className="discreet-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
@@ -87,12 +122,12 @@ export default function RightSidebar({
           {publicAgents.length > 0 && (
             <div style={{ maxHeight: '150px', overflow: 'auto' }}>
               {publicAgents.map(agent => (
-                <div 
+                <div
                   key={agent.id}
                   style={{
                     display: 'flex',
                     justifyContent: 'space-between',
-                    alignItems: 'center',  
+                    alignItems: 'center',
                     marginBottom: '6px',
                     padding: '6px 8px',
                     background: 'rgba(108, 92, 231, 0.1)',
@@ -127,7 +162,7 @@ export default function RightSidebar({
               ))}
             </div>
           )}
-          
+
           {publicAgents.length === 0 && (
             <div style={{ fontSize: '0.8em', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
               {t('rightSidebar.loadAgentsToConnect')}
@@ -148,7 +183,7 @@ export default function RightSidebar({
                 key={node.id}
                 onClick={() => onChatWithAgent(node.id)}
                 className="discreet-button"
-                style={{ 
+                style={{
                   marginBottom: '6px',
                   padding: '8px 10px !important',
                   fontSize: '0.8em',
@@ -178,9 +213,9 @@ export default function RightSidebar({
             ))}
           </div>
         ) : (
-          <div style={{ 
-            fontSize: '0.8em', 
-            color: 'var(--text-secondary)', 
+          <div style={{
+            fontSize: '0.8em',
+            color: 'var(--text-secondary)',
             fontStyle: 'italic',
             textAlign: 'center',
             padding: '16px 8px',
@@ -197,6 +232,6 @@ export default function RightSidebar({
         )}
       </div>
 
-      </div>
+    </div>
   );
 }

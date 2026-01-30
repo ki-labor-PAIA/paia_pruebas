@@ -7,6 +7,12 @@ from dataclasses import dataclass, asdict
 from fastapi import FastAPI, HTTPException, WebSocket, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
+from dotenv import load_dotenv
+import os
+
+# Cargar variables de entorno ANTES de importar módulos que las usan
+load_dotenv()
+
 from langchain_mcp_adapters.client import load_mcp_tools 
 from langgraph.prebuilt import create_react_agent
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -21,7 +27,6 @@ from memory_manager import MemoryManager, Message
 from auth_manager_supabase import AuthManager
 from db_manager_supabase import DatabaseManager
 from supabase_config import supabase_client
-from dotenv import load_dotenv
 
 # === SERVICIOS ===
 from services.whatsapp_service import WhatsAppService
@@ -29,6 +34,7 @@ from services.telegram_service import TelegramService
 from services.agent_service import PAIAAgentManager
 from services.memory_service import MemoryService
 from services.mcp_service import MCPService, init_mcp_service
+from services.gmail_service import GmailService
 
 # === HERRAMIENTAS ===
 from tools.telegram_tools import create_telegram_tools
@@ -40,6 +46,7 @@ from tools.expertise_tools import get_expertise_tools
 # === ROUTERS ===
 from routers.health import create_health_router
 from routers.auth import create_auth_router
+from routers.google_auth import create_google_auth_router
 from routers.agents import create_agents_router
 from routers.connections import create_connections_router
 from routers.telegram import create_telegram_router
@@ -49,6 +56,7 @@ from routers.users import create_users_router
 from routers.flows import create_flows_router
 from routers.paia import create_paia_router
 from routers.websocket import create_websocket_router
+from routers.emails import create_emails_router
 
 # === PROTOCOLO PAIA ===
 from paia_protocol import (
@@ -78,7 +86,6 @@ from config.settings import (
 )
 from models.agent import PAIAAgent, AgentConnection, AgentMessage
 
-load_dotenv()
 app = FastAPI(title=API_TITLE, version=API_VERSION)
 
 
@@ -99,6 +106,9 @@ telegram_service = TelegramService(TELEGRAM_BOT_TOKEN)
 
 # === SERVICIO MCP ===
 mcp_service: Optional[MCPService] = None
+
+# === SERVICIO GMAIL ===
+gmail_service = GmailService(db_manager)
 
 # =============== PROTOCOLO PAIA - VARIABLES GLOBALES ===============
 paia_router: Optional[PAIAMessageRouter] = None
@@ -166,7 +176,8 @@ async def init_mcp_client():
         telegram_service=telegram_service,
         whatsapp_service=whatsapp_service,
         auth_manager=auth_manager,
-        get_mcp_client_func=mcp_service.get_mcp_client_for_user
+        get_mcp_client_func=mcp_service.get_mcp_client_for_user,
+        gmail_service=gmail_service
     )
 
     # Inyectar stores globales compartidos
@@ -537,6 +548,12 @@ app.include_router(health_router)
 auth_router = create_auth_router(auth_manager=auth_manager)
 app.include_router(auth_router)
 
+google_auth_router = create_google_auth_router(db_manager=db_manager)
+app.include_router(google_auth_router)
+
+emails_router = create_emails_router(gmail_service=gmail_service, auth_manager=auth_manager)
+app.include_router(emails_router)
+
 agents_router = create_agents_router(
     agents_store=agents_store,
     connections_store=connections_store,
@@ -598,6 +615,11 @@ websocket_router = create_websocket_router(paia_ws_handler=paia_ws_handler)
 app.include_router(websocket_router)
 
 # =============== ENDPOINTS UNICOS (NO EN ROUTERS) ===============
+
+@app.get("/debug_ping")
+async def debug_ping():
+    return {"message": "pong", "status": "ok"}
+
 
 @app.get("/api/conversations/{agent1_id}/{agent2_id}")
 async def get_conversation_history(agent1_id: str, agent2_id: str):
@@ -669,11 +691,20 @@ async def create_architecture(architecture_data: dict):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 # =============== STARTUP ===============
 
 if __name__ == "__main__":
     print("Iniciando PAIA Platform Backend...")
     print("")
+
+    # Imprimir rutas registradas para debugging
+    print("=== RUTAS REGISTRADAS ===")
+    for route in app.routes:
+        if hasattr(route, "path"):
+            methods = ",".join(route.methods) if hasattr(route, "methods") else "WebSocket"
+            print(f"Ruta: {route.path} [{methods}]")
+    print("=========================")
     
     uvicorn.run(
         app, 
