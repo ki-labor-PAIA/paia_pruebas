@@ -154,7 +154,7 @@
     },
     "whatsappConfig": "Configuración de WhatsApp (Opcional)",
     "whatsappPhone": "Número de WhatsApp",
-    "whatsappPhonePlaceholder": "Ej: 524425498784",
+    "whatsappPhonePlaceholder": "Ej: 4425498784",
     "phoneRequired": "Por favor ingresa un número de teléfono",
     "phoneInvalid": "El número debe tener al menos 10 dígitos",
     "sendTemplate": "Enviar Plantilla de Inicio",
