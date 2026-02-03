@@ -42,16 +42,13 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
     is_public: false,
     customColor: '',
     whatsapp_country_code: '52',  // Código de país por defecto (México)
-    whatsapp_local_number: '',     // Solo el número local
-    whatsapp_test_message: ''
+    whatsapp_local_number: ''     // Solo el número local
   });
 
   const [whatsappState, setWhatsappState] = useState({
     template_sent: false,
     sending_template: false,
-    sending_message: false,
-    template_error: '',
-    message_result: ''
+    template_error: ''
   });
 
   // Pre-fill form when in edit mode
@@ -150,8 +147,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
         is_public: agentToEdit.is_public || false,
         customColor: agentToEdit.customColor || '',
         whatsapp_country_code: countryCode,
-        whatsapp_local_number: localNumber,
-        whatsapp_test_message: ''
+        whatsapp_local_number: localNumber
       });
     } else if (!editMode) {
       // Reset form when not in edit mode
@@ -163,8 +159,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
         is_public: false,
         customColor: '',
         whatsapp_country_code: '52',
-        whatsapp_local_number: '',
-        whatsapp_test_message: ''
+        whatsapp_local_number: ''
       });
     }
   }, [editMode, agentToEdit, isOpen]);
@@ -188,10 +183,22 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
       return;
     }
 
+    // Check if user entered number but didn't send template
+    if (formData.whatsapp_local_number.trim() && !whatsappState.template_sent) {
+      const confirmCreate = window.confirm(
+        'Has ingresado un número de WhatsApp pero no has enviado la plantilla. ' +
+        'El agente se creará SIN número de WhatsApp. ¿Deseas continuar?'
+      );
+      if (!confirmCreate) {
+        return; // Cancel creation
+      }
+    }
+
     // Combine country code + local number into whatsapp_phone_number
+    // ONLY if template was sent successfully
     const submissionData = {
       ...formData,
-      whatsapp_phone_number: getFullWhatsAppNumber()
+      whatsapp_phone_number: whatsappState.template_sent ? getFullWhatsAppNumber() : ''
     };
     // Remove temporary fields
     delete submissionData.whatsapp_country_code;
@@ -214,8 +221,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
       is_public: false,
       customColor: '',
       whatsapp_country_code: '52',
-      whatsapp_local_number: '',
-      whatsapp_test_message: ''
+      whatsapp_local_number: ''
     });
     onClose();
   };
@@ -228,15 +234,12 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
       expertise: 'general',
       is_public: true,
       whatsapp_country_code: '52',
-      whatsapp_local_number: '',
-      whatsapp_test_message: ''
+      whatsapp_local_number: ''
     });
     setWhatsappState({
       template_sent: false,
       sending_template: false,
-      sending_message: false,
-      template_error: '',
-      message_result: ''
+      template_error: ''
     });
     onClose();
   };
@@ -322,60 +325,6 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
         ...prev,
         sending_template: false,
         template_error: 'Connection error with server'
-      }));
-      alert(`❌ Connection error: ${error.message}`);
-    }
-  };
-
-  const handleSendTestMessage = async () => {
-    const phone = getFullWhatsAppNumber();
-    const message = formData.whatsapp_test_message.trim();
-
-    if (!message) {
-      alert(t('createAgent.messageRequired') || 'Please write a message');
-      return;
-    }
-
-    setWhatsappState(prev => ({
-      ...prev,
-      sending_message: true,
-      message_result: ''
-    }));
-
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/whatsapp/send`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          phone_number: phone,
-          message: message
-        })
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        setWhatsappState(prev => ({
-          ...prev,
-          sending_message: false,
-          message_result: '✅ ' + result.message
-        }));
-        alert('✅ ' + result.message);
-      } else {
-        setWhatsappState(prev => ({
-          ...prev,
-          sending_message: false,
-          message_result: '❌ ' + result.message
-        }));
-        alert(`❌ ${result.message}`);
-      }
-    } catch (error) {
-      setWhatsappState(prev => ({
-        ...prev,
-        sending_message: false,
-        message_result: '❌ Connection error'
       }));
       alert(`❌ Connection error: ${error.message}`);
     }
@@ -591,6 +540,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
                 <select
                   value={formData.whatsapp_country_code}
                   onChange={(e) => handleChange('whatsapp_country_code', e.target.value)}
+                  disabled={whatsappState.template_sent}
                   style={{
                     width: '140px',
                     padding: '8px 12px',
@@ -598,7 +548,9 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
                     border: '1px solid var(--border-color)',
                     background: 'rgba(255,255,255,0.05)',
                     color: 'var(--text-primary)',
-                    fontSize: '0.85em'
+                    fontSize: '0.85em',
+                    opacity: whatsappState.template_sent ? 0.6 : 1,
+                    cursor: whatsappState.template_sent ? 'not-allowed' : 'pointer'
                   }}
                 >
                   {COUNTRY_CODES.map(item => (
@@ -614,6 +566,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
                   value={formData.whatsapp_local_number}
                   onChange={(e) => handleChange('whatsapp_local_number', e.target.value)}
                   placeholder={t('createAgent.whatsappPhonePlaceholder') || 'Ex: 4425498784'}
+                  disabled={whatsappState.template_sent}
                   style={{
                     flex: 1,
                     padding: '8px 12px',
@@ -621,7 +574,9 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
                     border: '1px solid var(--border-color)',
                     background: 'rgba(255,255,255,0.05)',
                     color: 'var(--text-primary)',
-                    fontSize: '0.85em'
+                    fontSize: '0.85em',
+                    opacity: whatsappState.template_sent ? 0.6 : 1,
+                    cursor: whatsappState.template_sent ? 'not-allowed' : 'default'
                   }}
                 />
               </div>
@@ -666,88 +621,38 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
               )}
             </button>
 
-            {/* Test Message Section (Only shown after template is sent) */}
+            {/* Success Message - Shown after template is sent */}
             {whatsappState.template_sent && (
-              <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(37, 211, 102, 0.2)' }}>
-                {/* Warning Message */}
-                <div style={{
-                  padding: '10px 12px',
-                  background: 'rgba(251, 191, 36, 0.1)',
-                  border: '1px solid rgba(251, 191, 36, 0.3)',
-                  borderRadius: '6px',
-                  fontSize: '0.75em',
-                  color: '#FCD34D',
-                  marginBottom: '12px',
-                  lineHeight: '1.5'
-                }}>
-                  ⚠️ {t('createAgent.whatsappWarning') || 'To send normal messages, the contact must first respond to the template on WhatsApp'}
-                </div>
-
-                {/* Test Message Input */}
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '6px',
-                    fontSize: '0.85em',
-                    fontWeight: '500',
-                    color: 'var(--text-primary)'
-                  }}>
-                    {t('createAgent.testMessage') || 'Test Message'}
-                  </label>
-                  <textarea
-                    value={formData.whatsapp_test_message}
-                    onChange={(e) => handleChange('whatsapp_test_message', e.target.value)}
-                    placeholder={t('createAgent.testMessagePlaceholder') || 'Hello! I am your personal assistant...'}
-                    rows="3"
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--border-color)',
-                      background: 'rgba(255,255,255,0.05)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.85em',
-                      resize: 'vertical',
-                      minHeight: '70px'
-                    }}
-                  />
-                </div>
-
-                {/* Send Test Message Button */}
-                <button
-                  onClick={handleSendTestMessage}
-                  disabled={whatsappState.sending_message || !formData.whatsapp_test_message.trim()}
-                  style={{
-                    width: '100%',
-                    padding: '10px 16px',
-                    background: '#25D366',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
+              <div style={{
+                marginTop: '12px',
+                padding: '12px',
+                background: 'rgba(16, 185, 129, 0.1)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <span style={{ fontSize: '1.2em' }}>✅</span>
+                <div>
+                  <div style={{
                     fontSize: '0.85em',
                     fontWeight: '600',
-                    cursor: whatsappState.sending_message || !formData.whatsapp_test_message.trim() ? 'not-allowed' : 'pointer',
-                    opacity: whatsappState.sending_message || !formData.whatsapp_test_message.trim() ? 0.6 : 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  {whatsappState.sending_message ? (
-                    <>
-                      <span>⏳</span>
-                      <span>{t('createAgent.sending') || 'Sending...'}</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>💬</span>
-                      <span>{t('createAgent.sendTestMessage') || 'Send Test Message'}</span>
-                    </>
-                  )}
-                </button>
+                    color: '#10B981',
+                    marginBottom: '2px'
+                  }}>
+                    WhatsApp Configurado Correctamente
+                  </div>
+                  <div style={{
+                    fontSize: '0.75em',
+                    color: 'var(--text-secondary)'
+                  }}>
+                    El número {getFullWhatsAppNumber()} ha sido validado. Puedes continuar creando tu agente.
+                  </div>
+                </div>
               </div>
             )}
+
           </div>
         </div>
 
