@@ -25,31 +25,9 @@ export default function ConfigureCalendarModal({ isOpen, onClose, onConfigureCal
       if (event.data?.type === 'GOOGLE_AUTH_SUCCESS') {
         try {
           setIsLoading(true);
+          console.log('[ConfigureCalendarModal] Recibido postMessage de éxito desde callback');
 
-          const { userId, code } = event.data.data;
-          console.log('[ConfigureCalendarModal] Recibido postMessage con code, guardando token para userId:', userId);
-
-          // Guardar el token llamando al endpoint
-          const response = await fetch('/api/auth/google-calendar', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              userId,
-              code
-            })
-          });
-
-          const result = await response.json();
-
-          if (!response.ok) {
-            throw new Error(result.error || 'Error guardando token');
-          }
-
-          console.log('[ConfigureCalendarModal] Token guardado exitosamente:', result);
-
-          // Actualizar el estado local
+          // El callback ya guardó el token, solo actualizamos el estado local
           setFormData(prev => ({
             ...prev,
             isAuthenticated: true,
@@ -58,7 +36,7 @@ export default function ConfigureCalendarModal({ isOpen, onClose, onConfigureCal
           setStep('success');
 
         } catch (err) {
-          console.error('[ConfigureCalendarModal] Error guardando token:', err);
+          console.error('[ConfigureCalendarModal] Error procesando éxito:', err);
           setError(err.message);
           setStep('config');
         } finally {

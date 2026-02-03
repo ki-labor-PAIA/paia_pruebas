@@ -4,7 +4,8 @@ import { createServiceSupabase } from '@/lib/supabase';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'your-client-id.apps.googleusercontent.com';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || 'your-client-secret';
-const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/mcp/oauth2callback';
+// Calendar usa su propio callback, diferente del de Gmail
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_CALENDAR_REDIRECT_URI || 'https://paia.haielab.org/api/auth/google-calendar/callback';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -21,13 +22,13 @@ export default async function handler(req, res) {
 
   try {
     const supabase = createServiceSupabase();
-    
+
     const auth = new OAuth2Client(
       GOOGLE_CLIENT_ID,
       GOOGLE_CLIENT_SECRET,
       GOOGLE_REDIRECT_URI
     );
-    
+
     const { tokens } = await auth.getToken(code);
     
     if (!tokens.access_token) {
