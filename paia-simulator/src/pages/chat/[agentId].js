@@ -15,11 +15,15 @@ export default function AgentChatPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef(null);
+  const textareaRef = useRef(null);
+  const messagesContainerRef = useRef(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   };
 
   useEffect(() => {
@@ -75,6 +79,12 @@ export default function AgentChatPage() {
         console.error('Error loading agent:', error);
       } finally {
         setLoading(false);
+        // Hacer scroll después de que el agente se haya cargado y el DOM esté listo
+        setTimeout(() => {
+          if (messages.length > 0) {
+            scrollToBottom();
+          }
+        }, 200);
       }
     };
 
@@ -92,6 +102,12 @@ export default function AgentChatPage() {
 
     setMessages(prev => [...prev, userMessage]);
     setMessage('');
+
+    // Resetear altura del textarea
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '48px';
+    }
+
     setIsTyping(true);
 
     try {
@@ -126,11 +142,19 @@ export default function AgentChatPage() {
     }
   };
 
-  const handleKeyPress = (e) => {
+  const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
+  };
+
+  const handleTextareaChange = (e) => {
+    setMessage(e.target.value);
+
+    // Auto-resize textarea
+    e.target.style.height = 'auto';
+    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
   };
 
   if (loading) {
@@ -188,7 +212,7 @@ export default function AgentChatPage() {
       </Head>
 
       <div style={{
-        minHeight: '100vh',
+        height: '100vh',
         background: 'var(--bg-primary)',
         display: 'flex',
         flexDirection: 'column'
@@ -260,7 +284,7 @@ export default function AgentChatPage() {
         </header>
 
         {/* Chat Messages */}
-        <main style={{
+        <main ref={messagesContainerRef} style={{
           flex: 1,
           overflow: 'auto',
           padding: '24px',
@@ -403,9 +427,10 @@ export default function AgentChatPage() {
             width: '100%'
           }}>
             <textarea
+              ref={textareaRef}
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
+              onChange={handleTextareaChange}
+              onKeyDown={handleKeyDown}
               placeholder="Escribe tu mensaje..."
               rows="1"
               style={{
@@ -419,7 +444,9 @@ export default function AgentChatPage() {
                 resize: 'none',
                 maxHeight: '120px',
                 minHeight: '48px',
-                fontFamily: 'inherit'
+                height: '48px',
+                fontFamily: 'inherit',
+                overflow: 'auto'
               }}
             />
             <button
