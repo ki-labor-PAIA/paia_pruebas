@@ -2,6 +2,35 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
+// Lista de códigos de país para WhatsApp
+const COUNTRY_CODES = [
+  { code: '52', country: 'México', flag: '🇲🇽' },
+  { code: '1', country: 'USA/Canadá', flag: '🇺🇸' },
+  { code: '34', country: 'España', flag: '🇪🇸' },
+  { code: '54', country: 'Argentina', flag: '🇦🇷' },
+  { code: '57', country: 'Colombia', flag: '🇨🇴' },
+  { code: '51', country: 'Perú', flag: '🇵🇪' },
+  { code: '56', country: 'Chile', flag: '🇨🇱' },
+  { code: '58', country: 'Venezuela', flag: '🇻🇪' },
+  { code: '55', country: 'Brasil', flag: '🇧🇷' },
+  { code: '593', country: 'Ecuador', flag: '🇪🇨' },
+  { code: '598', country: 'Uruguay', flag: '🇺🇾' },
+  { code: '595', country: 'Paraguay', flag: '🇵🇾' },
+  { code: '591', country: 'Bolivia', flag: '🇧🇴' },
+  { code: '507', country: 'Panamá', flag: '🇵🇦' },
+  { code: '506', country: 'Costa Rica', flag: '🇨🇷' },
+  { code: '503', country: 'El Salvador', flag: '🇸🇻' },
+  { code: '502', country: 'Guatemala', flag: '🇬🇹' },
+  { code: '504', country: 'Honduras', flag: '🇭🇳' },
+  { code: '505', country: 'Nicaragua', flag: '🇳🇮' },
+  { code: '509', country: 'Haití', flag: '🇭🇹' },
+  { code: '53', country: 'Cuba', flag: '🇨🇺' },
+  { code: '44', country: 'Reino Unido', flag: '🇬🇧' },
+  { code: '33', country: 'Francia', flag: '🇫🇷' },
+  { code: '49', country: 'Alemania', flag: '🇩🇪' },
+  { code: '39', country: 'Italia', flag: '🇮🇹' }
+];
+
 export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpdateAgent, editMode = false, agentToEdit = null }) {
   const { t } = useTranslation();
 
@@ -12,7 +41,8 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
     expertise: 'general',
     is_public: false,
     customColor: '',
-    whatsapp_phone_number: '',
+    whatsapp_country_code: '52',  // Código de país por defecto (México)
+    whatsapp_local_number: '',     // Solo el número local
     whatsapp_test_message: ''
   });
 
@@ -27,6 +57,91 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
   // Pre-fill form when in edit mode
   useEffect(() => {
     if (editMode && agentToEdit) {
+      // Parse WhatsApp number if exists - split into country code and local number
+      let countryCode = '52';  // Default to Mexico
+      let localNumber = '';
+
+      if (agentToEdit.whatsapp_phone_number) {
+        const fullNumber = agentToEdit.whatsapp_phone_number;
+        // Detect country code and extract local number (check 3-digit codes first)
+        if (fullNumber.startsWith('593')) {
+          countryCode = '593';
+          localNumber = fullNumber.substring(3);
+        } else if (fullNumber.startsWith('598')) {
+          countryCode = '598';
+          localNumber = fullNumber.substring(3);
+        } else if (fullNumber.startsWith('595')) {
+          countryCode = '595';
+          localNumber = fullNumber.substring(3);
+        } else if (fullNumber.startsWith('591')) {
+          countryCode = '591';
+          localNumber = fullNumber.substring(3);
+        } else if (fullNumber.startsWith('507')) {
+          countryCode = '507';
+          localNumber = fullNumber.substring(3);
+        } else if (fullNumber.startsWith('506')) {
+          countryCode = '506';
+          localNumber = fullNumber.substring(3);
+        } else if (fullNumber.startsWith('505')) {
+          countryCode = '505';
+          localNumber = fullNumber.substring(3);
+        } else if (fullNumber.startsWith('504')) {
+          countryCode = '504';
+          localNumber = fullNumber.substring(3);
+        } else if (fullNumber.startsWith('503')) {
+          countryCode = '503';
+          localNumber = fullNumber.substring(3);
+        } else if (fullNumber.startsWith('502')) {
+          countryCode = '502';
+          localNumber = fullNumber.substring(3);
+        } else if (fullNumber.startsWith('509')) {
+          countryCode = '509';
+          localNumber = fullNumber.substring(3);
+        } else if (fullNumber.startsWith('52')) {
+          countryCode = '52';
+          localNumber = fullNumber.substring(2);
+        } else if (fullNumber.startsWith('1')) {
+          countryCode = '1';
+          localNumber = fullNumber.substring(1);
+        } else if (fullNumber.startsWith('34')) {
+          countryCode = '34';
+          localNumber = fullNumber.substring(2);
+        } else if (fullNumber.startsWith('54')) {
+          countryCode = '54';
+          localNumber = fullNumber.substring(2);
+        } else if (fullNumber.startsWith('57')) {
+          countryCode = '57';
+          localNumber = fullNumber.substring(2);
+        } else if (fullNumber.startsWith('51')) {
+          countryCode = '51';
+          localNumber = fullNumber.substring(2);
+        } else if (fullNumber.startsWith('56')) {
+          countryCode = '56';
+          localNumber = fullNumber.substring(2);
+        } else if (fullNumber.startsWith('58')) {
+          countryCode = '58';
+          localNumber = fullNumber.substring(2);
+        } else if (fullNumber.startsWith('55')) {
+          countryCode = '55';
+          localNumber = fullNumber.substring(2);
+        } else if (fullNumber.startsWith('53')) {
+          countryCode = '53';
+          localNumber = fullNumber.substring(2);
+        } else if (fullNumber.startsWith('44')) {
+          countryCode = '44';
+          localNumber = fullNumber.substring(2);
+        } else if (fullNumber.startsWith('33')) {
+          countryCode = '33';
+          localNumber = fullNumber.substring(2);
+        } else if (fullNumber.startsWith('49')) {
+          countryCode = '49';
+          localNumber = fullNumber.substring(2);
+        } else if (fullNumber.startsWith('39')) {
+          countryCode = '39';
+          localNumber = fullNumber.substring(2);
+        }
+      }
+
       setFormData({
         name: agentToEdit.name || '',
         description: agentToEdit.description || '',
@@ -34,7 +149,8 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
         expertise: agentToEdit.expertise || 'general',
         is_public: agentToEdit.is_public || false,
         customColor: agentToEdit.customColor || '',
-        whatsapp_phone_number: agentToEdit.whatsapp_phone_number || '',
+        whatsapp_country_code: countryCode,
+        whatsapp_local_number: localNumber,
         whatsapp_test_message: ''
       });
     } else if (!editMode) {
@@ -46,7 +162,8 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
         expertise: 'general',
         is_public: false,
         customColor: '',
-        whatsapp_phone_number: '',
+        whatsapp_country_code: '52',
+        whatsapp_local_number: '',
         whatsapp_test_message: ''
       });
     }
@@ -56,18 +173,36 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  // Helper function to combine country code + local number
+  const getFullWhatsAppNumber = () => {
+    const { whatsapp_country_code, whatsapp_local_number } = formData;
+    if (!whatsapp_local_number || !whatsapp_local_number.trim()) {
+      return '';
+    }
+    return `${whatsapp_country_code}${whatsapp_local_number.replace(/\D/g, '')}`;
+  };
+
   const handleSubmit = () => {
     if (!formData.name.trim()) {
       alert(t('createAgent.nameRequired') || 'Agent name is required');
       return;
     }
 
+    // Combine country code + local number into whatsapp_phone_number
+    const submissionData = {
+      ...formData,
+      whatsapp_phone_number: getFullWhatsAppNumber()
+    };
+    // Remove temporary fields
+    delete submissionData.whatsapp_country_code;
+    delete submissionData.whatsapp_local_number;
+
     if (editMode && onUpdateAgent && agentToEdit) {
       // Update existing agent
-      onUpdateAgent(agentToEdit.id, formData);
+      onUpdateAgent(agentToEdit.id, submissionData);
     } else if (onCreateAgent) {
       // Create new agent
-      onCreateAgent(formData);
+      onCreateAgent(submissionData);
     }
 
     // Reset form
@@ -78,7 +213,8 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
       expertise: 'general',
       is_public: false,
       customColor: '',
-      whatsapp_phone_number: '',
+      whatsapp_country_code: '52',
+      whatsapp_local_number: '',
       whatsapp_test_message: ''
     });
     onClose();
@@ -91,7 +227,8 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
       personality: 'Analítico',
       expertise: 'general',
       is_public: true,
-      whatsapp_phone_number: '',
+      whatsapp_country_code: '52',
+      whatsapp_local_number: '',
       whatsapp_test_message: ''
     });
     setWhatsappState({
@@ -105,7 +242,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
   };
 
   const handleSendTemplate = async () => {
-    const phone = formData.whatsapp_phone_number.trim();
+    const phone = getFullWhatsAppNumber();
 
     if (!phone) {
       alert(t('createAgent.phoneRequired') || 'Please enter a phone number');
@@ -191,7 +328,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
   };
 
   const handleSendTestMessage = async () => {
-    const phone = formData.whatsapp_phone_number.trim();
+    const phone = getFullWhatsAppNumber();
     const message = formData.whatsapp_test_message.trim();
 
     if (!message) {
@@ -436,7 +573,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
               📱 {t('createAgent.whatsappConfig') || 'WhatsApp Configuration (Optional)'}
             </h4>
 
-            {/* Phone Number Input */}
+            {/* Phone Number Input - Split into Country Code + Local Number */}
             <div style={{ marginBottom: '12px' }}>
               <label style={{
                 display: 'block',
@@ -447,27 +584,53 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
               }}>
                 {t('createAgent.whatsappPhone') || 'WhatsApp Number'}
               </label>
-              <input
-                type="text"
-                value={formData.whatsapp_phone_number}
-                onChange={(e) => handleChange('whatsapp_phone_number', e.target.value)}
-                placeholder={t('createAgent.whatsappPhonePlaceholder') || 'Ex: 524425498784'}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)',
-                  background: 'rgba(255,255,255,0.05)',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.85em'
-                }}
-              />
+
+              {/* Container for dropdown and input side by side */}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {/* Dropdown para código de país */}
+                <select
+                  value={formData.whatsapp_country_code}
+                  onChange={(e) => handleChange('whatsapp_country_code', e.target.value)}
+                  style={{
+                    width: '140px',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    background: 'rgba(255,255,255,0.05)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.85em'
+                  }}
+                >
+                  {COUNTRY_CODES.map(item => (
+                    <option key={item.code} value={item.code} style={{ backgroundColor: "#1E2E57" }}>
+                      {item.flag} +{item.code}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Input para número local */}
+                <input
+                  type="tel"
+                  value={formData.whatsapp_local_number}
+                  onChange={(e) => handleChange('whatsapp_local_number', e.target.value)}
+                  placeholder={t('createAgent.whatsappPhonePlaceholder') || 'Ex: 4425498784'}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    background: 'rgba(255,255,255,0.05)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.85em'
+                  }}
+                />
+              </div>
             </div>
 
             {/* Send Template Button */}
             <button
               onClick={handleSendTemplate}
-              disabled={whatsappState.sending_template || !formData.whatsapp_phone_number.trim()}
+              disabled={whatsappState.sending_template || !formData.whatsapp_local_number.trim()}
               style={{
                 width: '100%',
                 padding: '10px 16px',
@@ -477,8 +640,8 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
                 borderRadius: '6px',
                 fontSize: '0.85em',
                 fontWeight: '600',
-                cursor: whatsappState.sending_template || !formData.whatsapp_phone_number.trim() ? 'not-allowed' : 'pointer',
-                opacity: whatsappState.sending_template || !formData.whatsapp_phone_number.trim() ? 0.6 : 1,
+                cursor: whatsappState.sending_template || !formData.whatsapp_local_number.trim() ? 'not-allowed' : 'pointer',
+                opacity: whatsappState.sending_template || !formData.whatsapp_local_number.trim() ? 0.6 : 1,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
