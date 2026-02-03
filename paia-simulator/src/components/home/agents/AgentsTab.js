@@ -9,10 +9,6 @@ const AgentsTab = ({ agents, loading, onCreateNew, onAgentAction }) => {
   };
 
   const handleDelete = (agent) => {
-    if (!confirm(`Are you sure you want to delete the agent "${agent.name}"?`)) {
-      return;
-    }
-
     if (onAgentAction) {
       onAgentAction('delete', agent);
     }

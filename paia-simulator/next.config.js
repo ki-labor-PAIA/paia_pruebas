@@ -4,6 +4,11 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // Descomenta las siguientes líneas para ocultar el indicador "N" de Next.js en desarrollo
+  devIndicators: {
+    buildActivity: false, // Cambia a true para mostrar el indicador
+    buildActivityPosition: 'bottom-right',
+  },
   async headers() {
     return [
       {

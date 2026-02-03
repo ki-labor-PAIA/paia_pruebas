@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/router';
 import ReactFlow, {
   addEdge,
   applyEdgeChanges,
@@ -20,7 +21,8 @@ import TelegramNode from './TelegramNode';
 import CalendarNode from './CalendarNode';
 import ConnectionNode from './ConnectionNode';
 import CreateAgentModal from './CreateAgentModal';
-import ChatModal from './ChatModal';
+// ChatModal removido - ahora se usa /chat/[agentId] página dedicada
+// import ChatModal from './ChatModal';
 import UserHeader from './UserHeader';
 import ConfigureCalendarModal from './ConfigureCalendarModal';
 import ConnectUserModal from './ConnectUserModal';
@@ -53,6 +55,7 @@ import useFlowExecution from '@/hooks/useFlowExecution';
 
 export default function PAIASimulator({ initialFlow }) {
   const { data: session } = useSession();
+  const router = useRouter();
 
   // Message system hook
   const {
@@ -239,10 +242,15 @@ export default function PAIASimulator({ initialFlow }) {
     async (params) => {
       const edge = {
         ...params,
-        type: 'straight',
+        type: 'smoothstep',
         animated: false,
+        style: {
+          strokeWidth: 2,
+        },
         markerEnd: {
           type: MarkerType.ArrowClosed,
+          width: 20,
+          height: 20,
         },
       };
       setEdges((eds) => addEdge(edge, eds));
@@ -277,26 +285,9 @@ export default function PAIASimulator({ initialFlow }) {
     const agent = nodes.find(n => n.id === agentId);
     if (!agent) return;
 
-    setActiveChatAgent(agentId);
-    setShowChat(true);
-
-    // Cargar historial de mensajes del nodo
-    const nodeHistory = nodeMessageHistory[agentId] || [];
-
-    if (agent.data.actorType === 'human') {
-      // Para humanos: mostrar configuración + historial de mensajes recibidos
-      const systemMessage = {
-        sender: 'system',
-        content: `Configuring ${agent.data.label}. Write the message this human will send during simulation. Current message: "${agent.data.customMessage || 'No message configured'}"`,
-        timestamp: new Date().toLocaleTimeString()
-      };
-
-      setChatMessages([systemMessage, ...nodeHistory]);
-    } else {
-      // Para IAs: mostrar historial normal
-      setChatMessages(nodeHistory);
-    }
-  }, [nodes, nodeMessageHistory]);
+    // Redirigir a la página de chat dedicada
+    router.push(`/chat/${agentId}`);
+  }, [nodes, router]);
 
   // Función para actualizar mensaje personalizado de nodos humanos
   const updateHumanMessage = useCallback((nodeId, newMessage) => {
@@ -643,8 +634,13 @@ export default function PAIASimulator({ initialFlow }) {
         target: interaction.target,
         type: 'smoothstep',
         animated: false,
+        style: {
+          strokeWidth: 2,
+        },
         markerEnd: {
           type: MarkerType.ArrowClosed,
+          width: 20,
+          height: 20,
         },
       };
       setEdges((eds) => [...eds, edge]);
@@ -712,8 +708,13 @@ export default function PAIASimulator({ initialFlow }) {
             target: interaction.target,
             type: 'smoothstep',
             animated: false,
+            style: {
+              strokeWidth: 2,
+            },
             markerEnd: {
               type: MarkerType.ArrowClosed,
+              width: 20,
+              height: 20,
             },
           };
           setEdges((eds) => [...eds, edge]);
@@ -888,17 +889,7 @@ export default function PAIASimulator({ initialFlow }) {
           />
         )}
 
-        {showChat && (
-          <ChatModal
-            isOpen={showChat}
-            onClose={closeChat}
-            activeAgent={activeChatAgent}
-            nodes={nodes}
-            onSendMessage={sendChatMessage}
-            chatMessages={chatMessages}
-            isTyping={isTyping}
-          />
-        )}
+        {/* ChatModal removido - ahora se usa /chat/[agentId] página dedicada */}
 
         {showConnectUserModal && (
           <ConnectUserModal

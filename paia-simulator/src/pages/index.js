@@ -36,6 +36,10 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('flows');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [flowToDelete, setFlowToDelete] = useState(null);
+  const [showDeleteAgentConfirm, setShowDeleteAgentConfirm] = useState(false);
+  const [agentToDelete, setAgentToDelete] = useState(null);
 
   // Data hooks
   const {
@@ -143,17 +147,30 @@ export default function Home() {
     }
   };
 
-  const handleDeleteFlow = async (flowId) => {
-    if (!confirm('Are you sure you want to delete this flow?')) return;
+  const handleDeleteFlow = (flowId) => {
+    setFlowToDelete(flowId);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteFlow = async () => {
+    if (!flowToDelete) return;
 
     try {
-      const success = await deleteFlow(flowId, session.user.id);
+      const success = await deleteFlow(flowToDelete, session.user.id);
       if (!success) {
         setError('Error deleting flow');
       }
     } catch (err) {
       setError(`Error deleting flow: ${err.message}`);
+    } finally {
+      setShowDeleteConfirm(false);
+      setFlowToDelete(null);
     }
+  };
+
+  const cancelDeleteFlow = () => {
+    setShowDeleteConfirm(false);
+    setFlowToDelete(null);
   };
 
   const handleDuplicateFlow = async (flowId) => {
@@ -255,14 +272,8 @@ export default function Home() {
         break;
 
       case 'delete':
-        try {
-          const success = await deleteAgent(agent.id, session.user.id);
-          if (!success) {
-            setError('Error deleting agent');
-          }
-        } catch (err) {
-          setError(`Error deleting agent: ${err.message}`);
-        }
+        setAgentToDelete(agent);
+        setShowDeleteAgentConfirm(true);
         break;
 
       case 'configure':
@@ -273,6 +284,27 @@ export default function Home() {
       default:
         console.log('Unknown action:', action);
     }
+  };
+
+  const confirmDeleteAgent = async () => {
+    if (!agentToDelete) return;
+
+    try {
+      const success = await deleteAgent(agentToDelete.id, session.user.id);
+      if (!success) {
+        setError('Error deleting agent');
+      }
+    } catch (err) {
+      setError(`Error deleting agent: ${err.message}`);
+    } finally {
+      setShowDeleteAgentConfirm(false);
+      setAgentToDelete(null);
+    }
+  };
+
+  const cancelDeleteAgent = () => {
+    setShowDeleteAgentConfirm(false);
+    setAgentToDelete(null);
   };
 
   const handleUpdateAgent = async (agentId, agentData) => {
@@ -492,6 +524,174 @@ export default function Home() {
               onConfigure={handleConfigureAgent}
               agent={configuringAgent}
             />
+          )}
+
+          {showDeleteConfirm && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999
+            }}>
+              <div style={{
+                backgroundColor: 'var(--card-bg)',
+                borderRadius: '16px',
+                padding: '32px',
+                maxWidth: '450px',
+                width: '90%',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+                border: '1px solid var(--border-color)'
+              }}>
+                <h2 style={{
+                  fontSize: '24px',
+                  fontWeight: '600',
+                  marginBottom: '16px',
+                  color: 'var(--text-primary)'
+                }}>
+                  Delete Flow
+                </h2>
+                <p style={{
+                  fontSize: '16px',
+                  color: 'var(--text-secondary)',
+                  marginBottom: '24px',
+                  lineHeight: '1.5'
+                }}>
+                  Are you sure you want to delete this flow? This action cannot be undone and will remove all associated data.
+                </p>
+                <div style={{
+                  display: 'flex',
+                  gap: '12px',
+                  justifyContent: 'flex-end'
+                }}>
+                  <button
+                    onClick={cancelDeleteFlow}
+                    style={{
+                      padding: '10px 24px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'transparent',
+                      color: 'var(--text-primary)',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDeleteFlow}
+                    style={{
+                      padding: '10px 24px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      backgroundColor: '#EF4444',
+                      color: 'white',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#DC2626'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#EF4444'}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showDeleteAgentConfirm && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999
+            }}>
+              <div style={{
+                backgroundColor: 'var(--card-bg)',
+                borderRadius: '16px',
+                padding: '32px',
+                maxWidth: '450px',
+                width: '90%',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+                border: '1px solid var(--border-color)'
+              }}>
+                <h2 style={{
+                  fontSize: '24px',
+                  fontWeight: '600',
+                  marginBottom: '16px',
+                  color: 'var(--text-primary)'
+                }}>
+                  Delete Agent
+                </h2>
+                <p style={{
+                  fontSize: '16px',
+                  color: 'var(--text-secondary)',
+                  marginBottom: '24px',
+                  lineHeight: '1.5'
+                }}>
+                  Are you sure you want to delete {agentToDelete?.name}? This action cannot be undone and will also delete all associated connections, messages, and settings.
+                </p>
+                <div style={{
+                  display: 'flex',
+                  gap: '12px',
+                  justifyContent: 'flex-end'
+                }}>
+                  <button
+                    onClick={cancelDeleteAgent}
+                    style={{
+                      padding: '10px 24px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'transparent',
+                      color: 'var(--text-primary)',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDeleteAgent}
+                    style={{
+                      padding: '10px 24px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      backgroundColor: '#EF4444',
+                      color: 'white',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#DC2626'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#EF4444'}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
 
           {showTutorial && (

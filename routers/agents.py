@@ -150,6 +150,37 @@ def create_agents_router(
             agents_list.append(agent_dict)
         return {"agents": agents_list, "count": len(agents_list)}
 
+    @router.get("/api/agents/{agent_id}")
+    async def get_agent_by_id(agent_id: str) -> Dict[str, Any]:
+        """Obtener información de un agente específico"""
+        try:
+            db_agent = await db_manager.get_agent(agent_id)
+            if not db_agent:
+                raise HTTPException(status_code=404, detail="Agente no encontrado")
+
+            agent_dict = {
+                'id': db_agent.id,
+                'name': db_agent.name,
+                'description': db_agent.description,
+                'personality': db_agent.personality,
+                'expertise': db_agent.expertise,
+                'emoji': getattr(db_agent, 'emoji', '🤖'),
+                'status': db_agent.status,
+                'created_at': db_agent.created_at.isoformat() if db_agent.created_at else None,
+                'mcp_endpoint': db_agent.mcp_endpoint,
+                'user_id': db_agent.user_id,
+                'is_public': db_agent.is_public,
+                'telegram_chat_id': db_agent.telegram_chat_id,
+                'whatsapp_phone': getattr(db_agent, 'whatsapp_phone', None),
+                'is_persistent': db_agent.is_persistent,
+                'auto_start': db_agent.auto_start
+            }
+            return agent_dict
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error obteniendo agente: {str(e)}")
+
     @router.delete("/api/agents/{agent_id}")
     async def delete_agent(agent_id: str, user_data: dict) -> Dict[str, str]:
         try:

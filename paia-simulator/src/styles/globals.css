@@ -94,6 +94,13 @@ body.library-page {
   height: auto !important;
 }
 
+/* Página de chat - layout completo */
+body.chat-page {
+  overflow: hidden !important;
+  display: block !important;
+  height: 100vh !important;
+}
+
 a {
   color: inherit;
   text-decoration: none;
