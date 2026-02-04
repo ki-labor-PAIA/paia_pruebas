@@ -28,6 +28,11 @@ aiohttp>=3.9.0
 # === Utils ===
 python-dotenv
 python-dateutil>=2.8.2
+sentence-transformers
+numpy
+PyPDF2
+pillow
+pytesseract
 
 # === PAIA Protocol Dependencies ===
 pydantic>=2.5.0

@@ -214,6 +214,37 @@ class WhatsAppService:
             print(f"[ERROR] Error verificando firma del webhook: {e}")
             return False
 
+    def get_media_url(self, media_id: str) -> Optional[str]:
+        """Obtener la URL temporal del medio desde la API de Graph"""
+        try:
+            url = f"https://graph.facebook.com/{self.api_version}/{media_id}"
+            response = requests.get(url, headers=self.headers, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                return data.get("url")
+            else:
+                print(f"[WhatsAppService] Error obteniendo media url: {response.status_code} {response.text}")
+                return None
+        except Exception as e:
+            print(f"[WhatsAppService] get_media_url error: {e}")
+            return None
+
+    def download_media(self, media_id: str) -> Optional[bytes]:
+        """Descargar el contenido del media y devolver los bytes"""
+        try:
+            media_url = self.get_media_url(media_id)
+            if not media_url:
+                return None
+            # Descargar contenido con el mismo token
+            response = requests.get(media_url, headers=self.headers, timeout=20)
+            if response.status_code == 200:
+                return response.content
+            print(f"[WhatsAppService] Error descargando media: {response.status_code} {response.text}")
+            return None
+        except Exception as e:
+            print(f"[WhatsAppService] download_media error: {e}")
+            return None
+
     def parse_webhook_payload(self, payload: Dict) -> Optional[Dict]:
         """
         Extrae la información relevante del payload del webhook
@@ -222,7 +253,7 @@ class WhatsAppService:
             payload: El payload JSON recibido del webhook
 
         Returns:
-            Dict con: customer_phone, message_text, message_id, timestamp
+            Dict con: customer_phone, message_text, message_id, timestamp, attachment (opcional)
             None si el payload no contiene un mensaje válido
         """
         try:
@@ -248,27 +279,50 @@ class WhatsAppService:
             message = messages[0]
             message_type = message.get("type")
 
-            # Solo procesamos mensajes de texto por ahora
-            if message_type != "text":
-                print(f"[WhatsApp Webhook] Tipo de mensaje no soportado: {message_type}")
-                return None
-
-            # Extraer datos del mensaje
             customer_phone = message.get("from")
-            message_text = message.get("text", {}).get("body")
             message_id = message.get("id")
             timestamp = message.get("timestamp")
 
-            if not customer_phone or not message_text:
-                return None
+            # Texto
+            if message_type == "text":
+                message_text = message.get("text", {}).get("body")
+                if not customer_phone or not message_text:
+                    return None
+                return {
+                    "customer_phone": customer_phone,
+                    "message_text": message_text,
+                    "message_id": message_id,
+                    "timestamp": timestamp,
+                    "metadata": value.get("metadata", {})
+                }
 
-            return {
-                "customer_phone": customer_phone,
-                "message_text": message_text,
-                "message_id": message_id,
-                "timestamp": timestamp,
-                "metadata": value.get("metadata", {})
-            }
+            # Document / Image / Audio / Video
+            if message_type in ("document", "image", "audio", "video"):
+                media = message.get(message_type, {})
+                media_id = media.get("id")
+                mime_type = media.get("mime_type") or media.get("mimetype")
+                filename = media.get("filename") or media.get("caption")
+
+                if not customer_phone or not media_id:
+                    return None
+
+                return {
+                    "customer_phone": customer_phone,
+                    "message_text": None,
+                    "message_id": message_id,
+                    "timestamp": timestamp,
+                    "attachment": {
+                        "type": message_type,
+                        "media_id": media_id,
+                        "mime_type": mime_type,
+                        "filename": filename
+                    },
+                    "metadata": value.get("metadata", {})
+                }
+
+            # Otros tipos no soportados por ahora
+            print(f"[WhatsApp Webhook] Tipo de mensaje no soportado: {message_type}")
+            return None
 
         except Exception as e:
             print(f"[ERROR] Error parseando payload del webhook: {e}")
