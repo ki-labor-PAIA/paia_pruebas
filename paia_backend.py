@@ -30,6 +30,9 @@ from services.agent_service import PAIAAgentManager
 from services.memory_service import MemoryService
 from services.mcp_service import MCPService, init_mcp_service
 
+# RAG Service (POC) - inicializado en startup
+rag_service: Optional[object] = None
+
 # === HERRAMIENTAS ===
 from tools.telegram_tools import create_telegram_tools
 from tools.whatsapp_tools import create_whatsapp_tools
@@ -44,6 +47,7 @@ from routers.agents import create_agents_router
 from routers.connections import create_connections_router
 from routers.telegram import create_telegram_router
 from routers.whatsapp import create_whatsapp_router
+from routers.rag import create_rag_router
 from routers.notifications import create_notifications_router
 from routers.users import create_users_router
 from routers.flows import create_flows_router
@@ -121,6 +125,28 @@ async def on_startup():
     await lt_store.init_db()
     await auth_manager.init_db()
     await db_manager.init_db()
+
+    # Inicializar EmbeddingService + VectorStore (pgvector support)
+    from services.embedding_service import EmbeddingService
+    from services.vector_store_supabase import VectorStoreSupabase
+    from services.rag_service import RAGService
+
+    global embedding_service, vector_store, rag_service
+    try:
+        embedding_service = EmbeddingService()
+        vector_store = VectorStoreSupabase()
+        print("[INFO] EmbeddingService y VectorStore inicializados")
+    except Exception as e:
+        print(f"[WARNING] No se pudo inicializar EmbeddingService (continuando con fallback): {e}")
+        embedding_service = None
+        vector_store = None
+
+    # Inicializar RAG Service con capacidades de embeddings si están disponibles
+    rag_service = RAGService(lt_store, embedding_service=embedding_service, vector_store=vector_store)
+    services['rag_service'] = rag_service
+    services['embedding_service'] = embedding_service
+    services['vector_store'] = vector_store
+
     await init_mcp_client()
     await load_persistent_agents()
     await init_paia_protocol()  # Inicializar protocolo PAIA
@@ -569,9 +595,14 @@ whatsapp_router = create_whatsapp_router(
     whatsapp_service=whatsapp_service,
     db_manager=db_manager,
     memory_manager=memory_manager,
-    ensure_agent_loaded_func=ensure_agent_loaded
+    ensure_agent_loaded_func=ensure_agent_loaded,
+    rag_service=services.get('rag_service')
 )
 app.include_router(whatsapp_router)
+
+# Rutas RAG (POC)
+rag_router = create_rag_router(services.get('rag_service'))
+app.include_router(rag_router)
 
 notifications_router = create_notifications_router(db_manager=db_manager)
 app.include_router(notifications_router)
