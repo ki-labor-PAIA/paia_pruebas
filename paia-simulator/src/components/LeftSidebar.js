@@ -55,7 +55,7 @@ export default function LeftSidebar({
 
       <div className="button-group">
         <div className="button-group-title">💾 File</div>
-        <button data-tour="save-flow" onClick={onSaveFlow} className="discreet-button" style={{
+        <button data-tour="save-flow" data-tutorial="btn-save-flow" onClick={onSaveFlow} className="discreet-button" style={{
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           color: 'white',
           fontWeight: '600',
@@ -141,6 +141,7 @@ export default function LeftSidebar({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <button
               data-tour="start-simulation"
+              data-tutorial="btn-run-flow"
               onClick={() => onRun({ mode: 'once' })}
               className="discreet-button simulation-button"
               style={{ fontSize: '0.9em', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
@@ -168,6 +169,7 @@ export default function LeftSidebar({
           </div>
         ) : (
           <button
+            data-tutorial="btn-stop-flow"
             onClick={onStop}
             className="discreet-button simulation-button"
             style={{ fontSize: '0.9em', fontWeight: '600', backgroundColor: '#ef4444', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
@@ -176,7 +178,7 @@ export default function LeftSidebar({
             Stop
           </button>
         )}
-        <button onClick={onReset} className="discreet-button reset-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+        <button data-tutorial="btn-clear-flow" onClick={onReset} className="discreet-button reset-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
           <RotateCcw size={16} /> {t('nav.reset')}
         </button>
       </div>

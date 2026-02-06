@@ -54,6 +54,7 @@ const FlowCard = ({
 
   return (
     <div
+      data-tutorial="flow-card"
       style={{
         backgroundColor: 'var(--card-bg)',
         border: '1px solid var(--border-color)',
@@ -179,6 +180,7 @@ const FlowCard = ({
       </div>
 
       <div
+        data-tutorial="flow-actions"
         style={{
           display: 'flex',
           justifyContent: 'space-between',

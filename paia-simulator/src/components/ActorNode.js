@@ -94,6 +94,7 @@ export default function ActorNode({ data, isConnectable }) {
         type="target"
         position={Position.Top}
         isConnectable={isConnectable}
+        data-tutorial="node-handle"
         style={{ background: 'var(--text-secondary)', width: '8px', height: '8px' }}
       />
 

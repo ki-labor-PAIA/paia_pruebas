@@ -2,18 +2,22 @@ import React from 'react';
 
 const TabNavigation = ({ activeTab, tabs, onTabChange }) => {
   return (
-    <div style={{
-      display: 'flex',
-      gap: '12px',
-      marginBottom: '32px',
-      overflowX: 'auto',
-      padding: '4px',
-      justifyContent: 'center',
-      flexWrap: 'wrap'
-    }}>
+    <div
+      data-tutorial="tabs"
+      style={{
+        display: 'flex',
+        gap: '12px',
+        marginBottom: '32px',
+        overflowX: 'auto',
+        padding: '4px',
+        justifyContent: 'center',
+        flexWrap: 'wrap'
+      }}
+    >
       {tabs.map((tab) => (
         <button
           key={tab.key}
+          data-tutorial={`tab-${tab.key}`}
           onClick={() => onTabChange(tab.key)}
           style={{
             background: activeTab === tab.key

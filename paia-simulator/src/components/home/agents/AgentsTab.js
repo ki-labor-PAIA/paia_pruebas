@@ -64,6 +64,7 @@ const AgentsTab = ({ agents, loading, onCreateNew, onAgentAction }) => {
           My Created Agents
         </h2>
         <button
+          data-tutorial="btn-create-agent"
           onClick={() => onCreateNew && onCreateNew()}
           style={{
             background: 'var(--primary-color)',

@@ -9,6 +9,8 @@ import ConnectUserModal from '@/components/ConnectUserModal';
 import CreateAgentModal from '@/components/CreateAgentModal';
 import ConfigureAgentModal from '@/components/ConfigureAgentModal';
 import TutorialModal from '@/components/tutorial/TutorialModal';
+import TutorialManager from '@/components/tutorial/TutorialManager';
+import ContextualHelp from '@/components/tutorial/ContextualHelp';
 import useModals from '@/hooks/useModals';
 import useFlowsData from '@/hooks/useFlowsData';
 import useAgentsData from '@/hooks/useAgentsData';
@@ -40,6 +42,10 @@ export default function Home() {
   const [flowToDelete, setFlowToDelete] = useState(null);
   const [showDeleteAgentConfirm, setShowDeleteAgentConfirm] = useState(false);
   const [agentToDelete, setAgentToDelete] = useState(null);
+
+  // 🎓 Tutorial: Flows y Agents temporales para el tutorial
+  const [tutorialFlows, setTutorialFlows] = useState([]);
+  const [tutorialAgents, setTutorialAgents] = useState([]);
 
   // Data hooks
   const {
@@ -133,6 +139,99 @@ export default function Home() {
     document.body.classList.add('library-page');
     return () => {
       document.body.classList.remove('library-page');
+    };
+  }, []);
+
+  // 🎓 Tutorial: Escuchar eventos de acciones del tutorial
+  useEffect(() => {
+    const handleTutorialAction = (event) => {
+      const { action } = event.detail;
+      console.log(`🎬 Library received tutorial action: ${action}`);
+
+      if (action === 'createSampleFlows') {
+        // Crear flows de ejemplo para el tutorial
+        const sampleFlows = [
+          {
+            id: 'tutorial-flow-1',
+            name: '🎓 Example: Customer Support Bot',
+            description: 'An AI assistant that helps customers with common questions',
+            status: 'active',
+            nodes: [],
+            edges: [],
+            isTutorialFlow: true,
+            createdAt: new Date().toISOString()
+          },
+          {
+            id: 'tutorial-flow-2',
+            name: '🎓 Example: Meeting Scheduler',
+            description: 'Automated meeting scheduling with calendar integration',
+            status: 'inactive',
+            nodes: [],
+            edges: [],
+            isTutorialFlow: true,
+            createdAt: new Date().toISOString()
+          }
+        ];
+
+        setTutorialFlows(sampleFlows);
+        console.log('✅ Tutorial flows created successfully');
+      }
+
+      if (action === 'createSampleAgents') {
+        // Crear agentes de ejemplo para el tutorial
+        const sampleAgents = [
+          {
+            id: 'tutorial-agent-1',
+            name: '🎓 Example: Sales Assistant',
+            personality: 'friendly',
+            expertise: 'Sales and customer engagement',
+            description: 'A friendly AI that helps with sales inquiries and product recommendations',
+            isTutorialAgent: true,
+            createdAt: new Date().toISOString()
+          },
+          {
+            id: 'tutorial-agent-2',
+            name: '🎓 Example: Technical Support',
+            personality: 'analytical',
+            expertise: 'Technical troubleshooting',
+            description: 'An analytical AI specialized in solving technical problems',
+            isTutorialAgent: true,
+            createdAt: new Date().toISOString()
+          }
+        ];
+
+        setTutorialAgents(sampleAgents);
+        console.log('✅ Tutorial agents created successfully');
+      }
+
+      // 🎓 Tutorial: Cambiar de pestaña automáticamente
+      if (action === 'switchToAgentsTab') {
+        setActiveTab('agents');
+        console.log('✅ Switched to Agents tab');
+      }
+
+      if (action === 'switchToPublicAgentsTab') {
+        setActiveTab('public-agents');
+        console.log('✅ Switched to Public Agents tab');
+      }
+
+      if (action === 'switchToFriendsTab') {
+        setActiveTab('friends');
+        console.log('✅ Switched to Friends tab');
+      }
+
+      if (action === 'cleanupTutorialFlows' || action === 'cleanupTutorialNodes') {
+        // Eliminar flows y agents de tutorial
+        setTutorialFlows([]);
+        setTutorialAgents([]);
+        console.log('✅ Tutorial flows and agents cleaned up');
+      }
+    };
+
+    window.addEventListener('tutorialAction', handleTutorialAction);
+
+    return () => {
+      window.removeEventListener('tutorialAction', handleTutorialAction);
     };
   }, []);
 
@@ -265,6 +364,12 @@ export default function Home() {
   };
 
   const handleAgentAction = async (action, agent) => {
+    // 🎓 Tutorial: Prevenir acciones en agentes de tutorial
+    if (agent.isTutorialAgent) {
+      alert('🎓 This is a tutorial example agent. You can remove it at the end of the tutorial or create your own agents!');
+      return;
+    }
+
     switch (action) {
       case 'edit':
         setEditingAgent(agent);
@@ -377,8 +482,13 @@ export default function Home() {
             <Header
               title={`Welcome, ${session?.user?.name || session?.user?.email || 'User'}`}
               subtitle=""
-              showNotifications={false}
+              showNotifications={true}
+              onNotificationsClick={() => setShowNotifications(true)}
               showTutorialButton={false}
+              showConnectButton={true}
+              onConnectClick={() => setShowConnectUser(true)}
+              showCreateAgentButton={true}
+              onCreateAgentClick={() => setShowCreateAgent(true)}
             />
           </div>
 
@@ -429,10 +539,19 @@ export default function Home() {
               <div>
                 {activeTab === 'flows' && (
                   <FlowsTab
-                    flows={myFlows}
+                    flows={[...tutorialFlows, ...myFlows]}
                     loading={loading}
                     onCreateNew={() => navigateToCreate()}
                     onFlowAction={(action, flowId, extra) => {
+                      // 🎓 Tutorial: Prevenir acciones en flows de tutorial
+                      const allFlows = [...tutorialFlows, ...myFlows];
+                      const targetFlow = allFlows.find(f => f.id === flowId);
+
+                      if (targetFlow?.isTutorialFlow && action !== 'toggleStatus') {
+                        alert('🎓 This is a tutorial example flow. You can remove it at the end of the tutorial or create your own flows!');
+                        return;
+                      }
+
                       switch (action) {
                         case 'edit':
                           navigateToCreate(flowId);
@@ -455,7 +574,7 @@ export default function Home() {
 
                 {activeTab === 'agents' && (
                   <AgentsTab
-                    agents={myAgents}
+                    agents={[...tutorialAgents, ...myAgents]}
                     loading={loading}
                     onCreateNew={() => setShowCreateAgent(true)}
                     onAgentAction={handleAgentAction}
@@ -727,6 +846,12 @@ export default function Home() {
               onClose={() => setShowTutorial(false)}
             />
           )}
+
+          {/* Tutorial Manager */}
+          <TutorialManager />
+
+          {/* Contextual Help - shows tooltips for skipped tutorial elements */}
+          <ContextualHelp />
         </div>
       </AuthGuard>
     </>

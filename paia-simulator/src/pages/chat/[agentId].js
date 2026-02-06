@@ -63,32 +63,64 @@ export default function AgentChatPage() {
     localStorage.setItem(storageKey, JSON.stringify(messages));
   }, [messages, agentId]);
 
-  // Cargar información del agente
+  // Cargar información del agente con retry para manejar delays de sincronización
   useEffect(() => {
     if (!agentId || !session?.user?.id) return;
 
-    const loadAgent = async () => {
+    let isMounted = true;
+
+    const loadAgent = async (retryCount = 0) => {
+      const maxRetries = 3;
+      const retryDelay = 1000; // 1 segundo entre intentos
+
       try {
         setLoading(true);
         const response = await fetch(`${API_URL}/api/agents/${agentId}`);
+
+        if (!isMounted) return;
+
         if (response.ok) {
           const data = await response.json();
           setAgent(data);
+          setLoading(false);
+          // Hacer scroll después de que el agente se haya cargado
+          setTimeout(() => {
+            if (messages.length > 0) {
+              scrollToBottom();
+            }
+          }, 200);
+        } else if (response.status === 404 && retryCount < maxRetries) {
+          // Si el agente no se encuentra y aún hay reintentos, esperar y reintentar
+          console.log(`Agente no encontrado, reintentando... (${retryCount + 1}/${maxRetries})`);
+          setTimeout(() => {
+            if (isMounted) {
+              loadAgent(retryCount + 1);
+            }
+          }, retryDelay);
+        } else if (response.status === 404) {
+          // Después de todos los reintentos, el agente realmente no existe
+          setAgent(null);
+          setLoading(false);
         }
       } catch (error) {
         console.error('Error loading agent:', error);
-      } finally {
-        setLoading(false);
-        // Hacer scroll después de que el agente se haya cargado y el DOM esté listo
-        setTimeout(() => {
-          if (messages.length > 0) {
-            scrollToBottom();
-          }
-        }, 200);
+        if (retryCount < maxRetries && isMounted) {
+          setTimeout(() => {
+            if (isMounted) {
+              loadAgent(retryCount + 1);
+            }
+          }, retryDelay);
+        } else {
+          setLoading(false);
+        }
       }
     };
 
     loadAgent();
+
+    return () => {
+      isMounted = false;
+    };
   }, [agentId, session, API_URL]);
 
   const handleSendMessage = async () => {

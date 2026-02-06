@@ -51,6 +51,7 @@ const Header = ({
       <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
         {showNotifications && (
           <button
+            data-tutorial="btn-notifications"
             onClick={onNotificationsClick}
             style={{
               position: 'relative',
@@ -110,6 +111,7 @@ const Header = ({
 
         {showConnectButton && (
           <button
+            data-tutorial="btn-connect"
             onClick={onConnectClick}
             style={{
               background: 'var(--primary-color)',
@@ -131,6 +133,7 @@ const Header = ({
 
         {showCreateAgentButton && (
           <button
+            data-tutorial="btn-create-agent"
             onClick={onCreateAgentClick}
             style={{
               background: 'var(--primary-color)',

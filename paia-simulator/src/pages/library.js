@@ -21,6 +21,7 @@ import FriendsPanel from '@/components/FriendsPanel';
 import NotificationPanel from '@/components/NotificationPanel';
 import ConnectUserModal from '@/components/ConnectUserModal';
 import CreateAgentModal from '@/components/CreateAgentModal';
+import TutorialManager from '@/components/tutorial/TutorialManager';
 
 export default function Library() {
   const { data: session, status } = useSession();
@@ -248,6 +249,7 @@ export default function Library() {
               <LibraryIcon size={28} /> PAIA Biblioteca
             </h1>
             <button
+              data-tutorial="btn-create-flow"
               onClick={() => navigateToSimulator()}
               style={{
                 background: 'rgba(255,255,255,0.2)',
@@ -270,6 +272,7 @@ export default function Library() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
           {/* Botones movidos del UserHeader */}
           <button
+            data-tutorial="btn-notifications"
             onClick={() => setShowNotifications(!showNotifications)}
             style={{
               background: 'rgba(255,255,255,0.2)',
@@ -288,6 +291,7 @@ export default function Library() {
           </button>
 
           <button
+            data-tutorial="btn-connect"
             onClick={() => setShowConnectUser(true)}
             style={{
               background: 'rgba(255,255,255,0.2)',
@@ -338,13 +342,15 @@ export default function Library() {
         minHeight: 'calc(100vh - 60px)'
       }}>
         {/* Pestañas de navegación */}
-        <div style={{ 
-          display: 'flex', 
-          gap: '10px', 
-          marginBottom: '30px',
-          borderBottom: '2px solid var(--border-color)',
-          paddingBottom: '10px'
-        }}>
+        <div
+          data-tutorial="tabs"
+          style={{
+            display: 'flex',
+            gap: '10px',
+            marginBottom: '30px',
+            borderBottom: '2px solid var(--border-color)',
+            paddingBottom: '10px'
+          }}>
           {[
             { key: 'flows', label: 'My Flows', icon: Zap, count: myFlows.length },
             { key: 'agents', label: 'My Agents', icon: Bot, count: myAgents.length },
@@ -355,6 +361,7 @@ export default function Library() {
             return (
             <button
               key={tab.key}
+              data-tutorial={`tab-${tab.key}`}
               onClick={() => setActiveTab(tab.key)}
               style={{
                 background: activeTab === tab.key ? 'var(--primary-color)' : 'transparent',
@@ -655,6 +662,7 @@ export default function Library() {
                     <Bot size={20} /> My Created Agents
                   </h2>
                   <button
+                    data-tutorial="btn-create-agent"
                     onClick={() => setShowCreateAgent(true)}
                     style={{
                       background: 'var(--primary-color)',
@@ -976,12 +984,15 @@ export default function Library() {
       )}
 
       {showFriends && (
-        <FriendsPanel 
+        <FriendsPanel
           userId={session.user.id}
           isOpen={showFriends}
           onClose={() => setShowFriends(false)}
         />
       )}
+
+      {/* Tutorial Manager */}
+      <TutorialManager />
     </div>
   );
 }

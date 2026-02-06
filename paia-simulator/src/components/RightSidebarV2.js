@@ -15,7 +15,8 @@ export default function RightSidebarV2({
     onLoadPublicAgents,
     onLoadMyAgents,
     onAddPublicAgent,
-    isBackendConnected
+    isBackendConnected,
+    isOpen = true
 }) {
 
 
@@ -62,13 +63,16 @@ export default function RightSidebarV2({
     };
 
     return (
-        <div className="sidebar right">
+        <div className={`sidebar right ${isOpen ? 'sidebar-open' : 'sidebar-closed'}`} style={{
+            transform: isOpen ? 'translateX(0)' : 'translateX(100%)',
+            transition: 'transform 0.3s ease'
+        }}>
             <div className="button-group">
                 <div className="button-group-title">{t('rightSidebar.addActors')}</div>
-                <button data-tour="add-actors" onClick={() => onAddActor('human')} className="discreet-button">
+                <button data-tour="add-actors" data-tutorial="btn-add-human" onClick={() => onAddActor('human')} className="discreet-button">
                     <i className="fas fa-user"></i> {t('rightSidebar.simpleHuman')}
                 </button>
-                <button onClick={() => onAddActor('ai')} className="discreet-button">
+                <button data-tutorial="btn-add-agent" onClick={() => onAddActor('ai')} className="discreet-button">
                     <i className="fas fa-robot"></i> {t('rightSidebar.simpleAI')}
                 </button>
                 <button data-tour="create-paia-agent" onClick={onCreateAgent} className="discreet-button" style={{ background: 'var(--primary-color) !important', color: 'white !important' }}>
@@ -78,16 +82,16 @@ export default function RightSidebarV2({
 
             <div className="button-group">
                 <div className="button-group-title">🔧 Herramientas (TEST)</div>
-                <button onClick={onAddTelegram} className="discreet-button" style={{ background: '#0088cc', color: 'white' }}>
+                <button data-tutorial="btn-add-telegram" onClick={onAddTelegram} className="discreet-button" style={{ background: '#0088cc', color: 'white' }}>
                     <i className="fas fa-paper-plane"></i> Telegram
                 </button>
-                <button onClick={onAddCalendar} className="discreet-button" style={{ background: '#4285f4', color: 'white' }}>
+                <button data-tutorial="btn-add-calendar" onClick={onAddCalendar} className="discreet-button" style={{ background: '#4285f4', color: 'white' }}>
                     <i className="fas fa-calendar"></i> Google Calendar
                 </button>
-                <button onClick={() => onCreateAgent({ isNotesNode: true })} className="discreet-button">
+                <button data-tutorial="btn-add-notes" onClick={() => onCreateAgent({ isNotesNode: true })} className="discreet-button">
                     📒 Crear Nodo de Notas
                 </button>
-                <button onClick={handleConnectGmail} style={{ background: '#EA4335', color: 'white', marginBottom: '8px', width: '100%', padding: '11px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <button data-tutorial="btn-connect-gmail" onClick={handleConnectGmail} style={{ background: '#EA4335', color: 'white', marginBottom: '8px', width: '100%', padding: '11px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                     <i className="fas fa-envelope"></i> Conectar Gmail
                 </button>
             </div>
@@ -103,6 +107,7 @@ export default function RightSidebarV2({
                 <div className="button-group">
                     <div className="button-group-title">{t('rightSidebar.publicAgents')}</div>
                     <button
+                        data-tutorial="btn-load-public-agents"
                         onClick={onLoadPublicAgents}
                         className="discreet-button"
                         style={{ marginBottom: '10px' }}
@@ -111,6 +116,7 @@ export default function RightSidebarV2({
                     </button>
 
                     <button
+                        data-tutorial="btn-load-my-agents"
                         onClick={onLoadMyAgents}
                         className="discreet-button"
                         style={{
@@ -170,14 +176,14 @@ export default function RightSidebarV2({
                 </div>
             )}
 
-            <div className="button-group">
+            <div className="button-group" data-tutorial="chat-section">
                 <div className="button-group-title">💬 Chat</div>
                 <div style={{ fontSize: '0.8em', color: 'var(--text-secondary)', marginBottom: '10px' }}>
-                    Chatear con agentes y humanos
+                    Chat with agents (simulations or configured)
                 </div>
-                {nodes.filter(n => n.data.actorType === 'human' || n.data.actorType === 'ai').length > 0 ? (
+                {nodes.filter(n => (n.data.actorType === 'human' || n.data.actorType === 'ai') && (n.data.isConfigured || !n.data.backendId)).length > 0 ? (
                     <div style={{ maxHeight: '200px', overflow: 'auto' }}>
-                        {nodes.filter(n => n.data.actorType === 'human' || n.data.actorType === 'ai').map(node => (
+                        {nodes.filter(n => (n.data.actorType === 'human' || n.data.actorType === 'ai') && (n.data.isConfigured || !n.data.backendId)).map(node => (
                             <button
                                 key={node.id}
                                 onClick={() => onChatWithAgent(node.id)}
@@ -197,6 +203,10 @@ export default function RightSidebarV2({
                                     ...(node.data.actorType === 'human' && {
                                         border: '1px solid #f59e0b',
                                         background: 'rgba(245, 158, 11, 0.1)'
+                                    }),
+                                    ...(!node.data.backendId && !node.data.isExternal && {
+                                        border: '1px dashed #6b7280',
+                                        background: 'rgba(107, 114, 128, 0.05)'
                                     })
                                 }}
                             >
@@ -205,8 +215,9 @@ export default function RightSidebarV2({
                                 </span>
                                 <span style={{ fontSize: '0.7em', color: 'var(--text-secondary)' }}>
                                     {node.data.isExternal && t('rightSidebar.external')}
-                                    {node.data.actorType === 'human' && t('rightSidebar.you')}
-                                    {node.data.actorType === 'ai' && !node.data.isExternal && t('rightSidebar.ai')}
+                                    {!node.data.backendId && !node.data.isExternal && '🧪 Simulation'}
+                                    {node.data.actorType === 'human' && node.data.backendId && t('rightSidebar.you')}
+                                    {node.data.actorType === 'ai' && !node.data.isExternal && node.data.backendId && t('rightSidebar.ai')}
                                 </span>
                             </button>
                         ))}
@@ -223,9 +234,9 @@ export default function RightSidebarV2({
                         border: '1px dashed var(--border-color)'
                     }}>
                         <div style={{ marginBottom: '8px', fontSize: '1.5em' }}>💬</div>
-                        <div>Crea agentes para comenzar a chatear</div>
+                        <div>Crea agentes PAIA para chatear</div>
                         <div style={{ fontSize: '0.7em', marginTop: '4px' }}>
-                            Podrás chatear con agentes IA y humanos
+                            Usa el botón "Create PAIA Agent" para crear agentes con los que puedas chatear
                         </div>
                     </div>
                 )}

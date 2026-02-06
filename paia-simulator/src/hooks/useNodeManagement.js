@@ -86,25 +86,9 @@ const useNodeManagement = ({
     setNodes((nds) => [...nds, newNode]);
     actorIdRef.current++;
 
-    if (type === 'ai' && isConnected) {
-      try {
-        const agentData = {
-          id: id,
-          name: actorName,
-          personality: "Eres un asistente útil y eficiente.",
-          expertise: "General",
-          use_mcp: true,
-          is_public: false
-        };
-
-        await createBackendAgent(agentData);
-        addLogMessage(`🤖 Agente ${actorName} creado en el backend`);
-      } catch (error) {
-        console.error('Error creating backend agent:', error);
-        addLogMessage(`⚠️ Agente ${actorName} creado solo en frontend`);
-      }
-    }
-  }, [isConnected, createBackendAgent, addLogMessage, setNodes, getViewportCenterPosition]);
+    // Simple actors (AI/Human) are frontend-only for simulations
+    // Use "Create PAIA Agent" for backend agents with chat functionality
+  }, [setNodes, getViewportCenterPosition]);
 
   const createConfiguredAgent = useCallback(async (agentConfig) => {
     const id = `agent-${actorIdRef.current}`;

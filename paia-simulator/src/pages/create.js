@@ -4,9 +4,10 @@ import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import AuthGuard from '@/components/AuthGuard';
+import TutorialManager from '@/components/tutorial/TutorialManager';
 
-const PAIASimulator = dynamic(() => import('@/components/PAIASimulator'), { 
-  ssr: false 
+const PAIASimulator = dynamic(() => import('@/components/PAIASimulator'), {
+  ssr: false
 });
 
 export default function Create() {
@@ -125,6 +126,7 @@ export default function Create() {
       </Head>
       {/* <AuthGuard> */}
         <PAIASimulator initialFlow={flowData} />
+        <TutorialManager />
       {/* </AuthGuard> */}
     </>
   );

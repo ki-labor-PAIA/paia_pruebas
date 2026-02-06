@@ -6,8 +6,7 @@ import { Library, ChevronDown, ChevronUp, GraduationCap, Bell, Users, Send, LogO
 import TelegramPanel from './TelegramPanel'
 import NotificationPanel from './NotificationPanel'
 import FriendsPanel from './FriendsPanel'
-import SpotlightTour from './tutorial/SpotlightTour'
-import tutorialSteps from './tutorial/steps'
+import { restartTutorial } from './tutorial/TutorialManager'
 
 export default function UserHeader() {
   const { data: session } = useSession()
@@ -15,7 +14,6 @@ export default function UserHeader() {
   const [showTelegramPanel, setShowTelegramPanel] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showFriends, setShowFriends] = useState(false)
-  const [showTutorial, setShowTutorial] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
 
 
@@ -71,7 +69,8 @@ export default function UserHeader() {
 
         {/* Tutorial Button */}
         <button
-          onClick={() => setShowTutorial(true)}
+          onClick={() => restartTutorial()}
+          data-tutorial="btn-tutorial"
           className="header-button"
           style={{
             background: 'rgba(255,255,255,0.2)',
@@ -305,14 +304,6 @@ export default function UserHeader() {
         isOpen={showFriends}
         onClose={() => setShowFriends(false)}
       />
-
-      {showTutorial && (
-        <SpotlightTour
-          steps={tutorialSteps}
-          forceOpen={true}
-          onClose={() => setShowTutorial(false)}
-        />
-      )}
     </div>
   )
 }

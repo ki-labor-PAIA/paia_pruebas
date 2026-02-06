@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 
-export default function ChatModal({ 
-  isOpen, 
-  onClose, 
-  activeAgent, 
-  nodes, 
+export default function ChatModal({
+  isOpen,
+  onClose,
+  activeAgent,
+  nodes,
   onSendMessage,
   chatMessages = [],
-  isTyping = false 
+  isTyping = false
 }) {
   const [message, setMessage] = useState('');
   const messagesEndRef = useRef(null);
@@ -22,7 +22,7 @@ export default function ChatModal({
 
   const handleSend = () => {
     if (!message.trim() || !activeAgent) return;
-    
+
     onSendMessage(message.trim());
     setMessage('');
   };
@@ -42,11 +42,11 @@ export default function ChatModal({
   return (
     <div className="modal-overlay">
       <div className="modal-content" style={{ maxWidth: '600px', height: '70vh', display: 'flex', flexDirection: 'column' }}>
-        
+
         {/* Header del Chat */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
           justifyContent: 'space-between',
           padding: '16px',
           borderBottom: '1px solid var(--border-color)'
@@ -74,7 +74,7 @@ export default function ChatModal({
               </p>
             </div>
           </div>
-          <button 
+          <button
             onClick={onClose}
             style={{
               background: 'none',
@@ -119,7 +119,7 @@ export default function ChatModal({
               key={index}
               style={{
                 display: 'flex',
-                justifyContent: msg.sender === 'user' ? 'flex-end' : 
+                justifyContent: msg.sender === 'user' ? 'flex-end' :
                                msg.sender === 'system' ? 'center' : 'flex-start'
               }}
             >
@@ -128,13 +128,13 @@ export default function ChatModal({
                   maxWidth: msg.sender === 'system' ? '90%' : '70%',
                   padding: '10px 14px',
                   borderRadius: '12px',
-                  background: msg.sender === 'user' ? 'var(--primary-color)' : 
+                  background: msg.sender === 'user' ? 'var(--primary-color)' :
                             msg.sender === 'system' ? 'rgba(245, 158, 11, 0.1)' :
                             msg.sender === 'human' ? 'rgba(245, 158, 11, 0.2)' :
                             msg.sender === 'received' ? 'rgba(74, 107, 223, 0.1)' :
                             'var(--card-bg)',
                   color: msg.sender === 'user' ? 'white' : 'var(--text-primary)',
-                  border: msg.sender === 'user' ? 'none' : 
+                  border: msg.sender === 'user' ? 'none' :
                          msg.sender === 'system' ? '1px solid rgba(245, 158, 11, 0.3)' :
                          msg.sender === 'human' ? '1px solid var(--warning-color)' :
                          msg.sender === 'received' ? '1px solid var(--primary-color)' :
@@ -221,24 +221,24 @@ export default function ChatModal({
                   {agent.data.label}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <div className="typing-dot" style={{ 
-                    width: '6px', 
-                    height: '6px', 
-                    background: 'var(--text-secondary)', 
+                  <div className="typing-dot" style={{
+                    width: '6px',
+                    height: '6px',
+                    background: 'var(--text-secondary)',
                     borderRadius: '50%',
                     animation: 'bounce 1.4s infinite'
                   }}></div>
-                  <div className="typing-dot" style={{ 
-                    width: '6px', 
-                    height: '6px', 
-                    background: 'var(--text-secondary)', 
+                  <div className="typing-dot" style={{
+                    width: '6px',
+                    height: '6px',
+                    background: 'var(--text-secondary)',
                     borderRadius: '50%',
                     animation: 'bounce 1.4s infinite 0.2s'
                   }}></div>
-                  <div className="typing-dot" style={{ 
-                    width: '6px', 
-                    height: '6px', 
-                    background: 'var(--text-secondary)', 
+                  <div className="typing-dot" style={{
+                    width: '6px',
+                    height: '6px',
+                    background: 'var(--text-secondary)',
                     borderRadius: '50%',
                     animation: 'bounce 1.4s infinite 0.4s'
                   }}></div>
@@ -246,7 +246,7 @@ export default function ChatModal({
               </div>
             </div>
           )}
-          
+
           <div ref={messagesEndRef} />
         </div>
 

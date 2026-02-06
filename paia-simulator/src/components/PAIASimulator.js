@@ -21,14 +21,15 @@ import TelegramNode from './TelegramNode';
 import CalendarNode from './CalendarNode';
 import ConnectionNode from './ConnectionNode';
 import CreateAgentModal from './CreateAgentModal';
-// ChatModal removido - ahora se usa /chat/[agentId] página dedicada
-// import ChatModal from './ChatModal';
+// ChatModal para Simple AI/Human (simulaciones) - Create PAIA Agent usa /chat/[agentId]
+import ChatModal from './ChatModal';
 import UserHeader from './UserHeader';
 import ConfigureCalendarModal from './ConfigureCalendarModal';
 import ConnectUserModal from './ConnectUserModal';
 import SaveFlowModal from './SaveFlowModal';
 import FriendsPanel from './FriendsPanel';
 import AgentConversationModal from './AgentConversationModal';
+import ContextualHelp from './tutorial/ContextualHelp';
 import { useSession } from 'next-auth/react';
 import usePAIABackend from '@/hooks/usePAIABackend';
 import useFlowSave from '@/hooks/useFlowSave';
@@ -197,18 +198,111 @@ export default function PAIASimulator({ initialFlow }) {
   //   ]);
   // }, [isConnected]);
 
+  // 🎓 Tutorial: Escuchar eventos de acciones del tutorial
+  useEffect(() => {
+    const handleTutorialAction = (event) => {
+      const { action } = event.detail;
+      console.log(`🎬 PAIASimulator received tutorial action: ${action}`);
+
+      if (action === 'createSampleNodes') {
+        // Crear nodos de ejemplo para el tutorial
+        const tutorialHuman = {
+          id: 'tutorial-human-1',
+          type: 'actor',
+          position: { x: 250, y: 200 },
+          data: {
+            label: '👤 User',
+            actorType: 'human',
+            personality: 'neutral',
+            background: getAgentColor('neutral'),
+            isTutorialNode: true // Marcado como nodo de tutorial
+          }
+        };
+
+        const tutorialAI = {
+          id: 'tutorial-ai-1',
+          type: 'actor',
+          position: { x: 500, y: 200 },
+          data: {
+            label: '🤖 AI Assistant',
+            actorType: 'ai',
+            personality: 'analytical',
+            background: getAgentColor('analytical'),
+            isTutorialNode: true
+          }
+        };
+
+        // Agregar nodos al canvas
+        setNodes(prev => [...prev, tutorialHuman, tutorialAI]);
+
+        // Agregar conexión entre ellos
+        const tutorialEdge = {
+          id: 'tutorial-edge-1',
+          source: 'tutorial-human-1',
+          target: 'tutorial-ai-1',
+          type: 'default',
+          markerEnd: { type: MarkerType.ArrowClosed },
+          data: { isTutorialEdge: true },
+          style: { stroke: '#667eea', strokeWidth: 2 }
+        };
+
+        setEdges(prev => [...prev, tutorialEdge]);
+
+        // Mensaje de log
+        addLogMessage('🎓 Tutorial: Example nodes created! You can now see how nodes and connections work.');
+
+        console.log('✅ Tutorial nodes created successfully');
+      }
+
+      if (action === 'cleanupTutorialNodes') {
+        // Eliminar todos los nodos y edges marcados como tutorial
+        setNodes(prev => prev.filter(n => !n.data?.isTutorialNode));
+        setEdges(prev => prev.filter(e => !e.data?.isTutorialEdge));
+
+        addLogMessage('🧹 Tutorial: Example nodes removed. Your canvas is now clean!');
+
+        console.log('✅ Tutorial nodes cleaned up');
+      }
+    };
+
+    window.addEventListener('tutorialAction', handleTutorialAction);
+
+    return () => {
+      window.removeEventListener('tutorialAction', handleTutorialAction);
+    };
+  }, [setNodes, setEdges, addLogMessage]);
+
   const onNodesChange = useCallback(
-    (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
-    []
+    (changes) => {
+      // Log cuando se eliminan nodos
+      const removedNodes = changes.filter(change => change.type === 'remove');
+      removedNodes.forEach(change => {
+        const node = nodes.find(n => n.id === change.id);
+        if (node) {
+          addLogMessage(`🗑️ Deleted: ${node.data?.label || node.id}`);
+        }
+      });
+
+      setNodes((nds) => applyNodeChanges(changes, nds));
+    },
+    [nodes, addLogMessage]
   );
 
   const onEdgesChange = useCallback(
-    (changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
-    []
+    (changes) => {
+      // Log cuando se eliminan conexiones
+      const removedEdges = changes.filter(change => change.type === 'remove');
+      if (removedEdges.length > 0) {
+        addLogMessage(`🗑️ Deleted ${removedEdges.length} connection(s)`);
+      }
+
+      setEdges((eds) => applyEdgeChanges(changes, eds));
+    },
+    [addLogMessage]
   );
 
   // Hook para guardar flujos
-  const { saveFlow, currentFlowId, lastSaved, autoSaveEnabled, setAutoSaveEnabled, isSaving } = useFlowSave({
+  const { saveFlow, autoSaveFlow, currentFlowId, lastSaved, autoSaveEnabled, setAutoSaveEnabled, isSaving } = useFlowSave({
     userId,
     nodes,
     edges,
@@ -281,13 +375,39 @@ export default function PAIASimulator({ initialFlow }) {
     [isConnected, useBackend, nodes, addLogMessage, addDecisionMessage]
   );
 
-  const startChat = useCallback((agentId) => {
+  const startChat = useCallback(async (agentId) => {
     const agent = nodes.find(n => n.id === agentId);
     if (!agent) return;
 
-    // Redirigir a la página de chat dedicada
-    router.push(`/chat/${agentId}`);
-  }, [nodes, router]);
+    // Diferenciar entre Simple AI/Human (frontend-only) y Create PAIA Agent (backend)
+    // Simple AI/Human: no tienen backendId y son para simulaciones
+    // Create PAIA Agent: tienen backendId e isConfigured
+    const isSimpleActor = (agent.data.actorType === 'ai' || agent.data.actorType === 'human') && !agent.data.backendId;
+
+    if (isSimpleActor) {
+      // Para Simple AI/Human, abrir ChatModal (simulación)
+      setActiveChatAgent(agentId);
+      setShowChat(true);
+
+      // Mensaje inicial explicativo para simulaciones
+      const welcomeMessage = {
+        sender: 'system',
+        content: agent.data.actorType === 'human'
+          ? `💬 Configure a test message for ${agent.data.label}. This message will be used when you run the simulation.`
+          : `💬 Test chat with ${agent.data.label}. Send messages to configure this AI for simulations.`,
+        timestamp: new Date().toLocaleTimeString()
+      };
+      setChatMessages([welcomeMessage]);
+      addLogMessage(`💬 Opened simulation chat with ${agent.data.label}`);
+    } else {
+      // Para Create PAIA Agent, redirigir a página de chat dedicada
+      // Guardar el flow antes de salir del simulator para no perderlo
+      if (nodes.length > 0 && userId && userId !== 'anonymous') {
+        await autoSaveFlow();
+      }
+      router.push(`/chat/${agentId}`);
+    }
+  }, [nodes, router, autoSaveFlow, userId, addLogMessage]);
 
   // Función para actualizar mensaje personalizado de nodos humanos
   const updateHumanMessage = useCallback((nodeId, newMessage) => {
@@ -776,37 +896,42 @@ export default function PAIASimulator({ initialFlow }) {
           {leftSidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
         </button>
 
-        <LeftSidebar
-          scenarioName={scenarioName}
-          setScenarioName={setScenarioName}
-          scenarioDesc={scenarioDesc}
-          setScenarioDesc={setScenarioDesc}
-          onPresetChange={loadPresetScenario}
-          onImport={importScenario}
-          onExport={exportScenario}
-          onRun={runFlow}
-          onStop={stopFlow}
-          onReset={resetSimulation}
-          isRunning={isRunning}
-          onShowGuide={() => setShowGuide(true)}
-          useBackend={useBackend}
-          setUseBackend={setUseBackend}
-          isBackendConnected={isConnected}
-          onCheckBackend={checkBackendConnection}
-          onAddConnectionNode={addConnectionNode}
-          onConnectUser={openSocialConnectionModal}
-          onSaveFlow={() => setShowSaveFlow(true)}
-          onShowFriends={() => setShowFriendsPanel(true)}
-          isOpen={leftSidebarOpen}
-        />
+        <div data-tutorial="left-sidebar">
+          <LeftSidebar
+            scenarioName={scenarioName}
+            setScenarioName={setScenarioName}
+            scenarioDesc={scenarioDesc}
+            setScenarioDesc={setScenarioDesc}
+            onPresetChange={loadPresetScenario}
+            onImport={importScenario}
+            onExport={exportScenario}
+            onRun={runFlow}
+            onStop={stopFlow}
+            onReset={resetSimulation}
+            isRunning={isRunning}
+            onShowGuide={() => setShowGuide(true)}
+            useBackend={useBackend}
+            setUseBackend={setUseBackend}
+            isBackendConnected={isConnected}
+            onCheckBackend={checkBackendConnection}
+            onAddConnectionNode={addConnectionNode}
+            onConnectUser={openSocialConnectionModal}
+            onSaveFlow={() => setShowSaveFlow(true)}
+            onShowFriends={() => setShowFriendsPanel(true)}
+            isOpen={leftSidebarOpen}
+          />
+        </div>
 
-        <div style={{
-          flex: 1,
-          marginLeft: leftSidebarOpen ? '280px' : '0',
-          marginRight: rightSidebarOpen ? '280px' : '0',
-          position: 'relative',
-          transition: 'margin 0.3s ease'
-        }}>
+        <div
+          data-tutorial="canvas-area"
+          style={{
+            flex: 1,
+            marginLeft: leftSidebarOpen ? '280px' : '0',
+            marginRight: rightSidebarOpen ? '280px' : '0',
+            position: 'relative',
+            transition: 'margin 0.3s ease'
+          }}
+        >
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -819,7 +944,9 @@ export default function PAIASimulator({ initialFlow }) {
             nodeTypes={nodeTypes}
             fitView
           >
-            <Controls />
+            <div data-tutorial="zoom-controls">
+              <Controls />
+            </div>
           </ReactFlow>
         </div>
 
@@ -849,25 +976,31 @@ export default function PAIASimulator({ initialFlow }) {
           {rightSidebarOpen ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
 
-        <RightSidebar
-          onAddActor={addActor}
-          onAddTelegram={addTelegramNode}
-          onAddCalendar={addCalendarNode}
-          onConnect={() => { }} // Connect functionality handled by ReactFlow
-          onCreateAgent={() => setShowCreateAgent(true)}
-          onChatWithAgent={startChat}
-          nodes={nodes}
-          publicAgents={publicAgents}
-          onLoadPublicAgents={loadPublicAgents}
-          onLoadMyAgents={loadMyAgents}
-          onAddPublicAgent={addPublicAgentToCanvas}
-          isBackendConnected={isConnected}
-          isOpen={rightSidebarOpen}
-        />
+        <div data-tutorial="right-sidebar">
+          <RightSidebar
+            onAddActor={addActor}
+            onAddTelegram={addTelegramNode}
+            onAddCalendar={addCalendarNode}
+            onConnect={() => { }} // Connect functionality handled by ReactFlow
+            onCreateAgent={() => setShowCreateAgent(true)}
+            onChatWithAgent={startChat}
+            nodes={nodes}
+            publicAgents={publicAgents}
+            onLoadPublicAgents={loadPublicAgents}
+            onLoadMyAgents={loadMyAgents}
+            onAddPublicAgent={addPublicAgentToCanvas}
+            isBackendConnected={isConnected}
+            isOpen={rightSidebarOpen}
+          />
+        </div>
 
-        <StatsPanel stats={stats} rightSidebarOpen={rightSidebarOpen} />
+        <div data-tutorial="stats-panel">
+          <StatsPanel stats={stats} rightSidebarOpen={rightSidebarOpen} />
+        </div>
 
-        <LogPanel messages={logMessages} leftSidebarOpen={leftSidebarOpen} rightSidebarOpen={rightSidebarOpen} />
+        <div data-tutorial="logs-panel">
+          <LogPanel messages={logMessages} leftSidebarOpen={leftSidebarOpen} rightSidebarOpen={rightSidebarOpen} />
+        </div>
 
         {showGuide && (
           <GuideModal onClose={() => setShowGuide(false)} />
@@ -889,7 +1022,16 @@ export default function PAIASimulator({ initialFlow }) {
           />
         )}
 
-        {/* ChatModal removido - ahora se usa /chat/[agentId] página dedicada */}
+        {/* ChatModal para Simple AI/Human (simulaciones) */}
+        <ChatModal
+          isOpen={showChat}
+          onClose={closeChat}
+          activeAgent={activeChatAgent}
+          nodes={nodes}
+          onSendMessage={sendChatMessage}
+          chatMessages={chatMessages}
+          isTyping={isTyping}
+        />
 
         {showConnectUserModal && (
           <ConnectUserModal
@@ -933,6 +1075,9 @@ export default function PAIASimulator({ initialFlow }) {
           messages={agentConversationMessages}
           isActive={isConversationActive}
         />
+
+        {/* Contextual Help - shows tooltips for skipped tutorial elements */}
+        <ContextualHelp />
       </div>
     </div>
   );

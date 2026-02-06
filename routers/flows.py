@@ -39,13 +39,27 @@ def create_flows_router(db_manager: Any) -> APIRouter:
     @router.put('/api/flows/{flow_id}')
     async def update_flow(flow_id: str, flow_data: dict) -> Dict[str, str]:
         try:
-            updates = {
-                'name': flow_data.get('name'),
-                'description': flow_data.get('description'),
-                'flow_data': json.dumps(flow_data.get('flow_data', {})),
-                'is_public': flow_data.get('is_public', False),
-                'metadata': json.dumps(flow_data.get('metadata', {}))
-            }
+            # Preparar datos para actualizar
+            flow_data_content = flow_data.get('flow_data')
+            metadata_content = flow_data.get('metadata')
+
+            updates = {}
+
+            # Solo incluir campos que no sean None
+            if flow_data.get('name') is not None:
+                updates['name'] = flow_data.get('name')
+            if flow_data.get('description') is not None:
+                updates['description'] = flow_data.get('description')
+            if flow_data_content is not None:
+                updates['flow_data'] = json.dumps(flow_data_content) if isinstance(flow_data_content, dict) else flow_data_content
+            if 'is_public' in flow_data:
+                updates['is_public'] = flow_data.get('is_public', False)
+            if metadata_content is not None:
+                updates['metadata'] = json.dumps(metadata_content) if isinstance(metadata_content, dict) else metadata_content
+
+            if not updates:
+                raise HTTPException(status_code=400, detail='No hay datos para actualizar')
+
             success = await db_manager.update_flow(flow_id, updates)
             if not success:
                 raise HTTPException(status_code=404, detail='Flujo no encontrado')

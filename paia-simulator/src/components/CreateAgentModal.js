@@ -342,21 +342,52 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
         </div>
         
         <div className="modal-body" style={{ padding: '4px 0' }}>
+          {/* Help Banner */}
+          <div style={{
+            marginBottom: '24px',
+            padding: '12px 16px',
+            background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
+            border: '1px solid rgba(102, 126, 234, 0.3)',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '12px'
+          }}>
+            <span style={{ fontSize: '24px', flexShrink: 0 }}>💡</span>
+            <div>
+              <div style={{
+                fontSize: '0.9em',
+                fontWeight: '600',
+                color: 'var(--text-primary)',
+                marginBottom: '4px'
+              }}>
+                Create Your AI Agent
+              </div>
+              <div style={{
+                fontSize: '0.8em',
+                color: 'var(--text-secondary)',
+                lineHeight: '1.5'
+              }}>
+                Fill in the details below to create your personalized AI agent. Give it a name, personality, and area of expertise. You can also configure WhatsApp integration for mobile interactions.
+              </div>
+            </div>
+          </div>
+
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ 
-              display: 'block', 
-              marginBottom: '8px', 
-              fontSize: '0.9em', 
+            <label style={{
+              display: 'block',
+              marginBottom: '8px',
+              fontSize: '0.9em',
               fontWeight: '500',
-              color: 'var(--text-primary)' 
+              color: 'var(--text-primary)'
             }}>
-              {t('createAgent.agentName')}
+              {t('createAgent.agentName')} <span style={{ color: '#EF4444' }}>*</span>
             </label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => handleChange('name', e.target.value)}
-              placeholder={t('createAgent.agentNamePlaceholder')}
+              placeholder={t('createAgent.agentNamePlaceholder') || 'e.g., Sales Assistant, Travel Planner'}
               style={{
                 width: '100%',
                 padding: '10px 12px',
@@ -367,6 +398,13 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
                 fontSize: '0.9em'
               }}
             />
+            <div style={{
+              fontSize: '0.75em',
+              color: 'var(--text-secondary)',
+              marginTop: '4px'
+            }}>
+              Choose a descriptive name for your agent (required)
+            </div>
           </div>
           
           <div style={{ marginBottom: '20px' }}>
@@ -382,7 +420,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
             <textarea
               value={formData.description}
               onChange={(e) => handleChange('description', e.target.value)}
-              placeholder={t('createAgent.descriptionPlaceholder')}
+              placeholder={t('createAgent.descriptionPlaceholder') || 'Describe what your agent does and how it can help...'}
               rows="3"
               style={{
                 width: '100%',
@@ -396,6 +434,13 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
                 minHeight: '80px'
               }}
             />
+            <div style={{
+              fontSize: '0.75em',
+              color: 'var(--text-secondary)',
+              marginTop: '4px'
+            }}>
+              Explain the agent's purpose and capabilities
+            </div>
           </div>
           
           <div style={{ marginBottom: '20px' }}>
@@ -434,6 +479,13 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
               <option value="Reflexivo" style={{ backgroundColor: "#1E2E57" }}>Reflective</option>
               <option value="Dinámico" style={{ backgroundColor: "#1E2E57" }}>Dynamic</option>
             </select>
+            <div style={{
+              fontSize: '0.75em',
+              color: 'var(--text-secondary)',
+              marginTop: '4px'
+            }}>
+              Choose the communication style and approach of your agent
+            </div>
           </div>
           
           <div style={{ marginBottom: '20px' }}>
@@ -468,6 +520,13 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
               <option value="finance" style={{ backgroundColor: "#1E2E57" }}>{t('createAgent.expertiseAreas.finance')}</option>
 
             </select>
+            <div style={{
+              fontSize: '0.75em',
+              color: 'var(--text-secondary)',
+              marginTop: '4px'
+            }}>
+              Select the domain or field where your agent specializes
+            </div>
           </div>
 
           <div style={{ marginBottom: '20px' }}>
@@ -498,7 +557,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
               marginTop: '4px',
               marginLeft: '24px'
             }}>
-              {t('createAgent.publicAgentDescription')}
+              {t('createAgent.publicAgentDescription') || 'Public agents can be discovered and used by other PAIA users'}
             </div>
           </div>
 
@@ -511,7 +570,7 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
             borderRadius: '8px'
           }}>
             <h4 style={{
-              margin: '0 0 16px 0',
+              margin: '0 0 8px 0',
               color: 'var(--text-primary)',
               fontSize: '0.95em',
               fontWeight: '600',
@@ -521,6 +580,14 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
             }}>
               📱 {t('createAgent.whatsappConfig') || 'WhatsApp Configuration (Optional)'}
             </h4>
+            <div style={{
+              fontSize: '0.75em',
+              color: 'var(--text-secondary)',
+              marginBottom: '12px',
+              lineHeight: '1.4'
+            }}>
+              Connect a WhatsApp number to enable mobile communication with your agent. Enter the number and send a starter template to validate it.
+            </div>
 
             {/* Phone Number Input - Split into Country Code + Local Number */}
             <div style={{ marginBottom: '12px' }}>

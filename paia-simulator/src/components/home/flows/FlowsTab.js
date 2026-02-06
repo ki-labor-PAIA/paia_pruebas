@@ -110,6 +110,7 @@ const FlowsTab = ({
           My Saved Flows
         </h2>
         <button
+          data-tutorial="btn-create-flow"
           onClick={handleCreateNew}
           style={{
             background: 'var(--primary-color)',

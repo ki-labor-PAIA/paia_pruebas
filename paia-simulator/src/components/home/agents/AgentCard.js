@@ -26,6 +26,7 @@ const AgentCard = ({ agent, onEdit, onDelete, onConfigure }) => {
 
   return (
     <div
+      data-tutorial="agent-card"
       style={{
         backgroundColor: 'var(--card-bg)',
         border: '1px solid var(--border-color)',
@@ -197,6 +198,7 @@ const AgentCard = ({ agent, onEdit, onDelete, onConfigure }) => {
         }}
       >
         <button
+          data-tutorial="agent-edit"
           onClick={() => onEdit && onEdit(agent)}
           style={{
             flex: 1,
@@ -221,6 +223,7 @@ const AgentCard = ({ agent, onEdit, onDelete, onConfigure }) => {
         </button>
 
         <button
+          data-tutorial="agent-chat"
           onClick={() => onConfigure && onConfigure(agent)}
           style={{
             flex: 1,
@@ -245,6 +248,7 @@ const AgentCard = ({ agent, onEdit, onDelete, onConfigure }) => {
         </button>
 
         <button
+          data-tutorial="agent-delete"
           onClick={() => onDelete && onDelete(agent)}
           style={{
             background: 'transparent',
