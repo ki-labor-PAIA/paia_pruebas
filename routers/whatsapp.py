@@ -12,7 +12,8 @@ def create_whatsapp_router(
     whatsapp_service: Optional[Any],
     db_manager: Any,
     memory_manager: Any,
-    ensure_agent_loaded_func: Any
+    ensure_agent_loaded_func: Any,
+    rag_service: Optional[Any] = None
 ) -> APIRouter:
     router = APIRouter()
 
@@ -101,7 +102,8 @@ def create_whatsapp_router(
                 return {"status": "ok"}
 
             customer_phone = message_data["customer_phone"]
-            message_text = message_data["message_text"]
+            message_text = message_data.get("message_text")
+            attachment = message_data.get("attachment")
 
             db_agent = await db_manager.get_agent_by_whatsapp_phone(customer_phone)
             if not db_agent:
@@ -110,6 +112,23 @@ def create_whatsapp_router(
             agent = await ensure_agent_loaded_func(db_agent.id, db_agent.user_id)
             if not agent:
                 return {"status": "error", "message": "Could not load agent"}
+
+            # RAG attachment handling (POC)
+            from tools.whatsapp_rag import is_rag_query, handle_whatsapp_rag, handle_whatsapp_attachment
+            if attachment and rag_service:
+                # Procesar en background para no bloquear webhook
+                try:
+                    import asyncio
+                    asyncio.create_task(handle_whatsapp_attachment(whatsapp_service, rag_service, db_agent, attachment))
+                    return {"status": "ok", "message": "Attachment processing started"}
+                except Exception as e:
+                    print(f"[WhatsApp Webhook] Error scheduling attachment processing: {e}")
+                    return {"status": "error", "message": "Could not schedule processing"}
+
+            # RAG query handling (POC): detect simple prefixes and route to RAG service
+            if is_rag_query(message_text) and rag_service:
+                await handle_whatsapp_rag(whatsapp_service, rag_service, db_agent, message_text)
+                return {"status": "ok", "message": "RAG query processed"}
 
             if agent.conversation_history is None:
                 agent.conversation_history = []
