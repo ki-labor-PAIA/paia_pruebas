@@ -19,6 +19,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
+          command_timeout: 30m
           script: |
             set -e  # Detener si hay algún error
             cd ~/paia_pruebas
@@ -34,7 +35,8 @@ jobs:
 
             # Build frontend
             cd paia-simulator
-            npm install
+            # Usar npm ci para builds más rápidos y determinísticos
+            npm ci --legacy-peer-deps || npm install
             rm -rf .next || true
             npm run build
             cd ..
