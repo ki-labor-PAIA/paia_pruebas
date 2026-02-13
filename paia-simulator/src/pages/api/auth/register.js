@@ -3,17 +3,21 @@ export default async function handler(req, res) {
     return res.status(405).json({ message: 'Method not allowed' })
   }
 
-  const { email, password } = req.body
+  const { email, password, name } = req.body
 
   if (!email || !password) {
     return res.status(400).json({ message: 'Email y contraseña son requeridos' })
+  }
+
+  if (!name || !name.trim()) {
+    return res.status(400).json({ message: 'El nombre es requerido' })
   }
 
   try {
     const response = await fetch(`${process.env.BACKEND_URL || 'http://localhost:8000'}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, password, name: name.trim() })
     })
 
     const data = await response.json()

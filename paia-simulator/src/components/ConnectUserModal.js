@@ -335,10 +335,14 @@ export default function ConnectUserModal({
             {!loading && !friends.length && <div style={{padding: '20px 0', textAlign: 'center'}}>You don't have friends to connect. Add friends from the left panel.</div>}
             {friends.map(friendConnection => {
               const friend = friendConnection.requester.id === currentUserId ? friendConnection.recipient : friendConnection.requester;
+              console.log('Friend data:', friend, 'Full connection:', friendConnection);
               return (
-                <div key={friend.id} onClick={() => handleSelectFriend(friendConnection)} style={{ display: 'flex', alignItems: 'center', padding: '12px', cursor: 'pointer', borderRadius: '8px', marginBottom: '8px', background: '#444' }}>
-                  <img src={friend.image || 'https://www.gravatar.com/avatar/?d=mp'} alt={friend.name} style={{ width: '40px', height: '40px', borderRadius: '50%', marginRight: '12px' }}/>
-                  <div>{friend.name}</div>
+                <div key={friend?.id || Math.random()} onClick={() => handleSelectFriend(friendConnection)} style={{ display: 'flex', alignItems: 'center', padding: '12px', cursor: 'pointer', borderRadius: '8px', marginBottom: '8px', background: '#444' }}>
+                  <img src={friend?.image || 'https://www.gravatar.com/avatar/?d=mp'} alt={friend?.name || 'Usuario'} style={{ width: '40px', height: '40px', borderRadius: '50%', marginRight: '12px' }}/>
+                  <div>
+                    <div style={{ fontWeight: 'bold' }}>{friend?.name || 'Usuario sin nombre'}</div>
+                    <div style={{ fontSize: '12px', color: '#aaa' }}>{friend?.email || 'Sin email'}</div>
+                  </div>
                 </div>
               );
             })}

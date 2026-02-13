@@ -210,4 +210,41 @@ def create_users_router(
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
+    @router.patch("/api/users/{user_id}")
+    async def update_user_profile(user_id: str, update_data: dict) -> Dict[str, Any]:
+        """
+        Update user profile information.
+
+        Args:
+            user_id: ID of the user to update
+            update_data: Dictionary with fields to update (e.g., name, image)
+
+        Returns:
+            Success status and message
+
+        Raises:
+            HTTPException: If update fails
+        """
+        try:
+            # Only allow updating certain fields
+            allowed_fields = ['name', 'image']
+            updates = {k: v for k, v in update_data.items() if k in allowed_fields}
+
+            if not updates:
+                raise HTTPException(status_code=400, detail="No valid fields to update")
+
+            success = await auth_manager.update_user(user_id, updates)
+
+            if not success:
+                raise HTTPException(status_code=404, detail="User not found")
+
+            return {
+                "success": True,
+                "message": "Profile updated successfully"
+            }
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
     return router

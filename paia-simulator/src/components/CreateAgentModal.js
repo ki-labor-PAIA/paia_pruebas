@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 // Lista de códigos de país para WhatsApp
@@ -50,6 +50,18 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
     sending_template: false,
     template_error: ''
   });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitTimeoutRef = useRef(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (submitTimeoutRef.current) {
+        clearTimeout(submitTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Pre-fill form when in edit mode
   useEffect(() => {
@@ -178,6 +190,11 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
   };
 
   const handleSubmit = () => {
+    // Prevenir múltiples envíos (debounce)
+    if (isSubmitting) {
+      return;
+    }
+
     if (!formData.name.trim()) {
       alert(t('createAgent.nameRequired') || 'Agent name is required');
       return;
@@ -194,36 +211,48 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
       }
     }
 
-    // Combine country code + local number into whatsapp_phone_number
-    // ONLY if template was sent successfully
-    const submissionData = {
-      ...formData,
-      whatsapp_phone_number: whatsappState.template_sent ? getFullWhatsAppNumber() : ''
-    };
-    // Remove temporary fields
-    delete submissionData.whatsapp_country_code;
-    delete submissionData.whatsapp_local_number;
+    // Marcar como enviando
+    setIsSubmitting(true);
 
-    if (editMode && onUpdateAgent && agentToEdit) {
-      // Update existing agent
-      onUpdateAgent(agentToEdit.id, submissionData);
-    } else if (onCreateAgent) {
-      // Create new agent
-      onCreateAgent(submissionData);
+    // Debounce de 600ms para prevenir clics múltiples
+    if (submitTimeoutRef.current) {
+      clearTimeout(submitTimeoutRef.current);
     }
 
-    // Reset form
-    setFormData({
-      name: '',
-      description: '',
-      personality: 'Analítico',
-      expertise: 'general',
-      is_public: false,
-      customColor: '',
-      whatsapp_country_code: '52',
-      whatsapp_local_number: ''
-    });
-    onClose();
+    submitTimeoutRef.current = setTimeout(() => {
+      // Combine country code + local number into whatsapp_phone_number
+      // ONLY if template was sent successfully
+      const submissionData = {
+        ...formData,
+        whatsapp_phone_number: whatsappState.template_sent ? getFullWhatsAppNumber() : ''
+      };
+      // Remove temporary fields
+      delete submissionData.whatsapp_country_code;
+      delete submissionData.whatsapp_local_number;
+
+      if (editMode && onUpdateAgent && agentToEdit) {
+        // Update existing agent
+        onUpdateAgent(agentToEdit.id, submissionData);
+      } else if (onCreateAgent) {
+        // Create new agent
+        onCreateAgent(submissionData);
+      }
+
+      // Reset form
+      setFormData({
+        name: '',
+        description: '',
+        personality: 'Analítico',
+        expertise: 'general',
+        is_public: false,
+        customColor: '',
+        whatsapp_country_code: '52',
+        whatsapp_local_number: ''
+      });
+
+      setIsSubmitting(false);
+      onClose();
+    }, 600);
   };
 
   const handleCancel = () => {
@@ -724,11 +753,22 @@ export default function CreateAgentModal({ isOpen, onClose, onCreateAgent, onUpd
         </div>
 
         <div className="modal-footer">
-          <button onClick={handleCancel} className="btn btn-secondary">
+          <button onClick={handleCancel} className="btn btn-secondary" disabled={isSubmitting}>
             {t('createAgent.cancel')}
           </button>
-          <button onClick={handleSubmit} className="btn btn-primary">
-            {editMode ? 'Update Agent' : (t('createAgent.create') || 'Create Agent')}
+          <button
+            onClick={handleSubmit}
+            className="btn btn-primary"
+            disabled={isSubmitting}
+            style={{
+              opacity: isSubmitting ? 0.6 : 1,
+              cursor: isSubmitting ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {isSubmitting
+              ? (editMode ? 'Updating...' : 'Creating...')
+              : (editMode ? 'Update Agent' : (t('createAgent.create') || 'Create Agent'))
+            }
           </button>
         </div>
       </div>

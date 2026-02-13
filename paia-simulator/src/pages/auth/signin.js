@@ -6,6 +6,7 @@ import Head from 'next/head'
 export default function SignIn() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [name, setName] = useState('')
   const [isLogin, setIsLogin] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -35,7 +36,7 @@ export default function SignIn() {
         const response = await fetch('/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
+          body: JSON.stringify({ email, password, name })
         })
 
         const data = await response.json()
@@ -139,6 +140,34 @@ export default function SignIn() {
           )}
 
           <form onSubmit={handleCredentialsSubmit}>
+            {!isLogin && (
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.9rem', fontWeight: '500' }}>
+                  Name *
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  placeholder="Your full name"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '1px solid rgba(214, 107, 255, 0.3)',
+                    borderRadius: '8px',
+                    fontSize: '1rem',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    color: '#fff',
+                    outline: 'none',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = 'rgba(214, 107, 255, 0.8)'}
+                  onBlur={(e) => e.target.style.borderColor = 'rgba(214, 107, 255, 0.3)'}
+                />
+              </div>
+            )}
+
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'block', marginBottom: '0.5rem', color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.9rem', fontWeight: '500' }}>
                 Email

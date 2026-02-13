@@ -45,6 +45,12 @@ export default function ActorNode({ data, isConnectable }) {
           type="target"
           position={Position.Top}
           isConnectable={isConnectable}
+          style={{
+            background: '#EC4899',
+            width: '10px',
+            height: '10px',
+            border: '2px solid white'
+          }}
         />
         <input
           type="text"
@@ -67,6 +73,12 @@ export default function ActorNode({ data, isConnectable }) {
           type="source"
           position={Position.Bottom}
           isConnectable={isConnectable}
+          style={{
+            background: '#10B981',
+            width: '10px',
+            height: '10px',
+            border: '2px solid white'
+          }}
         />
       </div>
     );
@@ -95,7 +107,13 @@ export default function ActorNode({ data, isConnectable }) {
         position={Position.Top}
         isConnectable={isConnectable}
         data-tutorial="node-handle"
-        style={{ background: 'var(--text-secondary)', width: '8px', height: '8px' }}
+        style={{
+          background: '#EC4899',
+          width: '10px',
+          height: '10px',
+          border: '2px solid white',
+          boxShadow: '0 0 0 2px rgba(236, 72, 153, 0.3)'
+        }}
       />
 
       <div style={{ marginBottom: '8px', opacity: 0.9 }}>
@@ -191,12 +209,13 @@ export default function ActorNode({ data, isConnectable }) {
         id="actor-output"
         isConnectable={isConnectable}
         style={{
-          background: 'var(--text-secondary)',
+          background: '#10B981',
           bottom: -8,
           borderRadius: '50%',
-          border: '2px solid var(--dark-bg)',
-          width: '8px',
-          height: '8px'
+          border: '2px solid white',
+          width: '10px',
+          height: '10px',
+          boxShadow: '0 0 0 2px rgba(16, 185, 129, 0.3)'
         }}
       />
     </div>

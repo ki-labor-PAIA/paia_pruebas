@@ -35,7 +35,7 @@ export default NextAuth({
             return {
               id: user.id,
               email: user.email,
-              name: user.name || user.email,
+              name: user.name || null,
             }
           }
           return null
@@ -76,18 +76,30 @@ export default NextAuth({
       return true
     },
     
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger, session }) {
       if (user) {
         // Para usuarios de Google, usar el dbId del callback signIn
         // Para otros usuarios, usar el id original
         token.userId = user.dbId || user.id
+        token.name = user.name
+        token.email = user.email
       }
+
+      // Handle session updates (when update() is called from client)
+      if (trigger === 'update' && session) {
+        if (session.name !== undefined) {
+          token.name = session.name
+        }
+      }
+
       return token
     },
-    
+
     async session({ session, token }) {
       // Usar el userId del token que contiene el ID correcto de la DB
       session.user.id = token.userId || token.sub
+      session.user.name = token.name
+      session.user.email = token.email
       return session
     }
   },

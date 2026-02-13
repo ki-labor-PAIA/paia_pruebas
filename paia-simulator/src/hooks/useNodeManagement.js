@@ -50,8 +50,23 @@ const useNodeManagement = ({
   }, [reactFlowInstance]);
 
   const addActor = useCallback(async (type, name = null, x = null, y = null) => {
+    // Calculate the next number for this type based on existing nodes
+    const existingNodes = nodes.filter(n =>
+      n.data?.actorType === type &&
+      n.data?.label?.match(new RegExp(`^${type === 'human' ? 'Humano' : 'IA'} \\d+$`))
+    );
+
+    const existingNumbers = existingNodes.map(n => {
+      const match = n.data.label.match(/\d+$/);
+      return match ? parseInt(match[0]) : 0;
+    });
+
+    const nextNumber = existingNumbers.length > 0
+      ? Math.max(...existingNumbers) + 1
+      : 1;
+
     const id = `actor-${actorIdRef.current}`;
-    const actorName = name || `${type === 'human' ? 'Humano' : 'IA'} ${actorIdRef.current}`;
+    const actorName = name || `${type === 'human' ? 'Humano' : 'IA'} ${nextNumber}`;
 
     const agentColor = type === 'ai' ? getAgentColor(null) : undefined;
 
@@ -88,7 +103,7 @@ const useNodeManagement = ({
 
     // Simple actors (AI/Human) are frontend-only for simulations
     // Use "Create PAIA Agent" for backend agents with chat functionality
-  }, [setNodes, getViewportCenterPosition]);
+  }, [nodes, setNodes, getViewportCenterPosition]);
 
   const createConfiguredAgent = useCallback(async (agentConfig) => {
     const id = `agent-${actorIdRef.current}`;

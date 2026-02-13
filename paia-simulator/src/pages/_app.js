@@ -1,11 +1,32 @@
 // paia-simulator/src/pages/_app.js
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import '@/styles/globals.css';
 import '@/lib/i18n';
 import { useRouter } from 'next/router';
 import { SessionProvider, useSession } from 'next-auth/react';
 import SpotlightTour from '@/components/tutorial/SpotlightTour';
 import tutorialSteps from '@/components/tutorial/steps';
+import CompleteProfileModal from '@/components/CompleteProfileModal';
+
+function CompleteProfileCheck() {
+  const { data: session, status } = useSession();
+  const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    // Check if user is authenticated and doesn't have a name
+    if (status === 'authenticated' && session?.user) {
+      const hasName = session.user.name && session.user.name.trim();
+      setShowModal(!hasName);
+    }
+  }, [status, session]);
+
+  return (
+    <CompleteProfileModal
+      isOpen={showModal}
+      onClose={() => setShowModal(false)}
+    />
+  );
+}
 
 function TutorialWithSession() {
   const { data: session, status } = useSession();
@@ -32,6 +53,7 @@ export default function App({ Component, pageProps: { session, ...pageProps } })
   return (
     <SessionProvider session={session}>
       <Component {...pageProps} />
+      <CompleteProfileCheck />
       <TutorialWithSession />
     </SessionProvider>
   );
