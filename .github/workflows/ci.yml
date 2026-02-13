@@ -22,6 +22,10 @@ jobs:
           script: |
             set -e  # Detener si hay algún error
             cd ~/paia_pruebas
+
+            # Arreglar permisos de git si es necesario (prevenir errores de permisos)
+            sudo chown -R paia:paia .git || true
+
             git pull origin main
 
             # Instalar dependencias Python

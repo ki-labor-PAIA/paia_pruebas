@@ -43,6 +43,20 @@ export default function TutorialManager({ forceStart = false, onComplete, onTuto
     } catch (error) {
       console.error('Error loading tutorial progress:', error);
     }
+
+    // Listen for restart tutorial event
+    const handleRestartTutorial = () => {
+      console.log('🔄 Restarting tutorial without page reload');
+      setHasCompletedLibrary(false);
+      setHasCompletedCanvas(false);
+      setIsActive(true);
+    };
+
+    window.addEventListener('restartTutorial', handleRestartTutorial);
+
+    return () => {
+      window.removeEventListener('restartTutorial', handleRestartTutorial);
+    };
   }, []);
 
   // Auto-start tutorial for first-time users
@@ -176,8 +190,8 @@ export const restartTutorial = () => {
 
     console.log('✅ Tutorial and contextual help data reset');
 
-    // Reload page to restart tutorial
-    window.location.reload();
+    // Dispatch event to restart tutorial without page reload
+    window.dispatchEvent(new CustomEvent('restartTutorial'));
 
     return true;
   } catch (error) {
